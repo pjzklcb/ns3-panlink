@@ -14,6 +14,7 @@ set(source_files
 )
 
 set(header_files
+    env/panlink-obs-act.h
     model/panlink-sta-wifi-mac.h
 )
 
@@ -29,4 +30,11 @@ build_lib(
     ${libinternet}
     ${libvr-app}
     ${libwifi}
+)
+
+pybind11_add_module(panlink_py_interface env/panlink_py_interface.cc)
+set_target_properties(panlink_py_interface PROPERTIES
+        LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/env)
+target_link_libraries(panlink_py_interface PRIVATE
+        ${libpanlink}
 )

@@ -16,11 +16,10 @@
  *
  */
 
-#include "panlink-obs-act.h"
-
 #include "tgax-residential-propagation-loss-model.h"
 
 #include "ns3/ai-module.h"
+#include "ns3/panlink-module.h"
 #include "ns3/ampdu-subframe-header.h"
 #include "ns3/ap-wifi-mac.h"
 #include "ns3/application-container.h"

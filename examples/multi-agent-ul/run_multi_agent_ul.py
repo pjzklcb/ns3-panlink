@@ -8,13 +8,15 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-import panlink_py_interface as py_binding
 from ns3ai_utils import Experiment
 import sys
 import traceback
 import os 
 ns3_path  = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../..'))
 print(ns3_path)
+
+sys.path.append(ns3_path + '/contrib/panlink/env')
+import panlink_py_interface as py_binding
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 is_ipython = 'inline' in matplotlib.get_backend()
