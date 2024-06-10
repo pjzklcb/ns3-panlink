@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024
+ * Copyright (c) 2022
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -14,39 +14,26 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * Authors: Pan Jinzhe <pjzklcb@gmail.com>
  */
 
-#ifndef PANLINK_STA_WIFI_MAC_H
-#define PANLINK_STA_WIFI_MAC_H
+#ifndef NS3_MULTI_BSS_H
+#define NS3_MULTI_BSS_H
 
-#include "ns3/sta-wifi-mac.h"
+#include <array>
+#include <cstdint>
 
-
-namespace ns3
+struct Env
 {
-
-/**
- * \ingroup panlink
- */
-class PanlinkStaWifiMac : public StaWifiMac
-{
-  public:
-    /**
-     * \brief Get the type ID.
-     * \return the object TypeId
-     */
-    static TypeId GetTypeId();
-
-    PanlinkStaWifiMac();
-    ~PanlinkStaWifiMac() override;
-
-  protected:
-
-  private:
-
+    uint32_t txNode;
+    std::array<double, 5> rxPower;
+    uint32_t mcs;
+    double holDelay;
+    double throughput;
 };
 
-} // namespace ns3
+struct Act
+{
+    double newCcaSensitivity;
+};
 
-#endif /* PANLINK_STA_WIFI_MAC_H */
+#endif // NS3_MULTI_BSS_H
