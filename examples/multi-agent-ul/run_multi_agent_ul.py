@@ -11,16 +11,13 @@ import torch.optim as optim
 import traceback
 
 import os 
+import sys
 ns3_path  = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../..'))
 panlink_path = os.path.abspath(ns3_path + '/contrib/panlink')
-
-import sys
 sys.path.append(panlink_path + '/env')
+sys.path.append(panlink_path + '/agent')
 import panlink_py_interface as py_binding
-
-sys.path.append(ns3_path + '/agent')
 from channel_access_rl_agent import ChannelAccessRlAgent
-
 from ns3ai_utils import Experiment
 
 
