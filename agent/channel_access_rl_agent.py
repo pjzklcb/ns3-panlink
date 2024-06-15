@@ -1,13 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import torch
 from models.dqn import DQN
 
 class ChannelAccessRlAgent:
-    def __init__(self, n_total, n_ap, n_sta):
-        self.state_size = 8
-        self.action_size = 2
-        self.rl_aglo = DQN(self.state_size, self.action_size)
+    def __init__(self, state_size, action_size, n_total, n_ap, n_sta, show_log=False):
+        self.state_size = state_size
+        self.action_size = action_size
+        self.rl_aglo = DQN(state_size, action_size)
         self.obs = None
         self.action = None
         self.action_log = []
@@ -16,8 +15,10 @@ class ChannelAccessRlAgent:
         self.n_total = n_total
         self.n_ap = n_ap
         self.n_sta = n_sta
-        self.self.state = np.zeros((n_sta+1, n_total+1))
+        self.state = np.zeros((n_sta+1, n_total+1))
+        self.prev_state = None
         self.steps_done = 0
+        self.show_log = show_log
     
     def get_obs(self, msg_interface):
         throughput = 0
@@ -25,29 +26,31 @@ class ChannelAccessRlAgent:
             txNode = msg_interface.GetCpp2PyVector()[i].txNode
             # print("processing i {} txNode {}".format(i, txNode))
             for j in range(self.n_sta+1):
-                self.self.state[j, txNode] = msg_interface.GetCpp2PyVector()[i].rxPower[j]
+                self.state[j, txNode] = msg_interface.GetCpp2PyVector()[i].rxPower[j]
             # self.state[:, txNode] = msg_interface.GetCpp2PyVector()[i].rxPower
             if txNode % self.n_ap == 0:  # record mcs in BSS-0
-                self.self.state[int(txNode/self.n_ap)][-1] = msg_interface.GetCpp2PyVector()[i].mcs
+                self.state[int(txNode/self.n_ap)][-1] = msg_interface.GetCpp2PyVector()[i].mcs
             if txNode == self.n_ap:     # record delay and tpt of the VR node
                 vrDelay = msg_interface.GetCpp2PyVector()[i].holDelay
                 vrThroughput = msg_interface.GetCpp2PyVector()[i].throughput
             # Sum all nodes' throughput
             throughput += msg_interface.GetCpp2PyVector()[i].throughput
         
-        print("step = {}, VR avg delay = {} ms, VR UL tpt = {} Mbps, total UL tpt = {} Mbps".format(
-            self.steps_done, vrDelay, vrThroughput, throughput))
+        if self.show_log:
+            print("step = {}, VR avg delay = {} ms, VR UL tpt = {} Mbps, total UL tpt = {} Mbps".format(
+                self.steps_done, vrDelay, vrThroughput, throughput))
         
         return [vrDelay, vrThroughput, throughput]
     
     def set_action(self, msg_interface):
         msg_interface.GetPy2CppVector()[0].newCcaSensitivity = -82 + self.action
-        self.steps_done += 1
+        if self.show_log:
+            print("new CCA: {}".format(-82 + self.action))
 
     def choose_action(self, obs):
+        # RL algorithm here, select action
         throughput, vrDelay, vrThroughput = obs
         
-        # RL algorithm here, select action
         alpha = 1
         beta = 5
         vr_constrant = 5
@@ -58,17 +61,18 @@ class ChannelAccessRlAgent:
         if self.steps_done:
             reward = alpha * throughput + beta * (vr_constrant - vrDelay) + eta * (vrThroughput - vrtpt_cons)
             self.reward_log.append(reward)
-            self.rl_aglo.store_transition(prev_state, action, reward, cur_state)
-            prev_state = cur_state
+            self.rl_aglo.store_transition(self.prev_state, self.action, reward, cur_state)
+            
+        self.action = self.rl_aglo.choose_action(cur_state)
+        self.action_log.append(self.action)
         
-        action = self.rl_aglo.choose_action(cur_state)
+        self.prev_state = cur_state
+        self.steps_done += 1
 
-        self.learn()
-
-        return action
+        return self.action
     
     def learn(self):
         self.rl_aglo.learn()
 
-    def plot_result(self):
+    def plot_results(self):
         pass

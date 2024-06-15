@@ -75,21 +75,20 @@ class DQN:
         self.memory.push(state, action, reward, next_state)
 
     def learn(self):
-        if self.memory.size() < BATCH_SIZE:
+        if len(self.memory) < BATCH_SIZE:
             return
 
         minibatch = self.memory.sample(BATCH_SIZE)
-        s, a, r, s_, done = zip(*minibatch)
+        s, a, r, s_ = zip(*minibatch)
 
         s = torch.FloatTensor(s)
         a = torch.LongTensor(a).unsqueeze(1)
         r = torch.FloatTensor(r).unsqueeze(1)
         s_ = torch.FloatTensor(s_)
-        done = torch.FloatTensor(done).unsqueeze(1)
 
         q_values = self.eval_net(s).gather(1, a)
         next_q_values = self.target_net(s_).max(1, True)[0].detach()
-        target_q_values = r + GAMMA * next_q_values * (1 - done)
+        target_q_values = r + GAMMA * next_q_values
 
         loss = nn.MSELoss()(q_values, target_q_values)
 
