@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022
+ * Copyright (c) 2024
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -14,6 +14,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
+ * Author: PAN Jinzhe <panjinzhe@gmail.com>
  */
 
 #include "tgax-residential-propagation-loss-model.h"
@@ -96,7 +97,7 @@
 
 using namespace ns3;
 
-NS_LOG_COMPONENT_DEFINE("multi-bss");
+NS_LOG_COMPONENT_DEFINE("MultiAgentUL");
 Ptr<UniformRandomVariable> randomX = CreateObject<UniformRandomVariable>();
 Ptr<UniformRandomVariable> randomY = CreateObject<UniformRandomVariable>();
 
@@ -803,13 +804,6 @@ PrintPythonPlotCSV(std::string filename)
         // maxDistance = (max_loss - 40.05 - 20 * std::log10(5e9 / 2.4e9)) / (5 - 4 *
         // std::log10(5));
     }
-    // double maxDistance_log = std::pow(10, max_loss / (10 * 3));
-
-    // max_loss = txPower - ccaSensitivity;
-    // // double maxDistance2 = std::pow(10, (max_loss - 40.05 - 20 * std::log10(5e9 / 2.4e9)) /
-    // // 20);
-    // double maxDistance2 =
-    //     (max_loss - 40.05 - 20 * std::log10(5e9 / 2.4e9)) / (5 - 4 * std::log10(5));
 
     for (uint32_t i = 0; i < apNodes.GetN(); i++)
     {
@@ -830,16 +824,6 @@ PrintPythonPlotCSV(std::string filename)
             std::vector<std::string> configValues = csv_split(configString, ',');
             double m_ccaSensitivity = std::stoi(configValues[1]);
             double m_txPower = std::stoi(configValues[2]);
-            //            double m_chWidth = std::stoi(configValues[3]);
-            //            double m_chNumber = std::stoi(configValues[4]);
-
-            // size_t pos = configString.find(',');
-            // configString = configString.substr(pos + 1);
-            // size_t pos2 = configString.find(',');
-            //            std::cout << "CCaSensitivity: " << m_ccaSensitivity << std::endl;
-            // double m_ccaSensitivity = std::stoi(configString.substr(0, pos2));
-            //            std::cout << "apTxPower: " << m_txPower << std::endl;
-            // double m_txPower = std::stoi(configString.substr(pos2 + 1));
             // Formula to draw radius of circle
             double max_loss = -(m_ccaSensitivity - m_txPower); // TODO: fix to specific tx power
             // double maxDistance = std::pow(10, (max_loss - 40.05 - 20 * std::log10(5e9
@@ -867,23 +851,11 @@ PrintPythonPlotCSV(std::string filename)
             std::vector<std::string> configValues = csv_split(configString, ',');
             double m_ccaSensitivity = std::stoi(configValues[1]);
             double m_txPower = std::stoi(configValues[2]);
-            //            double m_chWidth = std::stoi(configValues[3]);
-            //            double m_chNumber = std::stoi(configValues[4]);
 
-            // size_t pos = configString.find(',');
-            // configString = configString.substr(pos + 1);
-            // size_t pos2 = configString.find(',');
             std::cout << "CCaSensitivity: " << m_ccaSensitivity << std::endl;
             // double m_ccaSensitivity = std::stoi(configString.substr(0, pos2));
             std::cout << "apTxPower: " << m_txPower << std::endl;
 
-            // size_t pos = configString.find(',');
-            // configString = configString.substr(pos + 1);
-            // size_t pos2 = configString.find(',');
-            // std::cout << "CCaSensitivity: " << configString.substr(0, pos2) << std::endl;
-            // double m_ccaSensitivity = std::stoi(configString.substr(0, pos2));
-            // std::cout << "apTxPower: " << configString.substr(pos2 + 1) << std::endl;
-            // double m_txPower = std::stoi(configString.substr(pos2 + 1));
             // Formula to draw radius of circle
             double max_loss = -(m_ccaSensitivity - m_txPower); // TODO: fix to specific tx power
             maxDistance =
@@ -1399,46 +1371,6 @@ BurstRx(Ptr<const Packet> burst,
                 << " (burst->GetSize ()=" << burst->GetSize() << ") bytes from "
                 << AddressToString(from) << " to " << AddressToString(to) << " at "
                 << header.GetTs().As(Time::S));
-    // std::cout << "APPRX" << std::endl;
-    // appTxrec++;
-    // appTxrec++;
-    // std::cout << "APRX" << std::endl;
-
-    // Ptr<const Packet> p = burst;
-
-    // auto mapIt = m_inFlightPacketMap.find(p->GetUid());
-    // if (mapIt == m_inFlightPacketMap.end())
-    // {
-    //     std::cout << "No packet with UID " << p->GetUid() << " is currently in queue" <<
-    //     std::endl; return;
-    // }
-    // // mapIt->second.;
-    // auto listIt = std::find_if(mapIt->second.begin(),
-    //                            mapIt->second.end(),
-    //                            [&p](const InFlightPacketInfo& info) {
-    //                                return info.m_ptrToPacket->GetUid() == p->GetUid();
-    //                            });
-
-    // if (listIt == mapIt->second.end())
-    // {
-    //     std::cout << "Forwarding up a packet that has not been enqueued?" << std::endl;
-    //     return;
-    // }
-    // InFlightPacketInfo info;
-    // info.m_srcAddress = listIt->m_srcAddress;
-    // info.m_dstAddress = listIt->m_dstAddress;
-    // info.m_ptrToPacket = listIt->m_ptrToPacket;
-    // info.m_edcaEnqueueTime = listIt->m_edcaEnqueueTime;
-    // info.appTypeTxTime = listIt->appTypeTxTime;
-    // info.m_phyTxTime = listIt->m_phyTxTime;
-    // info.m_L2RxTime = listIt->m_L2RxTime;
-    // info.appTypeRxTime = Simulator::Now();
-
-    // // appTxrec++;
-    // // std::cout << "APRX" << std::endl;
-
-    // mapIt->second.erase(listIt);
-    // mapIt->second.insert(mapIt->second.end(), info);
 }
 
 // Works by reading the full string into a file to later be parsed in main
@@ -2159,23 +2091,6 @@ main(int argc, char* argv[])
 
             std::string chStr = "{" + configValues[4] + "," + configValues[3] + ", BAND_5GHZ, 0}";
             phy.Set("ChannelSettings", StringValue(chStr));
-
-            // phy.Set("ChannelWidth", UintegerValue(m_chWidth));
-            //  phy.Set("ChannelNumber", UintegerValue(m_chNumber));
-            //  phy.Set("Frequency", UintegerValue(frequency));
-            // size_t pos = configString.find(',');
-            // configString = configString.substr(pos + 1);
-            // size_t pos2 = configString.find(',');
-            // std::cout << "CCaSensitivity: " << configString.substr(0, pos2) << std::endl;
-            // double m_ccaSensitivity = std::stoi(configString.substr(0, pos2));
-            // std::cout << "apTxPower: " << configString.substr(pos2 + 1) << std::endl;
-            // double m_txPower = std::stoi(configString.substr(pos2 + 1));
-            // phy.Set("CcaSensitivity", DoubleValue(m_ccaSensitivity));
-            // phy.SetPreambleDetectionModel("ns3::ThresholdPreambleDetectionModel",
-            //                               "MinimumRssi",
-            //                               DoubleValue(m_ccaSensitivity));
-            // phy.Set("TxPowerStart", DoubleValue(m_txPower));
-            // phy.Set("TxPowerEnd", DoubleValue(m_txPower));
         }
         // i % apNodeCount makes it so you can give each sta of the appropiate AP the correct
         // SSID
@@ -2192,14 +2107,7 @@ main(int argc, char* argv[])
         devices.Add(tmp.Get(0));
         staDevices.Add(tmp.Get(0));
         wifiNodes.Add(staNodes.Get(i));
-        // // TODO this is only according to what Hao wants to measure, this could change
-        // if (i % apNodeCount == 0)
-        // {
-        //     // Trace PHY Rx start events
-        //     Config::Connect(
-        //         "/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/$ns3::WifiPhy/PhyRxBegin",
-        //         MakeCallback(&PhyRxTrace));
-        // }
+
         std::cout << "STA: " << i << std::endl;
         std::cout << "STA MAC: " << tmp.Get(0)->GetAddress() << "," << ssi << std::endl;
     }
@@ -2809,79 +2717,6 @@ main(int argc, char* argv[])
 
     std::ostream& os = std::cout;
 
-    // for (auto it : nodeBackoff)
-    // {
-    //     double backoff = 0;
-    //     int count = 0;
-    //     for (auto value : it.second)
-    //     {
-    //         backoff += value;
-    //         count++;
-    //     }
-    //     os << "Node" << it.first << "AVG Backoff: " << backoff / count << std::endl;
-    // }
-
-    // for (auto it : nodeCw)
-    // {
-    //     double cwT = 0;
-    //     int count = 0;
-    //     for (auto value : it.second)
-    //     {
-    //         cwT += value;
-    //         count++;
-    //     }
-    //     os << "Node" << it.first << "AVG ContentionWindow: " << cwT / count << std::endl;
-    // }
-    // double cwT = 0;
-    // for (auto it : nodeCw)
-    // {
-    //     cwT += it;
-    // }
-    // os << "Node9 CW: " << cwT << std::endl;
-    // os << "Node9 Backoff: " << backoff << std::endl;
-
-    // backoff = 0;
-    // for (auto it : nodeBackoff[5])
-    // {
-    //     backoff += it;
-    // }
-    // cwT = 0;
-    // for (auto it : nodeBackoff[5])
-    // {
-    //     cwT += it;
-    // }
-    // os << "Node5 CW: " << cwT << std::endl;
-    // os << "Node5 Backoff: " << backoff << std::endl;
-
-    // for (auto& nodeEntry : nodePacketTxTime)
-    // {
-    //     uint32_t nodeID = nodeEntry.first;
-    //     std::map<uint64_t, std::vector<Time>>& eventMap = nodeEntry.second;
-
-    //     for (auto& eventEntry : eventMap)
-    //     {
-    //         uint64_t eventID = eventEntry.first;
-    //         std::vector<Time>& eventTimes = eventEntry.second;
-    //         std::vector<Time>& eventEndTimes = nodePacketTxEndTime[nodeID][eventID];
-    //         if ((eventTimes.size() != eventEndTimes.size()))
-    //         {
-    //             std::cout << "diff amount of times " << eventTimes.size() << " and "
-    //                       << eventEndTimes.size() << std::endl;
-    //             nodePacketTxEndTime[nodeID]->erase(eventID);
-    //             continue;
-    //         }
-    //         // for (size_t i = 0; i < eventTimes.size(); i++)
-    //         // {
-    //         //     std::cout << "Packet: " << eventID << " Start: " <<
-    //         eventTimes[i].GetSeconds()
-    //         //               << std::endl;
-    //         //     std::cout << "Packet: " << eventID << " end: " <<
-    //         eventEndTimes[i].GetSeconds()
-    //         //               << std::endl;
-    //         // }
-    //     }
-    // }
-
     std::cout << "\n" << std::endl;
     if (calculateStats)
     {
@@ -2956,39 +2791,13 @@ main(int argc, char* argv[])
                           << other2.phyDropTime.GetSeconds() << "\n"
                           << std::endl;
             }
-            // std::cout << "Node " << other.nodeID << " Tx the packet " << other.packet
-            //           << " and it overlapped " << other.sync << " with packet " << other.ifPacket
-            //           << " from Node " << other.ifNodeID
-            //           << "\n but the first packet did not get dropped "
-            //           << ".It was succesfully received at T= " << other.phyDropTime.GetSeconds()
-            //           << "\n"
-            //           << std::endl;
             sucessfullSimulTx++;
         }
-
-        // int totalTx = 0;
-        // for (auto nodePacketTime : nodePacketTxTime)
-        // {
-        //     for (auto nodePacket : nodePacketTime.second)
-        //     {
-        //         totalTx += nodePacket.second.size();
-        //     }
-        // }
-
-        // for (auto packet : packetOverlapSuccessList)
-        // {
-        //     sucessfullSimulTx++;
-        // }
 
         for (auto fails : typeFailCount)
         {
             std::cout << "Failure Reason " << fails.first << " count " << fails.second << std::endl;
         }
-        //        int failedSimulTx = 0;
-        //        for (auto fails : typeOverlapCount)
-        //        {
-        //            failedSimulTx += fails.second;
-        //        }
 
         for (auto fails : typeOverlapCount)
         {
@@ -3015,59 +2824,12 @@ main(int argc, char* argv[])
                          (totalDropsByOverlap + sucessfullSimulTx)
                   << "%" << std::endl;
 
-        // std::cout << "Succesfull \nIntraBss Collisions: "
-        //           << (intraBssCollissionsSuccess * 100) / (totalDropsByOverlap +
-        //           sucessfullSimulTx)
-        //           << "\nInterBss Collisions: "
-        //           << (interBssCollissionsSuccess * 100) / (totalDropsByOverlap +
-        //           sucessfullSimulTx)
-        //           << std::endl;
-        // std::cout << "Succesfull \nIntraBss Collisions: "
-        //           << (intraBssCollissionsSuccess * 100) / (totalDropsByOverlap +
-        //           sucessfullSimulTx)
-        //           << "\nInterBss Collisions: "
-        //           << (interBssCollissionsSuccess * 100) / (totalDropsByOverlap +
-        //           sucessfullSimulTx)
-        //           << std::endl;
         std::cout << "Failures \nIntraBss Collisions: " << intraBssCollissionsFails
                   << "\nInterBss Collisions: " << interBssCollissionsFails << std::endl;
     }
     std::cout << "\n" << std::endl;
     double throughput = 0;
     double rPackets = 0;
-
-    // for (auto nodePacketTime : nodePacketTxTime)
-    // {
-    //     for (auto packetTime : nodePacketTime.second)
-    //     {
-    //         double startT = 0;
-    //         double endT = 0;
-
-    //         for (auto t : packetTime.second)
-    //         {
-    //             if (startT == 0)
-    //             {
-    //                 startT = t.GetSeconds();
-    //             }
-    //             else
-    //             {
-    //                 endT = t.GetSeconds();
-    //             }
-    //             // std::cout << "packet " << packetTime.first << " times: " << t <<
-    //             std::endl; if (endT != 0)
-    //             {
-    //                 std::cout << "Node " << nodePacketTime.first << " packet " <<
-    //                 packetTime.first
-    //                           << " start: " << startT << " end: " << endT << std::endl;
-    //             }
-    //         }
-
-    //         if (endT == 0)
-    //         {
-    //             nodePacketTime.second.erase(packetTime.first);
-    //         }
-    //     }
-    // }
 
     for (auto it = timeFirstReceived.begin(); it != timeFirstReceived.end(); it++)
     {
