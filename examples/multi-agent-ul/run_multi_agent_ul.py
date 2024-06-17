@@ -71,11 +71,10 @@ if __name__ == '__main__':
             if msg_interface.PyGetFinished():
                 print("Finished")
                 break
-            obs = agent.get_obs(msg_interface)
+            obs = agent.choose_action(msg_interface)
             msg_interface.PyRecvEnd()
 
-            # RL algorithm here, select action
-            agent.choose_action(obs)
+            # RL algorithm learn here
             agent.learn()
 
             # put the action back to C++

@@ -32,24 +32,9 @@ PYBIND11_MAKE_OPAQUE(ns3::Ns3AiMsgInterfaceImpl<Env, Act>::Py2CppMsgVector);
 
 PYBIND11_MODULE(panlink_py_interface, m)
 {
-    py::class_<std::array<double, 5>>(m, "RxPowerArray")
-        .def(py::init<>())
-        .def("size", &std::array<double, 5>::size)
-        .def("__len__", [](const std::array<double, 5>& arr) { return arr.size(); })
-        .def("__getitem__", [](const std::array<double, 5>& arr, uint32_t i) {
-            if (i >= arr.size())
-            {
-                std::cerr << "Invalid index " << i << " for std::array, whose size is "
-                          << arr.size() << std::endl;
-                exit(1);
-            }
-            return arr.at(i);
-        });
-
     py::class_<Env>(m, "PyEnvStruct")
         .def(py::init<>())
         .def_readwrite("txNode", &Env::txNode)
-        .def_readwrite("rxPower", &Env::rxPower)
         .def_readwrite("mcs", &Env::mcs)
         .def_readwrite("holDelay", &Env::holDelay)
         .def_readwrite("throughput", &Env::throughput);

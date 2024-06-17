@@ -928,18 +928,6 @@ MeasureIntervalThroughputHolDelay()
         }
         std::cout << "CPP send: txnode " << txNodeId << " tpt " << env_struct.throughput
                   << std::endl;
-        for (auto rxNodePower : nodeRxPower[txNodeId])
-        {
-            NS_ASSERT(rxNodePower.first % N_BSS == 0); // only record rx node in first BSS
-            if (rxNodePower.first == txNodeId)
-            {
-                env_struct.rxPower[rxNodePower.first / N_BSS] = 0;
-            }
-            else
-            {
-                env_struct.rxPower[rxNodePower.first / N_BSS] = rxNodePower.second;
-            }
-        }
     }
     msgInterface->CppSendEnd();
 

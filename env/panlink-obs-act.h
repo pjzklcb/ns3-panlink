@@ -25,7 +25,6 @@
 struct Env
 {
     uint32_t txNode;
-    std::array<double, 5> rxPower;
     uint32_t mcs;
     double holDelay;
     double throughput;
