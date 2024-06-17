@@ -17,8 +17,6 @@
  * Author: PAN Jinzhe <panjinzhe@gmail.com>
  */
 
-#include "tgax-residential-propagation-loss-model.h"
-
 #include "ns3/ai-module.h"
 #include "ns3/panlink-module.h"
 #include "ns3/ampdu-subframe-header.h"
@@ -721,45 +719,6 @@ ContextToMac(std::string context)
 
 std::map<uint32_t, std::map<uint32_t, double>> nodeRxPower;
 
-void
-GetRxPower(Ptr<TgaxResidentialPropagationLossModel> tgaxPropModel)
-{
-    for (uint32_t i = 0; i < wifiNodes.GetN(); i++)
-    {
-        Ptr<NetDevice> dev = wifiNodes.Get(i)->GetDevice(0);
-        Ptr<WifiNetDevice> wifi_dev = DynamicCast<WifiNetDevice>(dev);
-        Ptr<Object> object = wifiNodes.Get(i);
-        Ptr<MobilityModel> model1 = object->GetObject<MobilityModel>();
-        Ptr<WifiPhy> wifi_phy = wifi_dev->GetPhy();
-
-        for (uint32_t x = 0; x < wifiNodes.GetN(); x++)
-        {
-            // Skip same nodes
-            if (i == x)
-            {
-                continue;
-            }
-
-            Ptr<NetDevice> dev2 = wifiNodes.Get(x)->GetDevice(0);
-            Ptr<WifiNetDevice> wifi_dev2 = DynamicCast<WifiNetDevice>(dev2);
-            Ssid ssid2 = wifi_dev2->GetMac()->GetSsid();
-            // Receiver must be node in BSS-0
-            if (!ssid2.IsEqual(Ssid("BSS-0")))
-            {
-                continue;
-            }
-            Ptr<Object> object2 = wifiNodes.Get(x);
-            Ptr<MobilityModel> model2 = object2->GetObject<MobilityModel>();
-            double rxPower = 0;
-            for (int j = 0; j < 100; j++)
-            {
-                rxPower += tgaxPropModel->GetRxPower(wifi_phy->GetTxPowerStart(), model1, model2);
-            }
-            nodeRxPower[wifiNodes.Get(i)->GetId()][wifiNodes.Get(x)->GetId()] = (rxPower / 100);
-        }
-    }
-}
-
 /**
  * Print the buildings list in a format that can be used by Gnuplot to draw them.
  *
@@ -903,10 +862,6 @@ MeasureIntervalThroughputHolDelay()
         std::get<2>(nodeDelays[srcNodeId]) = sum3 / (it.second.size() / 4); // Avg Access Delay
         std::get<3>(nodeDelays[srcNodeId]) = sum4 / (it.second.size() / 4); // Avg Tx Delay
     }
-
-    Ptr<TgaxResidentialPropagationLossModel> propModel =
-        CreateObject<TgaxResidentialPropagationLossModel>();
-    GetRxPower(propModel);
 
     msgInterface->CppSendBegin();
     for (size_t i = 0; i < wifiNodes.GetN(); i++)
@@ -1887,14 +1842,6 @@ main(int argc, char* argv[])
                                            "ReferenceLoss",
                                            DoubleValue(49.013));
         }
-        else if (propagationModel == "tgax")
-        {
-            wifiChannel.AddPropagationLoss("ns3::TgaxResidentialPropagationLossModel",
-                                           "Frequency",
-                                           DoubleValue(6e9),
-                                           "ShadowSigma",
-                                           DoubleValue(5.0));
-        }
         else if (propagationModel == "fixed")
         {
             wifiChannel.AddPropagationLoss("ns3::FixedRssLossModel", "Rss", DoubleValue(-71));
@@ -1913,14 +1860,6 @@ main(int argc, char* argv[])
                                            "ReferenceLoss",
                                            DoubleValue(50));
         }
-        else if (propagationModel == "tgax")
-        {
-            wifiChannel.AddPropagationLoss("ns3::TgaxResidentialPropagationLossModel",
-                                           "Frequency",
-                                           DoubleValue(5e9),
-                                           "ShadowSigma",
-                                           DoubleValue(5.0));
-        }
         else if (propagationModel == "fixed")
         {
             wifiChannel.AddPropagationLoss("ns3::FixedRssLossModel", "Rss", DoubleValue(-71));
@@ -1938,14 +1877,6 @@ main(int argc, char* argv[])
                                            DoubleValue(1.0),
                                            "ReferenceLoss",
                                            DoubleValue(40.046));
-        }
-        else if (propagationModel == "tgax")
-        {
-            wifiChannel.AddPropagationLoss("ns3::TgaxResidentialPropagationLossModel",
-                                           "Frequency",
-                                           DoubleValue(2.4e9),
-                                           "ShadowSigma",
-                                           DoubleValue(5.0));
         }
         else if (propagationModel == "fixed")
         {
@@ -2007,28 +1938,6 @@ main(int argc, char* argv[])
             phy.Set("TxPowerEnd", DoubleValue(m_txPower));
             std::string chStr = "{" + configValues[4] + "," + configValues[3] + ", BAND_5GHZ, 0}";
             phy.Set("ChannelSettings", StringValue(chStr));
-            // phy.Set("ChannelWidth", UintegerValue(m_chWidth));
-            // phy.Set("ChannelNumber", UintegerValue(m_chNumber));
-            // phy.Set("Frequency", UintegerValue(frequency));
-            // for(auto it :configValues ){
-            //     std::cout << "AP Values " << it << std::endl;
-            // }
-
-            // double m_ccaSensitivity = std::stoi(configValues[0]);
-
-            // size_t pos = configString.find(',');
-            // configString = configString.substr(pos + 1);
-            // size_t pos2 = configString.find(',');
-            // std::cout << "CCaSensitivity: " << configString.substr(0, pos2) << std::endl;
-            // double m_ccaSensitivity = std::stoi(configString.substr(0, pos2));
-            // std::cout << "apTxPower: " << configString.substr(pos2 + 1) << std::endl;
-            // double m_txPower = std::stoi(configString.substr(pos2 + 1));
-            // phy.Set("CcaSensitivity", DoubleValue(m_ccaSensitivity));
-            // phy.SetPreambleDetectionModel("ns3::ThresholdPreambleDetectionModel",
-            //                               "MinimumRssi",
-            //                               DoubleValue(m_ccaSensitivity));
-            // phy.Set("TxPowerStart", DoubleValue(m_txPower));
-            // phy.Set("TxPowerEnd", DoubleValue(m_txPower));
         }
         std::string ssi = "BSS-" + std::to_string(i);
         Ssid ssid = Ssid(ssi);
@@ -2237,11 +2146,6 @@ main(int argc, char* argv[])
             Vector l1(x, y, 1.5);
             positionAlloc->Add(l1);
             std::cout << "AP" << i << " " << x << "," << y << std::endl;
-            // boxOutput << "AP," << x << "," << y << std::endl;
-            // Vector l2(5.0, 5.0, 1.5);
-            // std::cout << "Points intersect how many walls? " <<
-            // building->WallInLOS(l1, l2)
-            //           << std::endl;}
         }
     }
     std::vector<Vector> ringPos;
@@ -2332,11 +2236,6 @@ main(int argc, char* argv[])
         Simulator::Schedule(Seconds(11), &MeasureIntervalThroughputHolDelay);
     }
 
-    // Vector l1(7.1, 5.5, 1);
-    // Vector l2(25.0, 5.5, 1);
-    // // building->WallInLOS(l1, l2);
-    // std::cout << "Points intersect how many walls? " <<
-    // building->WallInLOS(l1, l2) << std::endl;
     if (appType == "constant")
     {
         PacketSocketHelper packetSocket;

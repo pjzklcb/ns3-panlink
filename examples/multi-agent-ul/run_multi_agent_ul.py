@@ -43,7 +43,7 @@ if __name__ == '__main__':
         'networkSize': 4,
         'ring': 0,
         'maxMpdus': 5,
-        'prop': 'tgax',
+        'prop': 'log',
         'app': 'setup-done',
         'pktInterval': 5000,
         'boxsize': 25,

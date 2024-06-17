@@ -3,7 +3,6 @@ build_lib_example(
         NAME ns3channel_access
         SOURCE_FILES
             multi-agent-ul.cc
-            tgax-residential-propagation-loss-model.cc
         LIBRARIES_TO_LINK
             ${libai}
             ${libcore}
