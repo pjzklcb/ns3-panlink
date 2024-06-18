@@ -1063,65 +1063,8 @@ PhyDrop(std::string context, Ptr<const Packet> p, WifiPhyRxfailureReason reas)
     nodeFailureCount[ContextToNodeId(context)][p->GetUid()].push_back(
         std::make_pair(reas, Simulator::Now()));
     drops++;
-    // if (hdr.HasData()) // ignore non-data frames
-    // {
-    //     if (packet->GetSize() >= pktSize)
-    //     {
-
-    // if (p->GetSize() >= pktSize)
-    // {
-    // std::cout << "PHYDROPP " << reas << " at " << Simulator::Now().GetSeconds() << " Packet "
-    //           << p->GetUid() << std::endl;
     typeFailCount[reas] += 1;
-
-    //     }
-    // }
-
-    // if (packet->GetSize() >= pktSize) // ignore non-data frames
-    // {
-    //     drops++;
-    //     // std::cout << "PHYDROP" << std::endl;
-    // }
-    // if (reas == WifiPhyRxfailureReason(RXING))
-    // {
-
-    // }
-    // nodeFailureCount[ContextToNodeId(context)][reas] += 1;
-
-    // std::cout << "PHYDROP Reason: " << reas << std::endl;
 }
-
-// /**
-//  * \ingroup wifi
-//  * Enumeration of the possible reception failure reasons.
-//  */
-// enum WifiPhyRxfailureReason
-// {
-//     UNKNOWN = 0,
-//     UNSUPPORTED_SETTINGS,
-//     CHANNEL_SWITCHING,
-//     RXING,
-//     TXING,
-//     SLEEPING,
-//     POWERED_OFF,
-//     TRUNCATED_TX,
-//     BUSY_DECODING_PREAMBLE,
-//     PREAMBLE_DETECT_FAILURE,
-//     RECEPTION_ABORTED_BY_TX,
-//     L_SIG_FAILURE,
-//     HT_SIG_FAILURE,
-//     SIG_A_FAILURE,
-//     SIG_B_FAILURE,
-//     U_SIG_FAILURE,
-//     EHT_SIG_FAILURE,
-//     PREAMBLE_DETECTION_PACKET_SWITCH,
-//     FRAME_CAPTURE_PACKET_SWITCH,
-//     OBSS_PD_CCA_RESET,
-//     HE_TB_PPDU_TOO_LATE,
-//     FILTERED,
-//     DMG_HEADER_FAILURE,
-//     DMG_ALLOCATION_ENDED
-// };
 
 std::map<uint32_t, std::map<uint64_t, Time>> nodeSuccessCount;
 
