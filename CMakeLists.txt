@@ -12,12 +12,14 @@ include_directories(${pybind11_INCLUDE_DIRS})
 set(source_files
     env/panlink-env-monitor.cc
     model/panlink-sta-wifi-mac.cc
+    model/panlink-utils.cc
 )
 
 set(header_files
     env/panlink-obs-act.h
     env/panlink-env-monitor.h
     model/panlink-sta-wifi-mac.h
+    model/panlink-utils.h
 )
 
 build_lib(

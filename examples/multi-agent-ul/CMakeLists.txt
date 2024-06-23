@@ -1,6 +1,6 @@
 
 build_lib_example(
-        NAME ns3channel_access
+        NAME ns3multi_agent_ul
         SOURCE_FILES
             multi-agent-ul.cc
         LIBRARIES_TO_LINK

@@ -58,7 +58,7 @@ if __name__ == '__main__':
     n_actions = -62 - (-82) + 1
     n_obs = (n_sta + 1) * (n_total + 1)
 
-    exp = Experiment("ns3channel_access", ns3_path, py_binding,
+    exp = Experiment("ns3multi_agent_ul", ns3_path, py_binding,
                     handleFinish=True, useVector=True, vectorSize=n_total)
     msg_interface = exp.run(setting=ns3Settings, show_output=True)
 
