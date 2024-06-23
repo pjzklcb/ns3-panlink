@@ -375,28 +375,8 @@ main(int argc, char* argv[])
     Simulator::Stop(simulationTime + Seconds(1.0));
     Simulator::Run();
 
-    // When multiple stations are used, there are chances that association requests
-    // collide and hence the throughput may be lower than expected. Therefore, we relax
-    // the check that the throughput cannot decrease by introducing a scaling factor (or
-    // tolerance)
-    auto tolerance = 0.10;
-    auto rxBytes = 0.0;
-    if (udp)
-    {
-        for (uint32_t i = 0; i < serverApp.GetN(); i++)
-        {
-            rxBytes += payloadSize * DynamicCast<UdpServer>(serverApp.Get(i))->GetReceived();
-        }
-    }
-    else
-    {
-        for (uint32_t i = 0; i < serverApp.GetN(); i++)
-        {
-            rxBytes += DynamicCast<PacketSink>(serverApp.Get(i))->GetTotalRx();
-        }
-    }
-    auto throughput = (rxBytes * 8) / simulationTime.GetMicroSeconds(); // Mbit/s
-
+    // Statistic process
+    
     Simulator::Destroy();
 
     return 0;

@@ -1,0 +1,10 @@
+{
+    "application": [
+        {
+            "type": "poisson",
+            "payload_interval": 100000,
+            "payload_size": 1000,
+            "fragment_size": 1000
+        }
+    ]
+}

@@ -35,7 +35,7 @@ struct InFlightPacketInfo
     Mac48Address m_srcAddress;
     Mac48Address m_dstAddress;
     AcIndex m_ac;
-    Ptr<const Packet> m_ptrToPacket;
+    uint32_t m_packetSize;
     Time m_edcaEnqueueTime{Seconds(0)}; // time the packet was enqueued into an EDCA queue
     Time m_edcaDequeueTime{Seconds(0)}; // time the packet was dequeued from EDCA queue
     Time appTypeTxTime{Seconds(0)};     // time the packet was created by app (E2E)
@@ -50,18 +50,9 @@ struct InFlightPacketInfo
 /**
  * \ingroup panlink
  */
-class PanlinkEnvMonitor
+class PanlinkEnvMonitor : public Singleton<PanlinkEnvMonitor>
 {
   public:
-    PanlinkEnvMonitor();
-    ~PanlinkEnvMonitor() override;
-
-    uint32_t MacAddressToNodeId(Mac48Address address);
-
-    uint32_t ContextToNodeId(std::string context);
-
-    Mac48Address ContextToMac(std::string context);
-
     void NotifyEdcaEnqueue(Ptr<const WifiMpdu> item);
 
     void NotifyAppTx(Ptr<const Packet> packet, const Address& address);
@@ -106,7 +97,8 @@ class PanlinkEnvMonitor
   protected:
 
   private:
-    std::unordered_map<uint64_t /* UID */, std::list<InFlightPacketInfo>> m_inFlightPacketMap;
+    std::map<uint64_t /* UID */, std::list<InFlightPacketInfo>> m_packetMap;
+    std::map<uint32_t /* SeqN*/, std::vector<uint64_t /* UID */>> m_burstMap;
 };
 
 } // namespace ns3

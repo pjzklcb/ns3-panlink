@@ -1,0 +1,41 @@
+{
+    "bss": [
+        {
+            "bss_idx": 0,
+            "ssid": "panlink",
+            "bss_ip": "192.168.0.0",
+            "nodes": [
+                {
+                    "node_idx": 0,
+                    "node_type": "PO",
+                    "position": {
+                        "x": 30.0,
+                        "y": 30.0,
+                        "z": 1.5
+                    },
+                    "channel": 42,
+                    "bandwidth": 80,
+                    "applications": [],
+                    "agents": []
+                },
+                {
+                    "node_idx": 1,
+                    "node_type": "PC",
+                    "position": {
+                        "x": 30.0,
+                        "y": 35.0,
+                        "z": 1.5
+                    },
+                    "channel": 42,
+                    "bandwidth": 80,
+                    "applications": [{
+                        "type": "poisson",
+                        "dst": 0,
+                        "port": 50001
+                    }],
+                    "agents": ["channel_access"]
+                }
+            ]
+        }
+    ]
+}

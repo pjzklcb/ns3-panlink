@@ -19,551 +19,476 @@
 
 #include "panlink-env-monitor.h"
 
+#include "ns3/panlink-utils.h"
+#include "ns3/ipv4-address.h"
+
 namespace ns3
 {
 
 NS_LOG_COMPONENT_DEFINE("PanlinkEnvMonitor");
 
-NS_OBJECT_ENSURE_REGISTERED(PanlinkEnvMonitor);
+// void
+// PanlinkEnvMonitor::NotifyEdcaEnqueue(Ptr<const WifiMpdu> item)
+// {
+//     if (!item->GetHeader().IsQosData())
+//     {
+//         return;
+//     }
+//     // init a map entry if the packet's UID is not present
+//     auto mapIt =
+//         m_inFlightPacketMap.insert({item->GetPacket()->GetUid(), std::list<InFlightPacketInfo>()})
+//             .first;
 
-PanlinkEnvMonitor::PanlinkEnvMonitor()
-{
-    NS_LOG_FUNCTION(this);
-}
+//     InFlightPacketInfo info;
+//     info.m_srcAddress = item->GetHeader().GetAddr2();
+//     info.m_dstAddress = item->GetHeader().GetAddr1();
+//     info.m_ptrToPacket = item->GetPacket();
+//     info.m_edcaEnqueueTime = Simulator::Now();
 
-PanlinkEnvMonitor::~PanlinkEnvMonitor()
-{
-    NS_LOG_FUNCTION(this);
-}
+//     mapIt->second.insert(mapIt->second.end(), info);
+// }
 
-uint32_t
-PanlinkEnvMonitor::MacAddressToNodeId(Mac48Address address)
-{
-    for (uint32_t i = 0; i < apDevices.GetN(); i++)
-    {
-        if (apDevices.Get(i)->GetAddress() == address)
-        {
-            return apNodes.Get(i)->GetId();
-        }
-    }
+// void
+// PanlinkEnvMonitor::NotifyAppTx(Ptr<const Packet> packet, const Address& address)
+// {
+//     Ptr<const Packet> p = packet;
 
-    auto it = m_staMacAddressToNodeId.find(address);
-    if (it != m_staMacAddressToNodeId.end())
-    {
-        return it->second;
-    }
+//     auto mapIt = m_inFlightPacketMap.find(p->GetUid());
+//     if (mapIt == m_inFlightPacketMap.end())
+//     {
+//         return;
+//     }
 
-    NS_ABORT_MSG("Found no node having MAC address " << address);
-}
+//     auto listIt =
+//         std::find_if(mapIt->second.begin(),
+//                      mapIt->second.end(),
+//                      [&p](const InFlightPacketInfo& info) { return info.m_ptrToPacket == p; });
 
-/**
- * Parse context strings of the form "/NodeList/x/DeviceList/x/..." to extract the NodeId
- * integer
- *
- * \param context The context to parse.
- * \return the NodeId
- */
-uint32_t
-PanlinkEnvMonitor::ContextToNodeId(std::string context)
-{
-    std::string sub = context.substr(10);
-    uint32_t pos = sub.find("/Device");
-    return std::stoi(sub.substr(0, pos));
-}
+//     if (listIt == mapIt->second.end())
+//     {
+//         return;
+//     }
 
-/**
- * Parse context strings of the form "/NodeList/x/DeviceList/x/..." and fetch the Mac address
- *
- * \param context The context to parse.
- * \return the device MAC address
- */
-Mac48Address
-PanlinkEnvMonitor::ContextToMac(std::string context)
-{
-    std::string sub = context.substr(10);
-    uint32_t pos = sub.find("/Device");
-    uint32_t nodeId = std::stoi(sub.substr(0, pos));
-    Ptr<Node> n = NodeList::GetNode(nodeId);
-    Ptr<WifiNetDevice> d;
-    for (uint32_t i = 0; i < n->GetNDevices(); i++)
-    {
-        d = n->GetDevice(i)->GetObject<WifiNetDevice>();
-        if (d)
-        {
-            break;
-        }
-    }
-    return Mac48Address::ConvertFrom(d->GetAddress());
-}
+//     InFlightPacketInfo info;
+//     info.m_srcAddress = listIt->m_srcAddress;
+//     info.m_dstAddress = listIt->m_dstAddress;
+//     info.m_ptrToPacket = packet;
+//     info.m_edcaEnqueueTime = listIt->m_edcaEnqueueTime;
+//     info.m_edcaDequeueTime = listIt->m_edcaDequeueTime;
+//     info.appTypeTxTime = Simulator::Now();
 
-void
-PanlinkEnvMonitor::NotifyEdcaEnqueue(Ptr<const WifiMpdu> item)
-{
-    if (!item->GetHeader().IsQosData())
-    {
-        return;
-    }
-    // std::cout << "Enqueue UID " << item->GetPacket()->GetUid() << "  " << Simulator::Now()
-    //           << std::endl;
-    // init a map entry if the packet's UID is not present
-    auto mapIt =
-        m_inFlightPacketMap.insert({item->GetPacket()->GetUid(), std::list<InFlightPacketInfo>()})
-            .first;
+//     mapIt->second.erase(listIt);
+//     mapIt->second.insert(mapIt->second.end(), info);
+// }
 
-    InFlightPacketInfo info;
-    info.m_srcAddress = item->GetHeader().GetAddr2();
-    info.m_dstAddress = item->GetHeader().GetAddr1();
-    info.m_ptrToPacket = item->GetPacket();
-    info.m_edcaEnqueueTime = Simulator::Now();
+// void
+// PanlinkEnvMonitor::NotifyPhyTxBegin(std::string context, Ptr<const Packet> p, double txPowerW)
+// {
+//     totalTx += 1;
+//     nodePacketTxTime[ContextToNodeId(context)][p->GetUid()].push_back(Simulator::Now());
 
-    mapIt->second.insert(mapIt->second.end(), info);
-}
+//     auto mapIt = m_inFlightPacketMap.find(p->GetUid());
+//     if (mapIt == m_inFlightPacketMap.end())
+//     {
+//         return;
+//     }
 
-void
-PanlinkEnvMonitor::NotifyAppTx(Ptr<const Packet> packet, const Address& address)
-{
-    // std::cout << "App Tx UID " << packet->GetUid() << std::endl;
-    Ptr<const Packet> p = packet;
+//     auto listIt = std::find_if(mapIt->second.begin(),
+//                                mapIt->second.end(),
+//                                [&p](const InFlightPacketInfo& info) {
+//                                    return info.m_ptrToPacket->GetUid() == p->GetUid();
+//                                });
 
-    auto mapIt = m_inFlightPacketMap.find(p->GetUid());
-    if (mapIt == m_inFlightPacketMap.end())
-    {
-        // std::cout << "No packet with UID " << p->GetUid() << " is currently in queue" <<
-        // std::endl;
-        return;
-    }
+//     if (listIt == mapIt->second.end())
+//     {
+//         // std::cout << "Forwarding up a packet that has not been enqueued?" << std::endl;
+//         return;
+//     }
 
-    auto listIt =
-        std::find_if(mapIt->second.begin(),
-                     mapIt->second.end(),
-                     [&p](const InFlightPacketInfo& info) { return info.m_ptrToPacket == p; });
+//     InFlightPacketInfo info;
+//     info.m_srcAddress = listIt->m_srcAddress;
+//     info.m_dstAddress = listIt->m_dstAddress;
+//     info.m_ptrToPacket = listIt->m_ptrToPacket;
+//     info.m_edcaEnqueueTime = listIt->m_edcaEnqueueTime;
+//     info.appTypeTxTime = listIt->appTypeTxTime;
+//     info.m_phyTxTime = Simulator::Now();
 
-    if (listIt == mapIt->second.end())
-    {
-        // std::cout << "Forwarding up a packet that has not been enqueued?" << std::endl;
-        return;
-    }
+//     mapIt->second.erase(listIt);
+//     mapIt->second.insert(mapIt->second.end(), info);
+// }
 
-    InFlightPacketInfo info;
-    info.m_srcAddress = listIt->m_srcAddress;
-    info.m_dstAddress = listIt->m_dstAddress;
-    info.m_ptrToPacket = packet;
-    info.m_edcaEnqueueTime = listIt->m_edcaEnqueueTime;
-    info.m_edcaDequeueTime = listIt->m_edcaDequeueTime;
-    info.appTypeTxTime = Simulator::Now();
+// void
+// PanlinkEnvMonitor::PhyTxDoneTrace(std::string context, Ptr<const Packet> p)
+// {
+//     nodePacketTxEndTime[ContextToNodeId(context)][p->GetUid()].push_back(Simulator::Now());
+// }
 
-    mapIt->second.erase(listIt);
-    mapIt->second.insert(mapIt->second.end(), info);
-}
+// /**
+//  * PHY TX drop trace.
+//  *
+//  * \param context The context.
+//  * \param p The packet.
+//  */
+// void
+// PanlinkEnvMonitor::PhyTxDropTrace(std::string context, Ptr<const Packet> p)
+// {
+//     nodePacketTxEndTime[ContextToNodeId(context)][p->GetUid()].push_back(Simulator::Now());
+// }
 
-void
-PanlinkEnvMonitor::NotifyPhyTxBegin(std::string context, Ptr<const Packet> p, double txPowerW)
-{
-    totalTx += 1;
-    nodePacketTxTime[ContextToNodeId(context)][p->GetUid()].push_back(Simulator::Now());
+// void
+// PanlinkEnvMonitor::NotifyMacForwardUp(Ptr<const Packet> p)
+// {
+//     // std::cout << "MacForwardUp UID " << p->GetUid() << std::endl;
+//     // Ptr<const Packet> p = packet;
 
-    auto mapIt = m_inFlightPacketMap.find(p->GetUid());
-    if (mapIt == m_inFlightPacketMap.end())
-    {
-        return;
-    }
+//     auto mapIt = m_inFlightPacketMap.find(p->GetUid());
+//     if (mapIt == m_inFlightPacketMap.end())
+//     {
+//         // std::cout << "No packet with UID " << p->GetUid() << " is currently in queue" <<
+//         // std::endl;
+//         return;
+//     }
 
-    auto listIt = std::find_if(mapIt->second.begin(),
-                               mapIt->second.end(),
-                               [&p](const InFlightPacketInfo& info) {
-                                   return info.m_ptrToPacket->GetUid() == p->GetUid();
-                               });
+//     auto listIt = std::find_if(mapIt->second.begin(),
+//                                mapIt->second.end(),
+//                                [&p](const InFlightPacketInfo& info) {
+//                                    return info.m_ptrToPacket->GetUid() == p->GetUid();
+//                                });
 
-    if (listIt == mapIt->second.end())
-    {
-        // std::cout << "Forwarding up a packet that has not been enqueued?" << std::endl;
-        return;
-    }
+//     if (listIt == mapIt->second.end())
+//     {
+//         std::cout << "Forwarding up a packet that has not been enqueued?" << std::endl;
+//         return;
+//     }
+//     if (listIt->m_dstAddress.IsGroup())
+//     {
+//         return;
+//     }
 
-    InFlightPacketInfo info;
-    info.m_srcAddress = listIt->m_srcAddress;
-    info.m_dstAddress = listIt->m_dstAddress;
-    info.m_ptrToPacket = listIt->m_ptrToPacket;
-    info.m_edcaEnqueueTime = listIt->m_edcaEnqueueTime;
-    info.appTypeTxTime = listIt->appTypeTxTime;
-    info.m_phyTxTime = Simulator::Now();
+//     InFlightPacketInfo info;
+//     info.m_srcAddress = listIt->m_srcAddress;
+//     info.m_dstAddress = listIt->m_dstAddress;
+//     info.m_ptrToPacket = listIt->m_ptrToPacket;
+//     info.m_edcaEnqueueTime = listIt->m_edcaEnqueueTime;
+//     info.appTypeTxTime = listIt->appTypeTxTime;
+//     info.m_phyTxTime = listIt->m_phyTxTime;
+//     // info.appTypeRxTime = Simulator::Now();
+//     info.m_L2RxTime = Simulator::Now();
 
-    mapIt->second.erase(listIt);
-    mapIt->second.insert(mapIt->second.end(), info);
-}
+//     mapIt->second.erase(listIt);
+//     mapIt->second.insert(mapIt->second.end(), info);
+// }
 
-void
-PanlinkEnvMonitor::PhyTxDoneTrace(std::string context, Ptr<const Packet> p)
-{
-    nodePacketTxEndTime[ContextToNodeId(context)][p->GetUid()].push_back(Simulator::Now());
-}
+// void
+// PanlinkEnvMonitor::NotifyAppRx(Ptr<const Packet> packet, const Address& address)
+// {
+//     // std::cout << "App Rx UID " << packet->GetUid() << std::endl;
 
-/**
- * PHY TX drop trace.
- *
- * \param context The context.
- * \param p The packet.
- */
-void
-PanlinkEnvMonitor::PhyTxDropTrace(std::string context, Ptr<const Packet> p)
-{
-    nodePacketTxEndTime[ContextToNodeId(context)][p->GetUid()].push_back(Simulator::Now());
-}
+//     Ptr<const Packet> p = packet;
 
-void
-PanlinkEnvMonitor::NotifyMacForwardUp(Ptr<const Packet> p)
-{
-    // std::cout << "MacForwardUp UID " << p->GetUid() << std::endl;
-    // Ptr<const Packet> p = packet;
+//     auto mapIt = m_inFlightPacketMap.find(p->GetUid());
+//     if (mapIt == m_inFlightPacketMap.end())
+//     {
+//         // std::cout << "No packet with UID " << p->GetUid() << " is currently in queue" <<
+//         // std::endl;
+//         return;
+//     }
+//     // mapIt->second.;
+//     auto listIt = std::find_if(mapIt->second.begin(),
+//                                mapIt->second.end(),
+//                                [&p](const InFlightPacketInfo& info) {
+//                                    return info.m_ptrToPacket->GetUid() == p->GetUid();
+//                                });
 
-    auto mapIt = m_inFlightPacketMap.find(p->GetUid());
-    if (mapIt == m_inFlightPacketMap.end())
-    {
-        // std::cout << "No packet with UID " << p->GetUid() << " is currently in queue" <<
-        // std::endl;
-        return;
-    }
+//     if (listIt == mapIt->second.end())
+//     {
+//         std::cout << "Forwarding up a packet that has not been enqueued?" << std::endl;
+//         return;
+//     }
+//     InFlightPacketInfo info;
+//     info.m_srcAddress = listIt->m_srcAddress;
+//     info.m_dstAddress = listIt->m_dstAddress;
+//     info.m_ptrToPacket = listIt->m_ptrToPacket;
+//     info.m_edcaEnqueueTime = listIt->m_edcaEnqueueTime;
+//     info.appTypeTxTime = listIt->appTypeTxTime;
+//     info.m_phyTxTime = listIt->m_phyTxTime;
+//     info.m_L2RxTime = listIt->m_L2RxTime;
+//     info.appTypeRxTime = Simulator::Now();
 
-    auto listIt = std::find_if(mapIt->second.begin(),
-                               mapIt->second.end(),
-                               [&p](const InFlightPacketInfo& info) {
-                                   return info.m_ptrToPacket->GetUid() == p->GetUid();
-                               });
+//     appTxrec++;
+//     // std::cout << "APRX" << std::endl;
 
-    if (listIt == mapIt->second.end())
-    {
-        std::cout << "Forwarding up a packet that has not been enqueued?" << std::endl;
-        return;
-    }
-    if (listIt->m_dstAddress.IsGroup())
-    {
-        return;
-    }
+//     mapIt->second.erase(listIt);
+//     mapIt->second.insert(mapIt->second.end(), info);
+// }
 
-    InFlightPacketInfo info;
-    info.m_srcAddress = listIt->m_srcAddress;
-    info.m_dstAddress = listIt->m_dstAddress;
-    info.m_ptrToPacket = listIt->m_ptrToPacket;
-    info.m_edcaEnqueueTime = listIt->m_edcaEnqueueTime;
-    info.appTypeTxTime = listIt->appTypeTxTime;
-    info.m_phyTxTime = listIt->m_phyTxTime;
-    // info.appTypeRxTime = Simulator::Now();
-    info.m_L2RxTime = Simulator::Now();
+// void
+// PanlinkEnvMonitor::NotifyMsduDequeuedFromEdcaQueue(Ptr<const WifiMpdu> item)
+// {
+//     // std::cout << "Dequeue UID " << item->GetPacket()->GetUid() << std::endl;
 
-    mapIt->second.erase(listIt);
-    mapIt->second.insert(mapIt->second.end(), info);
-}
+//     if (!item->GetHeader().IsQosData() || item->GetHeader().GetAddr1().IsGroup())
+//     {
+//         // the frame is not a unicast QoS data frame or the MSDU lifetime is higher than the
+//         // max queue delay, hence the MSDU has been discarded. Do nothing in this case.
+//         return;
+//     }
+//     Ptr<const Packet> p = item->GetPacket();
 
-void
-PanlinkEnvMonitor::NotifyAppRx(Ptr<const Packet> packet, const Address& address)
-{
-    // std::cout << "App Rx UID " << packet->GetUid() << std::endl;
+//     uint64_t srcNodeId = MacAddressToNodeId(item->GetHeader().GetAddr2());
+//     auto iter = dequeueTimes.find(srcNodeId);
+//     if (iter == dequeueTimes.end())
+//     {
+//         dequeueTimes.insert(std::make_pair(srcNodeId, Simulator::Now()));
+//         return;
+//     }
+//     if (iter->second == Simulator::Now())
+//     {
+//         // std::cout << "last " << iter->second << " now " << Simulator::Now() << std::endl;
+//         return;
+//     }
 
-    Ptr<const Packet> p = packet;
+//     auto mapIt = m_inFlightPacketMap.find(p->GetUid());
+//     if (mapIt == m_inFlightPacketMap.end())
+//     {
+//         // std::cout << "No packet with UID " << p->GetUid() << " is currently in queue" <<
+//         // std::endl;
+//         return;
+//     }
 
-    auto mapIt = m_inFlightPacketMap.find(p->GetUid());
-    if (mapIt == m_inFlightPacketMap.end())
-    {
-        // std::cout << "No packet with UID " << p->GetUid() << " is currently in queue" <<
-        // std::endl;
-        return;
-    }
-    // mapIt->second.;
-    auto listIt = std::find_if(mapIt->second.begin(),
-                               mapIt->second.end(),
-                               [&p](const InFlightPacketInfo& info) {
-                                   return info.m_ptrToPacket->GetUid() == p->GetUid();
-                               });
+//     auto listIt =
+//         std::find_if(mapIt->second.begin(),
+//                      mapIt->second.end(),
+//                      [&p](const InFlightPacketInfo& info) { return info.m_ptrToPacket == p; });
 
-    if (listIt == mapIt->second.end())
-    {
-        std::cout << "Forwarding up a packet that has not been enqueued?" << std::endl;
-        return;
-    }
-    InFlightPacketInfo info;
-    info.m_srcAddress = listIt->m_srcAddress;
-    info.m_dstAddress = listIt->m_dstAddress;
-    info.m_ptrToPacket = listIt->m_ptrToPacket;
-    info.m_edcaEnqueueTime = listIt->m_edcaEnqueueTime;
-    info.appTypeTxTime = listIt->appTypeTxTime;
-    info.m_phyTxTime = listIt->m_phyTxTime;
-    info.m_L2RxTime = listIt->m_L2RxTime;
-    info.appTypeRxTime = Simulator::Now();
+//     if (listIt == mapIt->second.end())
+//     {
+//         // std::cout << "Dequeue a packet that has not been enqueued?" << std::endl;
+//         return;
+//     }
 
-    appTxrec++;
-    // std::cout << "APRX" << std::endl;
+//     InFlightPacketInfo info;
+//     info.m_srcAddress = item->GetHeader().GetAddr2();
+//     info.m_dstAddress = item->GetHeader().GetAddr1();
+//     info.m_ptrToPacket = item->GetPacket();
+//     info.m_edcaEnqueueTime = listIt->m_edcaEnqueueTime;
+//     info.m_edcaDequeueTime = Simulator::Now();
+//     info.appTypeTxTime = listIt->appTypeTxTime;
+//     info.m_phyTxTime = listIt->m_phyTxTime;
+//     info.appTypeRxTime = listIt->appTypeRxTime;
+//     info.m_L2RxTime = listIt->m_L2RxTime;
+//     info.m_HoLTime = std::max(listIt->m_edcaEnqueueTime, iter->second);
+//     info.m_dequeued = true;
 
-    mapIt->second.erase(listIt);
-    mapIt->second.insert(mapIt->second.end(), info);
-}
+//     // HERE CALCULATE ALL DELAYS
+//     double newHolSample = (info.m_edcaDequeueTime - info.m_HoLTime).ToDouble(Time::MS);
+//     double queingDelay = (info.m_HoLTime - info.m_edcaEnqueueTime).ToDouble(Time::MS);
+//     double accessDelay = (info.m_phyTxTime - info.m_HoLTime).ToDouble(Time::MS);
+//     double txDelay = (info.m_edcaDequeueTime - info.m_phyTxTime).ToDouble(Time::MS);
 
-void
-PanlinkEnvMonitor::NotifyMsduDequeuedFromEdcaQueue(Ptr<const WifiMpdu> item)
-{
-    // std::cout << "Dequeue UID " << item->GetPacket()->GetUid() << std::endl;
+//     auto it = edcaHolSample.find(srcNodeId);
+//     auto ite = intervalEdcaHolSample.find(srcNodeId);
+//     if (ite == intervalEdcaHolSample.end())
+//     {
+//         std::vector<double> tiVec;
+//         tiVec.push_back(newHolSample);
+//         tiVec.push_back(queingDelay);
+//         tiVec.push_back(accessDelay);
+//         tiVec.push_back(txDelay);
+//         intervalEdcaHolSample.insert(std::make_pair(srcNodeId, tiVec));
+//         // std::cout << "first Sample: " << newHolSample << "\n";
+//     }
+//     else
+//     {
+//         ite->second.push_back(newHolSample);
+//         ite->second.push_back(queingDelay);
+//         ite->second.push_back(accessDelay);
+//         ite->second.push_back(txDelay);
+//     }
+//     if (it == edcaHolSample.end())
+//     {
+//         std::vector<double> tiVec;
+//         tiVec.push_back(newHolSample);
+//         tiVec.push_back(queingDelay);
+//         tiVec.push_back(accessDelay);
+//         tiVec.push_back(txDelay);
+//         edcaHolSample.insert(std::make_pair(srcNodeId, tiVec));
+//         // std::cout << "first Sample: " << newHolSample << "\n";
+//     }
+//     else
+//     {
+//         it->second.push_back(newHolSample);
+//         it->second.push_back(queingDelay);
+//         it->second.push_back(accessDelay);
+//         it->second.push_back(txDelay);
+//     }
 
-    if (!item->GetHeader().IsQosData() || item->GetHeader().GetAddr1().IsGroup())
-    {
-        // the frame is not a unicast QoS data frame or the MSDU lifetime is higher than the
-        // max queue delay, hence the MSDU has been discarded. Do nothing in this case.
-        return;
-    }
-    Ptr<const Packet> p = item->GetPacket();
+//     iter->second = Simulator::Now();
+//     mapIt->second.erase(listIt);
+//     mapIt->second.insert(mapIt->second.end(), info);
+// }
 
-    uint64_t srcNodeId = MacAddressToNodeId(item->GetHeader().GetAddr2());
-    auto iter = dequeueTimes.find(srcNodeId);
-    if (iter == dequeueTimes.end())
-    {
-        dequeueTimes.insert(std::make_pair(srcNodeId, Simulator::Now()));
-        return;
-    }
-    if (iter->second == Simulator::Now())
-    {
-        // std::cout << "last " << iter->second << " now " << Simulator::Now() << std::endl;
-        return;
-    }
+// void
+// PanlinkEnvMonitor::NotifyMsduDroppedAfterDequeueFromEdcaQueue(Ptr<const WifiMpdu> item)
+// {
+//     // std::cout << "did it work?" << std::endl;
+// }
 
-    auto mapIt = m_inFlightPacketMap.find(p->GetUid());
-    if (mapIt == m_inFlightPacketMap.end())
-    {
-        // std::cout << "No packet with UID " << p->GetUid() << " is currently in queue" <<
-        // std::endl;
-        return;
-    }
+// void
+// PanlinkEnvMonitor::FragmentTx(Ptr<const Packet> fragment,
+//                                 const Address& from,
+//                                 const Address& to,
+//                                 const SeqTsSizeFragHeader& header)
+// {
+//     NS_LOG_INFO("Sent fragment " << header.GetFragSeq() << "/" << header.GetFrags()
+//                                  << " of burst seq=" << header.GetSeq()
+//                                  << " of header.GetSize ()=" << header.GetSize()
+//                                  << " (fragment->GetSize ()=" << fragment->GetSize()
+//                                  << ") bytes from " << AddressToString(from) << " to "
+//                                  << AddressToString(to) << " at " << header.GetTs().As(Time::S));
+//     Ptr<const Packet> p = fragment;
 
-    auto listIt =
-        std::find_if(mapIt->second.begin(),
-                     mapIt->second.end(),
-                     [&p](const InFlightPacketInfo& info) { return info.m_ptrToPacket == p; });
+//     auto mapIt = m_inFlightPacketMap.find(p->GetUid());
+//     if (mapIt == m_inFlightPacketMap.end())
+//     {
+//         // std::cout << "No packet with UID " << p->GetUid() << " is currently in queue" <<
+//         // std::endl;
+//         return;
+//     }
 
-    if (listIt == mapIt->second.end())
-    {
-        // std::cout << "Dequeue a packet that has not been enqueued?" << std::endl;
-        return;
-    }
+//     auto listIt =
+//         std::find_if(mapIt->second.begin(),
+//                      mapIt->second.end(),
+//                      [&p](const InFlightPacketInfo& info) { return info.m_ptrToPacket == p; });
 
-    InFlightPacketInfo info;
-    info.m_srcAddress = item->GetHeader().GetAddr2();
-    info.m_dstAddress = item->GetHeader().GetAddr1();
-    info.m_ptrToPacket = item->GetPacket();
-    info.m_edcaEnqueueTime = listIt->m_edcaEnqueueTime;
-    info.m_edcaDequeueTime = Simulator::Now();
-    info.appTypeTxTime = listIt->appTypeTxTime;
-    info.m_phyTxTime = listIt->m_phyTxTime;
-    info.appTypeRxTime = listIt->appTypeRxTime;
-    info.m_L2RxTime = listIt->m_L2RxTime;
-    info.m_HoLTime = std::max(listIt->m_edcaEnqueueTime, iter->second);
-    info.m_dequeued = true;
+//     if (listIt == mapIt->second.end())
+//     {
+//         // std::cout << "Forwarding up a packet that has not been enqueued?" << std::endl;
+//         return;
+//     }
 
-    // HERE CALCULATE ALL DELAYS
-    double newHolSample = (info.m_edcaDequeueTime - info.m_HoLTime).ToDouble(Time::MS);
-    double queingDelay = (info.m_HoLTime - info.m_edcaEnqueueTime).ToDouble(Time::MS);
-    double accessDelay = (info.m_phyTxTime - info.m_HoLTime).ToDouble(Time::MS);
-    double txDelay = (info.m_edcaDequeueTime - info.m_phyTxTime).ToDouble(Time::MS);
+//     InFlightPacketInfo info;
+//     info.m_srcAddress = listIt->m_srcAddress;
+//     info.m_dstAddress = listIt->m_dstAddress;
+//     info.m_ptrToPacket = listIt->m_ptrToPacket;
+//     info.m_edcaEnqueueTime = listIt->m_edcaEnqueueTime;
+//     info.m_edcaDequeueTime = listIt->m_edcaDequeueTime;
+//     info.appTypeTxTime = Simulator::Now();
 
-    auto it = edcaHolSample.find(srcNodeId);
-    auto ite = intervalEdcaHolSample.find(srcNodeId);
-    if (ite == intervalEdcaHolSample.end())
-    {
-        std::vector<double> tiVec;
-        tiVec.push_back(newHolSample);
-        tiVec.push_back(queingDelay);
-        tiVec.push_back(accessDelay);
-        tiVec.push_back(txDelay);
-        intervalEdcaHolSample.insert(std::make_pair(srcNodeId, tiVec));
-        // std::cout << "first Sample: " << newHolSample << "\n";
-    }
-    else
-    {
-        ite->second.push_back(newHolSample);
-        ite->second.push_back(queingDelay);
-        ite->second.push_back(accessDelay);
-        ite->second.push_back(txDelay);
-    }
-    if (it == edcaHolSample.end())
-    {
-        std::vector<double> tiVec;
-        tiVec.push_back(newHolSample);
-        tiVec.push_back(queingDelay);
-        tiVec.push_back(accessDelay);
-        tiVec.push_back(txDelay);
-        edcaHolSample.insert(std::make_pair(srcNodeId, tiVec));
-        // std::cout << "first Sample: " << newHolSample << "\n";
-    }
-    else
-    {
-        it->second.push_back(newHolSample);
-        it->second.push_back(queingDelay);
-        it->second.push_back(accessDelay);
-        it->second.push_back(txDelay);
-    }
+//     mapIt->second.erase(listIt);
+//     mapIt->second.insert(mapIt->second.end(), info);
+// }
 
-    iter->second = Simulator::Now();
-    mapIt->second.erase(listIt);
-    mapIt->second.insert(mapIt->second.end(), info);
-}
+// void
+// PanlinkEnvMonitor::FragmentRx(Ptr<const Packet> fragment,
+//                                 const Address& from,
+//                                 const Address& to,
+//                                 const SeqTsSizeFragHeader& header)
+// {
+//     NS_LOG_INFO("Received fragment "
+//                 << header.GetFragSeq() << "/" << header.GetFrags() << " of burst seq="
+//                 << header.GetSeq() << " of header.GetSize ()=" << header.GetSize()
+//                 << " (fragment->GetSize ()=" << fragment->GetSize() << ") bytes from "
+//                 << AddressToString(from) << " to " << AddressToString(to) << " at "
+//                 << header.GetTs().As(Time::S));
+//     Ptr<const Packet> p = fragment;
 
-void
-PanlinkEnvMonitor::NotifyMsduDroppedAfterDequeueFromEdcaQueue(Ptr<const WifiMpdu> item)
-{
-    // std::cout << "did it work?" << std::endl;
-}
+//     auto mapIt = m_inFlightPacketMap.find(p->GetUid());
+//     if (mapIt == m_inFlightPacketMap.end())
+//     {
+//         std::cout << "No packet with UID " << p->GetUid() << " is currently in queue" << std::endl;
+//         return;
+//     }
+//     // mapIt->second.;
+//     auto listIt = std::find_if(mapIt->second.begin(),
+//                                mapIt->second.end(),
+//                                [&p](const InFlightPacketInfo& info) {
+//                                    return info.m_ptrToPacket->GetUid() == p->GetUid();
+//                                });
 
-void
-PanlinkEnvMonitor::FragmentTx(Ptr<const Packet> fragment,
-                                const Address& from,
-                                const Address& to,
-                                const SeqTsSizeFragHeader& header)
-{
-    NS_LOG_INFO("Sent fragment " << header.GetFragSeq() << "/" << header.GetFrags()
-                                 << " of burst seq=" << header.GetSeq()
-                                 << " of header.GetSize ()=" << header.GetSize()
-                                 << " (fragment->GetSize ()=" << fragment->GetSize()
-                                 << ") bytes from " << AddressToString(from) << " to "
-                                 << AddressToString(to) << " at " << header.GetTs().As(Time::S));
-    Ptr<const Packet> p = fragment;
+//     if (listIt == mapIt->second.end())
+//     {
+//         std::cout << "Forwarding up a packet that has not been enqueued?" << std::endl;
+//         return;
+//     }
+//     InFlightPacketInfo info;
+//     info.m_srcAddress = listIt->m_srcAddress;
+//     info.m_dstAddress = listIt->m_dstAddress;
+//     info.m_ptrToPacket = listIt->m_ptrToPacket;
+//     info.m_edcaEnqueueTime = listIt->m_edcaEnqueueTime;
+//     info.appTypeTxTime = listIt->appTypeTxTime;
+//     info.m_phyTxTime = listIt->m_phyTxTime;
+//     info.m_L2RxTime = listIt->m_L2RxTime;
+//     info.appTypeRxTime = Simulator::Now();
+//     // if (p->GetSize() >= pktSize) // ignore non-data frames
+//     // {
+//     appTxrec++;
+//     // }
+//     // else
+//     // {
+//     //     std::cout << "Size " << p->GetSize() << std::endl;
+//     // }
+//     // std::cout << "APRX" << std::endl;
 
-    auto mapIt = m_inFlightPacketMap.find(p->GetUid());
-    if (mapIt == m_inFlightPacketMap.end())
-    {
-        // std::cout << "No packet with UID " << p->GetUid() << " is currently in queue" <<
-        // std::endl;
-        return;
-    }
+//     mapIt->second.erase(listIt);
+//     mapIt->second.insert(mapIt->second.end(), info);
+//     // appTxrec++;
+// }
 
-    auto listIt =
-        std::find_if(mapIt->second.begin(),
-                     mapIt->second.end(),
-                     [&p](const InFlightPacketInfo& info) { return info.m_ptrToPacket == p; });
+// void
+// PanlinkEnvMonitor::BurstTx(Ptr<const Packet> burst,
+//                             const Address& from,
+//                             const Address& to,
+//                             const SeqTsSizeFragHeader& header)
+// {
+//     NS_LOG_INFO("Sent burst seq=" << header.GetSeq() << " of header.GetSize ()=" << header.GetSize()
+//                                   << " (burst->GetSize ()=" << burst->GetSize() << ") bytes from "
+//                                   << AddressToString(from) << " to " << AddressToString(to)
+//                                   << " at " << header.GetTs().As(Time::S));
+//     // std::cout << "APPTX" << std::endl;
+// }
 
-    if (listIt == mapIt->second.end())
-    {
-        // std::cout << "Forwarding up a packet that has not been enqueued?" << std::endl;
-        return;
-    }
+// void
+// PanlinkEnvMonitor::BurstRx(Ptr<const Packet> burst,
+//                             const Address& from,
+//                             const Address& to,
+//                             const SeqTsSizeFragHeader& header)
+// {
+//     NS_LOG_INFO("Received burst seq="
+//                 << header.GetSeq() << " of header.GetSize ()=" << header.GetSize()
+//                 << " (burst->GetSize ()=" << burst->GetSize() << ") bytes from "
+//                 << AddressToString(from) << " to " << AddressToString(to) << " at "
+//                 << header.GetTs().As(Time::S));
+// }
 
-    InFlightPacketInfo info;
-    info.m_srcAddress = listIt->m_srcAddress;
-    info.m_dstAddress = listIt->m_dstAddress;
-    info.m_ptrToPacket = listIt->m_ptrToPacket;
-    info.m_edcaEnqueueTime = listIt->m_edcaEnqueueTime;
-    info.m_edcaDequeueTime = listIt->m_edcaDequeueTime;
-    info.appTypeTxTime = Simulator::Now();
+// /**
+//  * Contention window trace.
+//  *
+//  * \param context The context.
+//  * \param cw The contention window.
+//  */
+// void
+// PanlinkEnvMonitor::CwTrace(std::string context, uint32_t cw, uint8_t /* linkId */)
+// {
+//     // std::cout << Simulator::Now().GetSeconds() << " " << ContextToNodeId(context) << " " <<
+//     // cw
+//     //           << std::endl;
+//     nodeCw[ContextToNodeId(context)].push_back(cw);
+// }
 
-    mapIt->second.erase(listIt);
-    mapIt->second.insert(mapIt->second.end(), info);
-}
-
-void
-PanlinkEnvMonitor::FragmentRx(Ptr<const Packet> fragment,
-                                const Address& from,
-                                const Address& to,
-                                const SeqTsSizeFragHeader& header)
-{
-    NS_LOG_INFO("Received fragment "
-                << header.GetFragSeq() << "/" << header.GetFrags() << " of burst seq="
-                << header.GetSeq() << " of header.GetSize ()=" << header.GetSize()
-                << " (fragment->GetSize ()=" << fragment->GetSize() << ") bytes from "
-                << AddressToString(from) << " to " << AddressToString(to) << " at "
-                << header.GetTs().As(Time::S));
-    Ptr<const Packet> p = fragment;
-
-    auto mapIt = m_inFlightPacketMap.find(p->GetUid());
-    if (mapIt == m_inFlightPacketMap.end())
-    {
-        std::cout << "No packet with UID " << p->GetUid() << " is currently in queue" << std::endl;
-        return;
-    }
-    // mapIt->second.;
-    auto listIt = std::find_if(mapIt->second.begin(),
-                               mapIt->second.end(),
-                               [&p](const InFlightPacketInfo& info) {
-                                   return info.m_ptrToPacket->GetUid() == p->GetUid();
-                               });
-
-    if (listIt == mapIt->second.end())
-    {
-        std::cout << "Forwarding up a packet that has not been enqueued?" << std::endl;
-        return;
-    }
-    InFlightPacketInfo info;
-    info.m_srcAddress = listIt->m_srcAddress;
-    info.m_dstAddress = listIt->m_dstAddress;
-    info.m_ptrToPacket = listIt->m_ptrToPacket;
-    info.m_edcaEnqueueTime = listIt->m_edcaEnqueueTime;
-    info.appTypeTxTime = listIt->appTypeTxTime;
-    info.m_phyTxTime = listIt->m_phyTxTime;
-    info.m_L2RxTime = listIt->m_L2RxTime;
-    info.appTypeRxTime = Simulator::Now();
-    // if (p->GetSize() >= pktSize) // ignore non-data frames
-    // {
-    appTxrec++;
-    // }
-    // else
-    // {
-    //     std::cout << "Size " << p->GetSize() << std::endl;
-    // }
-    // std::cout << "APRX" << std::endl;
-
-    mapIt->second.erase(listIt);
-    mapIt->second.insert(mapIt->second.end(), info);
-    // appTxrec++;
-}
-
-void
-PanlinkEnvMonitor::BurstTx(Ptr<const Packet> burst,
-                            const Address& from,
-                            const Address& to,
-                            const SeqTsSizeFragHeader& header)
-{
-    NS_LOG_INFO("Sent burst seq=" << header.GetSeq() << " of header.GetSize ()=" << header.GetSize()
-                                  << " (burst->GetSize ()=" << burst->GetSize() << ") bytes from "
-                                  << AddressToString(from) << " to " << AddressToString(to)
-                                  << " at " << header.GetTs().As(Time::S));
-    // std::cout << "APPTX" << std::endl;
-}
-
-void
-PanlinkEnvMonitor::BurstRx(Ptr<const Packet> burst,
-                            const Address& from,
-                            const Address& to,
-                            const SeqTsSizeFragHeader& header)
-{
-    NS_LOG_INFO("Received burst seq="
-                << header.GetSeq() << " of header.GetSize ()=" << header.GetSize()
-                << " (burst->GetSize ()=" << burst->GetSize() << ") bytes from "
-                << AddressToString(from) << " to " << AddressToString(to) << " at "
-                << header.GetTs().As(Time::S));
-}
-
-/**
- * Contention window trace.
- *
- * \param context The context.
- * \param cw The contention window.
- */
-void
-PanlinkEnvMonitor::CwTrace(std::string context, uint32_t cw, uint8_t /* linkId */)
-{
-    // std::cout << Simulator::Now().GetSeconds() << " " << ContextToNodeId(context) << " " <<
-    // cw
-    //           << std::endl;
-    nodeCw[ContextToNodeId(context)].push_back(cw);
-}
-
-/**
- * Backoff trace.
- *
- * \param context The context.
- * \param newVal The backoff value.
- */
-void
-PanlinkEnvMonitor::BackoffTrace(std::string context, uint32_t newVal, uint8_t /* linkId */)
-{
-    // std::cout << Simulator::Now().GetSeconds() << " " << ContextToNodeId(context) << " " <<
-    // newVal
-    //           << std::endl;
-    nodeBackoff[ContextToNodeId(context)].push_back(newVal);
-}
+// /**
+//  * Backoff trace.
+//  *
+//  * \param context The context.
+//  * \param newVal The backoff value.
+//  */
+// void
+// PanlinkEnvMonitor::BackoffTrace(std::string context, uint32_t newVal, uint8_t /* linkId */)
+// {
+//     // std::cout << Simulator::Now().GetSeconds() << " " << ContextToNodeId(context) << " " <<
+//     // newVal
+//     //           << std::endl;
+//     nodeBackoff[ContextToNodeId(context)].push_back(newVal);
+// }
 
 } // namespace ns3
