@@ -32,6 +32,7 @@
 #include "ns3/on-off-helper.h"
 #include "ns3/packet-sink-helper.h"
 #include "ns3/packet-sink.h"
+#include "ns3/panlink-utils.h"
 #include "ns3/spectrum-wifi-helper.h"
 #include "ns3/ssid.h"
 #include "ns3/string.h"
@@ -54,11 +55,11 @@ NS_LOG_COMPONENT_DEFINE("panlink-channel-access");
 int
 main(int argc, char* argv[])
 {
-    bool udp{true};
+    uint32_t seed = 10; // random seed
+    Time simulationTime = Seconds(3);
     bool downlink{true};
     bool useRts{false};
     bool useExtendedBlockAck{false};
-    Time simulationTime{"10s"};
     double distance{1.0}; // meters
     double frequency{5};  // whether 2.4, 5 or 6 GHz
     std::size_t nStations{1};
@@ -71,15 +72,21 @@ main(int argc, char* argv[])
     std::string phyModel{"Yans"};
     Time accessReqInterval{0};
 
+    std::string configPath = "contrib/panlink/examples/configs/";
+    std::string nodesConfig = configPath + "nodes.json";
+    std::string appConfig = configPath + "application.json";
+    bool pcap = false;
+    bool verbose = false;
+
     CommandLine cmd(__FILE__);
+    cmd.AddValue("seed", "The random seed for this example to run", seed);
+    cmd.AddValue("simulationTime", "Total simulation time", simulationTime);
     cmd.AddValue("frequency",
                  "Whether working in the 2.4, 5 or 6 GHz band (other values gets rejected)",
                  frequency);
     cmd.AddValue("distance",
                  "Distance in meters between the station and the access point",
                  distance);
-    cmd.AddValue("simulationTime", "Simulation time", simulationTime);
-    cmd.AddValue("udp", "UDP if set to 1, TCP otherwise", udp);
     cmd.AddValue("downlink",
                  "Generate downlink flows if set to 1, uplink flows otherwise",
                  downlink);
@@ -105,8 +112,19 @@ main(int argc, char* argv[])
                  "PHY model to use when OFDMA is disabled (Yans or Spectrum). If OFDMA is enabled "
                  "then Spectrum is automatically selected",
                  phyModel);
+    cmd.AddValue("pcap", "Enable generating pcap files", pcap);
+    cmd.AddValue("verbose", "Enable printing logs", verbose);
     cmd.Parse(argc, argv);
 
+    //==================================================================//
+    //                    Read Configurations Files                     ||
+    //==================================================================//
+    BssMap bssMap = ReadBssMapFromJson(nodesConfig);
+    AppInfo appInfo = ReadAppInfoFromJson(appConfig);
+
+    //==================================================================//
+    //                     Configure Wi-Fi Network                      ||
+    //==================================================================//
     if (useRts)
     {
         Config::SetDefault("ns3::WifiRemoteStationManager::RtsCtsThreshold", StringValue("0"));
@@ -144,12 +162,8 @@ main(int argc, char* argv[])
         phyModel = "Spectrum";
     }
 
-    int channelWidth = 20;
+    int channelWidth = 80;
     int gi = 800;
-    if (!udp)
-    {
-        Config::SetDefault("ns3::TcpSocket::SegmentSize", UintegerValue(payloadSize));
-    }
 
     NodeContainer wifiStaNodes;
     wifiStaNodes.Create(nStations);
@@ -315,59 +329,28 @@ main(int argc, char* argv[])
         clientNodes.Add(downlink ? wifiApNode.Get(0) : wifiStaNodes.Get(i));
     }
 
-    const auto maxLoad = HePhy::GetDataRate(mcs, channelWidth, gi, 1) / nStations;
-    if (udp)
+    // const auto maxLoad = HePhy::GetDataRate(mcs, channelWidth, gi, 1) / nStations;
+
+    // UDP flow
+    uint16_t port = 9;
+    UdpServerHelper server(port);
+    serverApp = server.Install(serverNodes.get());
+    streamNumber += server.AssignStreams(serverNodes.get(), streamNumber);
+
+    serverApp.Start(Seconds(0.0));
+    serverApp.Stop(simulationTime + Seconds(1.0));
+
+    for (std::size_t i = 0; i < nStations; i++)
     {
-        // UDP flow
-        uint16_t port = 9;
-        UdpServerHelper server(port);
-        serverApp = server.Install(serverNodes.get());
-        streamNumber += server.AssignStreams(serverNodes.get(), streamNumber);
+        UdpClientHelper client(serverInterfaces.GetAddress(i), port);
+        client.SetAttribute("MaxPackets", UintegerValue(4294967295U));
+        client.SetAttribute("Interval", TimeValue(Seconds(0.1)));
+        client.SetAttribute("PacketSize", UintegerValue(payloadSize));
+        ApplicationContainer clientApp = client.Install(clientNodes.Get(i));
+        streamNumber += client.AssignStreams(clientNodes.Get(i), streamNumber);
 
-        serverApp.Start(Seconds(0.0));
-        serverApp.Stop(simulationTime + Seconds(1.0));
-        const auto packetInterval = payloadSize * 8.0 / maxLoad;
-
-        for (std::size_t i = 0; i < nStations; i++)
-        {
-            UdpClientHelper client(serverInterfaces.GetAddress(i), port);
-            client.SetAttribute("MaxPackets", UintegerValue(4294967295U));
-            client.SetAttribute("Interval", TimeValue(Seconds(packetInterval)));
-            client.SetAttribute("PacketSize", UintegerValue(payloadSize));
-            ApplicationContainer clientApp = client.Install(clientNodes.Get(i));
-            streamNumber += client.AssignStreams(clientNodes.Get(i), streamNumber);
-
-            clientApp.Start(Seconds(1.0));
-            clientApp.Stop(simulationTime + Seconds(1.0));
-        }
-    }
-    else
-    {
-        // TCP flow
-        uint16_t port = 50000;
-        Address localAddress(InetSocketAddress(Ipv4Address::GetAny(), port));
-        PacketSinkHelper packetSinkHelper("ns3::TcpSocketFactory", localAddress);
-        serverApp = packetSinkHelper.Install(serverNodes.get());
-        streamNumber += packetSinkHelper.AssignStreams(serverNodes.get(), streamNumber);
-
-        serverApp.Start(Seconds(0.0));
-        serverApp.Stop(simulationTime + Seconds(1.0));
-
-        for (std::size_t i = 0; i < nStations; i++)
-        {
-            OnOffHelper onoff("ns3::TcpSocketFactory", Ipv4Address::GetAny());
-            onoff.SetAttribute("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=1]"));
-            onoff.SetAttribute("OffTime", StringValue("ns3::ConstantRandomVariable[Constant=0]"));
-            onoff.SetAttribute("PacketSize", UintegerValue(payloadSize));
-            onoff.SetAttribute("DataRate", DataRateValue(maxLoad));
-            AddressValue remoteAddress(InetSocketAddress(serverInterfaces.GetAddress(i), port));
-            onoff.SetAttribute("Remote", remoteAddress);
-            ApplicationContainer clientApp = onoff.Install(clientNodes.Get(i));
-            streamNumber += onoff.AssignStreams(clientNodes.Get(i), streamNumber);
-
-            clientApp.Start(Seconds(1.0));
-            clientApp.Stop(simulationTime + Seconds(1.0));
-        }
+        clientApp.Start(Seconds(1.0));
+        clientApp.Stop(simulationTime + Seconds(1.0));
     }
 
     Simulator::Schedule(Seconds(0), &Ipv4GlobalRoutingHelper::PopulateRoutingTables);
@@ -376,7 +359,7 @@ main(int argc, char* argv[])
     Simulator::Run();
 
     // Statistic process
-    
+
     Simulator::Destroy();
 
     return 0;

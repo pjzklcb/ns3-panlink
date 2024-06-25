@@ -29,9 +29,9 @@ namespace ns3
  * \ingroup panlink
  */
 
-struct AppInfo
+struct SrcApp
 {
-    std::string m_type;
+    std::string m_name;
     uint32_t m_dst;
     uint32_t m_port;
 };
@@ -52,7 +52,7 @@ struct PanlinkNode
     double m_zPosition;
     uint32_t m_channel;
     uint32_t m_bandwidth;
-    std::vector<AppInfo> m_applications; // application type
+    std::vector<SrcApp> m_applications; // application type
     std::vector<AgentType> m_agents;
 };
 
@@ -64,9 +64,26 @@ struct BssInfo
     std::vector<PanlinkNode> m_nodes;
 };
 
+struct AppInfo
+{
+    std::string m_name;
+    std::string m_type;
+    std::unordered_map<std::string, double> m_params;
+};
+
 typedef std::map<uint32_t /* bss ID */, BssInfo> BssMap;
 
+/**
+ * \param filename the name of the JSON file
+ * \return BssMap contains the BssInfo
+ */
 BssMap ReadBssMapFromJson(std::string filename);
+
+/**
+ * \param filename the name of the JSON file
+ * \return App types and their parameters
+ */
+AppInfo ReadAppInfoFromJson(std::string filename);
 
 // uint32_t MacAddressToNodeId(Mac48Address address);
 

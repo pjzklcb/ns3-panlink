@@ -1,6 +1,6 @@
 
 build_lib_example(
-        NAME ns3channel_access
+        NAME panlink_channel_access
         SOURCE_FILES
             channel-access.cc
         LIBRARIES_TO_LINK

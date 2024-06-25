@@ -85,17 +85,17 @@ ReadBssMapFromJson(std::string filename)
                 panlinkNode.m_zPosition = node["position"]["z"].GetDouble();
                 panlinkNode.m_channel = node["channel"].GetInt();
                 panlinkNode.m_bandwidth = node["bandwidth"].GetInt();
-                panlinkNode.m_applications = std::vector<AppInfo>();
+                panlinkNode.m_applications = std::vector<SrcApp>();
                 panlinkNode.m_agents = std::vector<AgentType>();
 
                 // Iterate over each application
                 for (auto& app : node["applications"].GetArray())
                 {
-                    AppInfo appInfo;
-                    appInfo.m_type = app["type"].GetString();
-                    appInfo.m_dst = app["dst"].GetInt();
-                    appInfo.m_port = app["port"].GetInt();
-                    panlinkNode.m_applications.push_back(appInfo);
+                    SrcApp srcApp;
+                    srcApp.m_name = app["name"].GetString();
+                    srcApp.m_dst = app["dst"].GetInt();
+                    srcApp.m_port = app["port"].GetInt();
+                    panlinkNode.m_applications.push_back(srcApp);
                 }
                 // Iterate over each agent
                 for (auto& agent : node["agents"].GetArray())
@@ -130,6 +130,133 @@ ReadBssMapFromJson(std::string filename)
     }
 
     return bssMap;
+}
+
+AppInfo
+ReadAppInfoFromJson(std::string filename)
+{
+    AppInfo appInfo;
+
+    // Open the JSON file
+    std::ifstream file(filename);
+    if (!file.is_open())
+    {
+        NS_LOG_ERROR("Failed to open " << filename);
+        return appInfo;
+    }
+
+    // Read the JSON file into a string
+    std::string json_str((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+
+    // Parse the JSON string
+    rapidjson::Document document;
+    document.Parse(json_str.c_str());
+
+    if (document.HasParseError())
+    {
+        NS_LOG_ERROR("Failed to parse " << filename << ": "
+                                        << rapidjson::GetParseErrorFunc(document.GetParseError()));
+        return appInfo;
+    }
+
+    if (document.IsObject() && document.HasMember("application") && document["application"].IsObject())
+    {
+        for (auto& app : document["application"].GetArray())
+        {
+            appInfo.m_name = app["name"].GetString();
+            appInfo.m_type = app["type"].GetString();
+            appInfo.m_params = std::unordered_map<std::string, double>();
+
+            if (app.HasMember("params") && app["params"].IsObject())
+            {
+                for (auto& param : app["params"].GetArray())
+                {
+                    if (appInfo.m_type == "udp")
+                    {
+                        if (param.HasMember("max_packets") && param["max_packets"].IsInt())
+                        {
+                            appInfo.m_params["max_packets"] = param["max_packets"].GetInt();
+                        }
+                        else
+                        {
+                            appInfo.m_params["max_packets"] = 0;
+                        }
+
+                        if (param.HasMember("interval") && param["interval"].IsInt())
+                        {
+                            appInfo.m_params["interval"] = param["interval"].GetInt(); // in microseconds
+                        }
+                        else
+                        {
+                            NS_LOG_ERROR("Missing 'interval' in " << appInfo.m_name << " in " << filename);
+                        }
+
+                        if (param.HasMember("packet_size") && param["packet_size"].IsInt())
+                        {
+                            appInfo.m_params["packet_size"] = param["packet_size"].GetInt(); // in bytes
+                        }
+                        else
+                        {
+                            NS_LOG_ERROR("Missing 'packet_size' in " << appInfo.m_name << " in " << filename);
+                        }
+                    }
+                    else if (appInfo.m_type == "constant")
+                    {
+                        if (param.HasMember("interval") && param["interval"].IsInt())
+                        {
+                            appInfo.m_params["interval"] = param["interval"].GetInt(); // in microseconds
+                        }
+                        else
+                        {
+                            NS_LOG_ERROR("Missing 'interval' in " << appInfo.m_name << " in " << filename);
+                        }
+
+                        if (param.HasMember("packet_size") && param["packet_size"].IsInt())
+                        {
+                            appInfo.m_params["packet_size"] = param["packet_size"].GetInt(); // in bytes
+                        }
+                        else
+                        {
+                            NS_LOG_ERROR("Missing 'packet_size' in " << appInfo.m_name << " in " << filename);
+                        }
+
+                        if (param.HasMember("fragment_size") && param["fragment_size"].IsInt())
+                        {
+                            appInfo.m_params["fragment_size"] = param["fragment_size"].GetInt(); // in bytes
+                        }
+                        else
+                        {
+                            NS_LOG_ERROR("Missing 'fragment_size' in " << appInfo.m_name << " in " << filename);
+                        }
+                    }
+                    else if (appInfo.m_type == "poisson")
+                    {
+                        if (param.HasMember("lambda") && param["lambda"].IsDouble())
+                        {
+                            appInfo.m_params["lambda"] = param["lambda"].GetDouble();
+                        }
+                        else
+                        {
+                            NS_LOG_ERROR("Missing 'lambda' in " << appInfo.m_name << " in " << filename);
+                        }
+                    }
+                    else
+                    {
+                        NS_LOG_ERROR("Unknown application type: " << appInfo.m_type);
+                        return appInfo;
+                    }
+                    // TODO: Add other application types
+                }
+            }
+            else
+            {
+                NS_LOG_ERROR("Failed to find parameters for " << appInfo.m_type << " in " << filename);
+                return appInfo;
+            }
+        }
+    }
+
+    return appInfo;
 }
 
 // uint32_t

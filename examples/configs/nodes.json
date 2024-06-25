@@ -29,7 +29,7 @@
                     "channel": 42,
                     "bandwidth": 80,
                     "applications": [{
-                        "type": "poisson",
+                        "name": "ping",
                         "dst": 0,
                         "port": 50001
                     }],
