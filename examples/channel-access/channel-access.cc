@@ -32,6 +32,7 @@
 #include "ns3/on-off-helper.h"
 #include "ns3/packet-sink-helper.h"
 #include "ns3/packet-sink.h"
+#include "ns3/panlink-app-installer.h"
 #include "ns3/panlink-utils.h"
 #include "ns3/spectrum-wifi-helper.h"
 #include "ns3/ssid.h"
@@ -40,8 +41,6 @@
 #include "ns3/udp-server.h"
 #include "ns3/uinteger.h"
 #include "ns3/wifi-acknowledgment.h"
-#include "ns3/yans-wifi-channel.h"
-#include "ns3/yans-wifi-helper.h"
 
 #include <functional>
 
@@ -69,8 +68,8 @@ main(int argc, char* argv[])
     int mcs{11}; // -1 indicates an unset value
     uint32_t payloadSize =
         700; // must fit in the max TX duration when transmitting at MCS 0 over an RU of 26 tones
-    std::string phyModel{"Yans"};
     Time accessReqInterval{0};
+    int gi = 800;
 
     std::string configPath = "contrib/panlink/examples/configs/";
     std::string nodesConfig = configPath + "nodes.json";
@@ -108,16 +107,25 @@ main(int argc, char* argv[])
         accessReqInterval);
     cmd.AddValue("mcs", "if set, limit testing to a specific MCS (0-11)", mcs);
     cmd.AddValue("payloadSize", "The application payload size in bytes", payloadSize);
-    cmd.AddValue("phyModel",
-                 "PHY model to use when OFDMA is disabled (Yans or Spectrum). If OFDMA is enabled "
-                 "then Spectrum is automatically selected",
-                 phyModel);
     cmd.AddValue("pcap", "Enable generating pcap files", pcap);
     cmd.AddValue("verbose", "Enable printing logs", verbose);
     cmd.Parse(argc, argv);
 
+    WifiHelper g_wifi;
+    WifiMacHelper g_mac;
+    SpectrumWifiPhyHelper g_phy;
+    InternetStackHelper g_inet;
+    Ipv4AddressHelper g_ipv4addr;
+    MobilityHelper g_mobility;
+    NodeContainer g_nodes;
+    NetDeviceContainer g_devices;
+    Ipv4InterfaceContainer g_interfaces;
+    SrcAppMap g_srcAppMap;
+
+    g_mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
+
     //==================================================================//
-    //                    Read Configurations Files                     ||
+    //                     Read Configuration Files                     ||
     //==================================================================//
     BssMap bssMap = ReadBssMapFromJson(nodesConfig);
     AppInfo appInfo = ReadAppInfoFromJson(appConfig);
@@ -125,6 +133,7 @@ main(int argc, char* argv[])
     //==================================================================//
     //                     Configure Wi-Fi Network                      ||
     //==================================================================//
+
     if (useRts)
     {
         Config::SetDefault("ns3::WifiRemoteStationManager::RtsCtsThreshold", StringValue("0"));
@@ -152,57 +161,36 @@ main(int argc, char* argv[])
                      "AGGR-MU-BAR)");
     }
 
-    if (phyModel != "Yans" && phyModel != "Spectrum")
-    {
-        NS_ABORT_MSG("Invalid PHY model (must be Yans or Spectrum)");
-    }
-    if (dlAckSeqType != "NO-OFDMA")
-    {
-        // SpectrumWifiPhy is required for OFDMA
-        phyModel = "Spectrum";
-    }
+    Config::SetDefault("ns3::WifiMac::MpduBufferSize",
+                       UintegerValue(useExtendedBlockAck ? 256 : 64));
 
-    int channelWidth = 80;
-    int gi = 800;
-
-    NodeContainer wifiStaNodes;
-    wifiStaNodes.Create(nStations);
-    NodeContainer wifiApNode;
-    wifiApNode.Create(1);
-
-    NetDeviceContainer apDevice;
-    NetDeviceContainer staDevices;
-    WifiMacHelper mac;
-    WifiHelper wifi;
-    std::string channelStr("{0, " + std::to_string(channelWidth) + ", ");
     StringValue ctrlRate;
     auto nonHtRefRateMbps = HePhy::GetNonHtReferenceRate(mcs) / 1e6;
 
     std::ostringstream ossDataMode;
     ossDataMode << "HeMcs" << mcs;
 
+    g_wifi.SetStandard(WIFI_STANDARD_80211ax);
+    std::string freqStr;
     if (frequency == 6)
     {
-        wifi.SetStandard(WIFI_STANDARD_80211ax);
         ctrlRate = StringValue(ossDataMode.str());
-        channelStr += "BAND_6GHZ, 0}";
+        freqStr = "BAND_6GHZ";
         Config::SetDefault("ns3::LogDistancePropagationLossModel::ReferenceLoss", DoubleValue(48));
     }
     else if (frequency == 5)
     {
-        wifi.SetStandard(WIFI_STANDARD_80211ax);
         std::ostringstream ossControlMode;
         ossControlMode << "OfdmRate" << nonHtRefRateMbps << "Mbps";
         ctrlRate = StringValue(ossControlMode.str());
-        channelStr += "BAND_5GHZ, 0}";
+        freqStr = "BAND_5GHZ";
     }
     else if (frequency == 2.4)
     {
-        wifi.SetStandard(WIFI_STANDARD_80211ax);
         std::ostringstream ossControlMode;
         ossControlMode << "ErpOfdmRate" << nonHtRefRateMbps << "Mbps";
         ctrlRate = StringValue(ossControlMode.str());
-        channelStr += "BAND_2_4GHZ, 0}";
+        freqStr = "BAND_2_4GHZ";
         Config::SetDefault("ns3::LogDistancePropagationLossModel::ReferenceLoss", DoubleValue(40));
     }
     else
@@ -210,126 +198,152 @@ main(int argc, char* argv[])
         NS_FATAL_ERROR("Wrong frequency value!");
     }
 
-    wifi.SetRemoteStationManager("ns3::ConstantRateWifiManager",
-                                 "DataMode",
-                                 StringValue(ossDataMode.str()),
-                                 "ControlMode",
-                                 ctrlRate);
     // Set guard interval
-    wifi.ConfigHeOptions("GuardInterval", TimeValue(NanoSeconds(gi)));
+    g_wifi.ConfigHeOptions("GuardInterval", TimeValue(NanoSeconds(gi)));
 
-    Ssid ssid = Ssid("ns3-80211ax");
-
-    if (phyModel == "Spectrum")
+    if (dlAckSeqType != "NO-OFDMA")
     {
-        /*
-         * SingleModelSpectrumChannel cannot be used with 802.11ax because two
-         * spectrum models are required: one with 78.125 kHz bands for HE PPDUs
-         * and one with 312.5 kHz bands for, e.g., non-HT PPDUs (for more details,
-         * see issue #408 (CLOSED))
-         */
-        Ptr<MultiModelSpectrumChannel> spectrumChannel = CreateObject<MultiModelSpectrumChannel>();
+        g_mac.SetMultiUserScheduler("ns3::RrMultiUserScheduler",
+                                    "EnableUlOfdma",
+                                    BooleanValue(enableUlOfdma),
+                                    "EnableBsrp",
+                                    BooleanValue(enableBsrp),
+                                    "AccessReqInterval",
+                                    TimeValue(accessReqInterval));
+    }
 
-        Ptr<LogDistancePropagationLossModel> lossModel =
-            CreateObject<LogDistancePropagationLossModel>();
-        spectrumChannel->AddPropagationLossModel(lossModel);
+    // Set channel
+    /*
+     * SingleModelSpectrumChannel cannot be used with 802.11ax because two
+     * spectrum models are required: one with 78.125 kHz bands for HE PPDUs
+     * and one with 312.5 kHz bands for, e.g., non-HT PPDUs (for more details,
+     * see issue #408 (CLOSED))
+     */
+    Ptr<MultiModelSpectrumChannel> spectrumChannel = CreateObject<MultiModelSpectrumChannel>();
 
-        SpectrumWifiPhyHelper phy;
-        phy.SetPcapDataLinkType(WifiPhyHelper::DLT_IEEE802_11_RADIO);
-        phy.SetChannel(spectrumChannel);
+    Ptr<LogDistancePropagationLossModel> lossModel =
+        CreateObject<LogDistancePropagationLossModel>();
+    spectrumChannel->AddPropagationLossModel(lossModel);
 
-        mac.SetType("ns3::StaWifiMac",
-                    "Ssid",
-                    SsidValue(ssid),
-                    "MpduBufferSize",
-                    UintegerValue(useExtendedBlockAck ? 256 : 64));
-        phy.Set("ChannelSettings", StringValue(channelStr));
-        staDevices = wifi.Install(phy, mac, wifiStaNodes);
+    g_phy.SetPcapDataLinkType(WifiPhyHelper::DLT_IEEE802_11_RADIO);
+    g_phy.SetChannel(spectrumChannel);
 
-        if (dlAckSeqType != "NO-OFDMA")
+    //==================================================================//
+    //                       Deploy Wi-Fi Network                       ||
+    //==================================================================//
+    for (auto& [bssIdx, bssInfo] : bssMap)
+    {
+        Ssid ssid = Ssid(bssInfo.m_ssid);
+        const char* bssIpBase = bssInfo.m_bssIp.data();
+
+        /* Create nodes */
+        NodeContainer bssNodes;
+        NetDeviceContainer bssDevices;
+        Ipv4InterfaceContainer bssInterfaces;
+
+        bssNodes.Create(bssInfo.m_nodes.size());
+        Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator>();
+
+        /* Config each node */
+        for (uint32_t i = 0; i < bssInfo.m_nodes.size(); i++)
         {
-            mac.SetMultiUserScheduler("ns3::RrMultiUserScheduler",
-                                      "EnableUlOfdma",
-                                      BooleanValue(enableUlOfdma),
-                                      "EnableBsrp",
-                                      BooleanValue(enableBsrp),
-                                      "AccessReqInterval",
-                                      TimeValue(accessReqInterval));
+            PanlinkNode& node = bssInfo.m_nodes[i];
+            uint32_t channel = node.m_channel;
+            uint32_t bandwidth = node.m_bandwidth;
+            std::string channelStr("{" + std::to_string(channel) + ", " +
+                                   std::to_string(bandwidth) + ", " + freqStr + ", 0}");
+
+            /* Install Wi-Fi stack */
+            g_wifi.SetRemoteStationManager("ns3::ConstantRateWifiManager",
+                                           "DataMode",
+                                           StringValue(ossDataMode.str()),
+                                           "ControlMode",
+                                           ctrlRate);
+
+            if (node.m_type == "PO")
+            {
+                g_mac.SetType("ns3::StaWifiMac",
+                              "Ssid",
+                              SsidValue(ssid),
+                              "EnableBeaconJitter",
+                              BooleanValue(true));
+            }
+            else if (node.m_type == "PC")
+            {
+                g_mac.SetType("ns3::StaWifiMac", "Ssid", SsidValue(ssid));
+            }
+            else if (node.m_type == "AP")
+            {
+                g_mac.SetType("ns3::ApWifiMac",
+                              "Ssid",
+                              SsidValue(ssid),
+                              "EnableBeaconJitter",
+                              BooleanValue(true));
+            }
+            else if (node.m_type == "STA")
+            {
+                g_mac.SetType("ns3::StaWifiMac", "Ssid", SsidValue(ssid));
+            }
+            else
+            {
+                NS_ABORT_MSG("Node type not recognized!");
+            }
+
+            g_phy.Set("ChannelSettings", StringValue(channelStr));
+
+            bssDevices.Add(g_wifi.Install(g_phy, g_mac, bssNodes.Get(i)));
+
+            /* Config position */
+            positionAlloc->Add(Vector(node.m_xPosition, node.m_yPosition, node.m_zPosition));
+
+            /* Record applications */
+            for (auto& app : node.m_applications)
+            {
+                auto it = g_srcAppMap.find(node.m_id);
+                if (it == g_srcAppMap.end())
+                {
+                    g_srcAppMap[node.m_id] = std::vector<SrcApp>{app};
+                }
+                else
+                {
+                    g_srcAppMap[node.m_id].push_back(app);
+                }
+            }
         }
-        mac.SetType("ns3::ApWifiMac",
-                    "EnableBeaconJitter",
-                    BooleanValue(false),
-                    "Ssid",
-                    SsidValue(ssid));
-        apDevice = wifi.Install(phy, mac, wifiApNode);
-    }
-    else
-    {
-        YansWifiChannelHelper channel = YansWifiChannelHelper::Default();
-        YansWifiPhyHelper phy;
-        phy.SetPcapDataLinkType(WifiPhyHelper::DLT_IEEE802_11_RADIO);
-        phy.SetChannel(channel.Create());
 
-        mac.SetType("ns3::StaWifiMac",
-                    "Ssid",
-                    SsidValue(ssid),
-                    "MpduBufferSize",
-                    UintegerValue(useExtendedBlockAck ? 256 : 64));
-        phy.Set("ChannelSettings", StringValue(channelStr));
-        staDevices = wifi.Install(phy, mac, wifiStaNodes);
+        /* Install Internet stack */
+        g_inet.Install(bssNodes);
+        g_ipv4addr.SetBase(bssIpBase, "255.255.255.0");
+        bssInterfaces = g_ipv4addr.Assign(bssDevices);
 
-        mac.SetType("ns3::ApWifiMac",
-                    "EnableBeaconJitter",
-                    BooleanValue(false),
-                    "Ssid",
-                    SsidValue(ssid));
-        apDevice = wifi.Install(phy, mac, wifiApNode);
+        /* Install mobility */
+        g_mobility.SetPositionAllocator(positionAlloc);
+        g_mobility.Install(bssNodes);
+
+        // Add to the global containers
+        g_nodes.Add(bssNodes);
+        g_devices.Add(bssDevices);
+        g_interfaces.Add(bssInterfaces);
     }
 
+    // Assign random stream number
     int64_t streamNumber = 150;
-    streamNumber += wifi.AssignStreams(apDevice, streamNumber);
-    streamNumber += wifi.AssignStreams(staDevices, streamNumber);
+    streamNumber += g_wifi.AssignStreams(g_devices, streamNumber);
+    streamNumber += g_inet.AssignStreams(g_nodes, streamNumber);
 
-    // mobility.
-    MobilityHelper mobility;
-    Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator>();
+    /* Install applications */
+    PanlinkAppInstaller appInstaller(appInfo);
+    appInstaller.Install(g_nodes, g_interfaces, g_srcAppMap);
 
-    positionAlloc->Add(Vector(0.0, 0.0, 0.0));
-    positionAlloc->Add(Vector(distance, 0.0, 0.0));
-    mobility.SetPositionAllocator(positionAlloc);
-
-    mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
-
-    mobility.Install(wifiApNode);
-    mobility.Install(wifiStaNodes);
-
-    /* Internet stack*/
-    InternetStackHelper stack;
-    stack.Install(wifiApNode);
-    stack.Install(wifiStaNodes);
-    streamNumber += stack.AssignStreams(wifiApNode, streamNumber);
-    streamNumber += stack.AssignStreams(wifiStaNodes, streamNumber);
-
-    Ipv4AddressHelper address;
-    address.SetBase("192.168.1.0", "255.255.255.0");
-    Ipv4InterfaceContainer staNodeInterfaces;
-    Ipv4InterfaceContainer apNodeInterface;
-
-    staNodeInterfaces = address.Assign(staDevices);
-    apNodeInterface = address.Assign(apDevice);
-
-    /* Setting applications */
     ApplicationContainer serverApp;
-    auto serverNodes = downlink ? std::ref(wifiStaNodes) : std::ref(wifiApNode);
+    auto serverNodes = std::ref(wifiStaNodes);
     Ipv4InterfaceContainer serverInterfaces;
     NodeContainer clientNodes;
     for (std::size_t i = 0; i < nStations; i++)
     {
-        serverInterfaces.Add(downlink ? staNodeInterfaces.Get(i) : apNodeInterface.Get(0));
-        clientNodes.Add(downlink ? wifiApNode.Get(0) : wifiStaNodes.Get(i));
+        serverInterfaces.Add(staNodeInterfaces.Get(i));
+        clientNodes.Add(wifiApNode.Get(0));
     }
-
-    // const auto maxLoad = HePhy::GetDataRate(mcs, channelWidth, gi, 1) / nStations;
 
     // UDP flow
     uint16_t port = 9;

@@ -63,12 +63,12 @@ ReadBssMapFromJson(std::string filename)
             BssInfo bssInfo;
 
             // Extract the bss's properties from the JSON object
-            bssInfo.m_bssId = bss["bss_idx"].GetInt();
+            bssInfo.m_bssIdx = bss["bss_idx"].GetInt();
             bssInfo.m_ssid = bss["ssid"].GetString();
             bssInfo.m_bssIp = bss["bss_ip"].GetString();
             bssInfo.m_nodes = std::vector<PanlinkNode>();
 
-            std::cout << "BSS ID: " << bssInfo.m_bssId 
+            std::cout << "BSS ID: " << bssInfo.m_bssIdx 
                       << ", SSID: " << bssInfo.m_ssid 
                       << ", BSS IP: " << bssInfo.m_bssIp 
                       << std::endl;
@@ -78,7 +78,7 @@ ReadBssMapFromJson(std::string filename)
             {
                 PanlinkNode panlinkNode;
                 panlinkNode.m_id = node["node_idx"].GetInt();
-                panlinkNode.m_bssId = bssInfo.m_bssId;
+                panlinkNode.m_bssIdx = bssInfo.m_bssIdx;
                 panlinkNode.m_type = node["node_type"].GetString();
                 panlinkNode.m_xPosition = node["position"]["x"].GetDouble();
                 panlinkNode.m_yPosition = node["position"]["y"].GetDouble();
@@ -95,6 +95,8 @@ ReadBssMapFromJson(std::string filename)
                     srcApp.m_name = app["name"].GetString();
                     srcApp.m_dst = app["dst"].GetInt();
                     srcApp.m_port = app["port"].GetInt();
+                    srcApp.m_startTime = app["start_time"].GetDouble();
+                    srcApp.m_endTime = app["end_time"].GetDouble();
                     panlinkNode.m_applications.push_back(srcApp);
                 }
                 // Iterate over each agent
@@ -125,24 +127,24 @@ ReadBssMapFromJson(std::string filename)
             }
 
             // Add the BssInfo to the BssMap
-            bssMap[bssInfo.m_bssId] = bssInfo;
+            bssMap[bssInfo.m_bssIdx] = bssInfo;
         }
     }
 
     return bssMap;
 }
 
-AppInfo
+AppMap
 ReadAppInfoFromJson(std::string filename)
 {
-    AppInfo appInfo;
+    AppMap appMap;
 
     // Open the JSON file
     std::ifstream file(filename);
     if (!file.is_open())
     {
         NS_LOG_ERROR("Failed to open " << filename);
-        return appInfo;
+        return appMap;
     }
 
     // Read the JSON file into a string
@@ -156,14 +158,23 @@ ReadAppInfoFromJson(std::string filename)
     {
         NS_LOG_ERROR("Failed to parse " << filename << ": "
                                         << rapidjson::GetParseErrorFunc(document.GetParseError()));
-        return appInfo;
+        return appMap;
     }
 
     if (document.IsObject() && document.HasMember("application") && document["application"].IsObject())
     {
         for (auto& app : document["application"].GetArray())
         {
-            appInfo.m_name = app["name"].GetString();
+            std::string appName = app["name"].GetString();
+
+            auto it = appMap.find(appName);
+            if (it != appMap.end())
+            {
+                NS_LOG_ERROR("Duplicated application name: " << appName << " in " << filename);
+                return appMap;
+            }
+
+            AppInfo appInfo;
             appInfo.m_type = app["type"].GetString();
             appInfo.m_params = std::unordered_map<std::string, double>();
 
@@ -171,79 +182,82 @@ ReadAppInfoFromJson(std::string filename)
             {
                 for (auto& param : app["params"].GetArray())
                 {
+                    // udp params: {max_packets, interval, packet_size}
                     if (appInfo.m_type == "udp")
                     {
                         if (param.HasMember("max_packets") && param["max_packets"].IsInt())
                         {
-                            appInfo.m_params["max_packets"] = param["max_packets"].GetInt();
+                            appInfo.m_params["MaxPackets"] = param["max_packets"].GetInt();
                         }
                         else
                         {
-                            appInfo.m_params["max_packets"] = 0;
+                            appInfo.m_params["MaxPackets"] = 0;
                         }
 
                         if (param.HasMember("interval") && param["interval"].IsInt())
                         {
-                            appInfo.m_params["interval"] = param["interval"].GetInt(); // in microseconds
+                            appInfo.m_params["Interval"] = param["interval"].GetInt(); // in microseconds
                         }
                         else
                         {
-                            NS_LOG_ERROR("Missing 'interval' in " << appInfo.m_name << " in " << filename);
+                            NS_LOG_ERROR("Missing 'interval' in " << appName << " in " << filename);
                         }
 
                         if (param.HasMember("packet_size") && param["packet_size"].IsInt())
                         {
-                            appInfo.m_params["packet_size"] = param["packet_size"].GetInt(); // in bytes
+                            appInfo.m_params["PacketSize"] = param["packet_size"].GetInt(); // in bytes
                         }
                         else
                         {
-                            NS_LOG_ERROR("Missing 'packet_size' in " << appInfo.m_name << " in " << filename);
+                            NS_LOG_ERROR("Missing 'packet_size' in " << appName << " in " << filename);
                         }
                     }
+                    // constant params: {interval, packet_size, fragment_size}
                     else if (appInfo.m_type == "constant")
                     {
                         if (param.HasMember("interval") && param["interval"].IsInt())
                         {
-                            appInfo.m_params["interval"] = param["interval"].GetInt(); // in microseconds
+                            appInfo.m_params["Interval"] = param["interval"].GetInt(); // in microseconds
                         }
                         else
                         {
-                            NS_LOG_ERROR("Missing 'interval' in " << appInfo.m_name << " in " << filename);
+                            NS_LOG_ERROR("Missing 'interval' in " << appName << " in " << filename);
                         }
 
                         if (param.HasMember("packet_size") && param["packet_size"].IsInt())
                         {
-                            appInfo.m_params["packet_size"] = param["packet_size"].GetInt(); // in bytes
+                            appInfo.m_params["PacketSize"] = param["packet_size"].GetInt(); // in bytes
                         }
                         else
                         {
-                            NS_LOG_ERROR("Missing 'packet_size' in " << appInfo.m_name << " in " << filename);
+                            NS_LOG_ERROR("Missing 'packet_size' in " << appName << " in " << filename);
                         }
 
                         if (param.HasMember("fragment_size") && param["fragment_size"].IsInt())
                         {
-                            appInfo.m_params["fragment_size"] = param["fragment_size"].GetInt(); // in bytes
+                            appInfo.m_params["FragmentSize"] = param["fragment_size"].GetInt(); // in bytes
                         }
                         else
                         {
-                            NS_LOG_ERROR("Missing 'fragment_size' in " << appInfo.m_name << " in " << filename);
+                            NS_LOG_ERROR("Missing 'fragment_size' in " << appName << " in " << filename);
                         }
                     }
+                    // poisson params: {lambda}
                     else if (appInfo.m_type == "poisson")
                     {
                         if (param.HasMember("lambda") && param["lambda"].IsDouble())
                         {
-                            appInfo.m_params["lambda"] = param["lambda"].GetDouble();
+                            appInfo.m_params["Lambda"] = param["lambda"].GetDouble();
                         }
                         else
                         {
-                            NS_LOG_ERROR("Missing 'lambda' in " << appInfo.m_name << " in " << filename);
+                            NS_LOG_ERROR("Missing 'lambda' in " << appName << " in " << filename);
                         }
                     }
                     else
                     {
                         NS_LOG_ERROR("Unknown application type: " << appInfo.m_type);
-                        return appInfo;
+                        return appMap;
                     }
                     // TODO: Add other application types
                 }
@@ -251,12 +265,14 @@ ReadAppInfoFromJson(std::string filename)
             else
             {
                 NS_LOG_ERROR("Failed to find parameters for " << appInfo.m_type << " in " << filename);
-                return appInfo;
+                return appMap;
             }
+
+            appMap[appName] = appInfo;
         }
     }
 
-    return appInfo;
+    return appMap;
 }
 
 // uint32_t

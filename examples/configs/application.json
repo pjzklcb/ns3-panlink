@@ -31,7 +31,7 @@
             "name": "traffic_test",
             "type": "poisson",
             "params": {
-                "lambda": 1000
+                "lambda": 1000.0
             }
         }
     ]
