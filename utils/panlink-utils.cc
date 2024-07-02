@@ -194,9 +194,9 @@ ReadAppInfoFromJson(std::string filename)
                             appInfo.m_params["MaxPackets"] = 0;
                         }
 
-                        if (param.HasMember("interval") && param["interval"].IsInt())
+                        if (param.HasMember("interval") && param["interval"].IsDouble())
                         {
-                            appInfo.m_params["Interval"] = param["interval"].GetInt(); // in microseconds
+                            appInfo.m_params["Interval"] = param["interval"].GetDouble(); // in seconds
                         }
                         else
                         {
@@ -215,22 +215,22 @@ ReadAppInfoFromJson(std::string filename)
                     // constant params: {interval, packet_size, fragment_size}
                     else if (appInfo.m_type == "constant")
                     {
-                        if (param.HasMember("interval") && param["interval"].IsInt())
+                        if (param.HasMember("interval") && param["interval"].IsDouble())
                         {
-                            appInfo.m_params["Interval"] = param["interval"].GetInt(); // in microseconds
+                            appInfo.m_params["Interval"] = param["interval"].GetDouble(); // in seconds
                         }
                         else
                         {
                             NS_LOG_ERROR("Missing 'interval' in " << appName << " in " << filename);
                         }
 
-                        if (param.HasMember("packet_size") && param["packet_size"].IsInt())
+                        if (param.HasMember("burst_size") && param["burst_size"].IsInt())
                         {
-                            appInfo.m_params["PacketSize"] = param["packet_size"].GetInt(); // in bytes
+                            appInfo.m_params["BurstSize"] = param["burst_size"].GetInt(); // in bytes
                         }
                         else
                         {
-                            NS_LOG_ERROR("Missing 'packet_size' in " << appName << " in " << filename);
+                            NS_LOG_ERROR("Missing 'burst_size' in " << appName << " in " << filename);
                         }
 
                         if (param.HasMember("fragment_size") && param["fragment_size"].IsInt())

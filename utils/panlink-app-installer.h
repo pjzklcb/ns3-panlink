@@ -28,12 +28,6 @@
 namespace ns3
 {
 
-struct SinkApp
-{
-    std::string m_type;
-    uint32_t m_port;
-};
-
 typedef std::map<uint32_t /* src node id */, std::vector<SrcApp>> SrcAppMap;
 
 typedef std::tuple<uint32_t /* dst node id */, std::string /* type */, uint32_t /* port */> SinkApp;
@@ -95,7 +89,7 @@ class PanlinkAppInstaller
      *
      * \param nodes the given nodes
      */
-    void InstallSinkApp(NodeContainer nodes);
+    ApplicationContainer InstallSinkApp(NodeContainer nodes);
 
     AppMap m_appMap;                             //!< application map
     std::vector<SinkApp> m_sinkAppList;          //!< list of sink applications

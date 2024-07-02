@@ -88,13 +88,13 @@ PanlinkAppInstaller::Install(Ptr<Node> node, InetSocketAddress dstAddr, std::str
         NS_LOG_ERROR("Unknown application: " << appName);
         return app;
     }
-    
+
     AppInfo appInfo = m_appMap[appName];
     if (appInfo.m_type == "udp")
     {
         UdpClientHelper client(dstAddr);
         client.SetAttribute("MaxPackets", UintegerValue(appInfo.m_params["MaxPackets"]));
-        client.SetAttribute("Interval", TimeValue(MicroSeconds(appInfo.m_params["Interval"])));
+        client.SetAttribute("Interval", TimeValue(Seconds(appInfo.m_params["Interval"])));
         client.SetAttribute("PacketSize", UintegerValue(appInfo.m_params["PacketSize"]));
         app = client.Install(node);
 
@@ -102,13 +102,21 @@ PanlinkAppInstaller::Install(Ptr<Node> node, InetSocketAddress dstAddr, std::str
     }
     else if (appInfo.m_type == "constant")
     {
-        BurstyHelper client("ns3::UdpSocketFactory", dstAddr);
-        client.SetAttribute("FragmentSize", UintegerValue(appInfo.m_params["FragmentSize"]));
+        std::string interval = std::to_string(appInfo.m_params["Interval"]); // in seconds
+        std::string burstSize = std::to_string(appInfo.m_params["BurstSize"]);
+        BurstyHelper burstyHelper("ns3::UdpSocketFactory", dstAddr);
+        burstyHelper.SetAttribute("FragmentSize", UintegerValue(appInfo.m_params["FragmentSize"]));
+        burstyHelper.SetBurstGenerator("ns3::SimpleBurstGenerator",
+                                       "PeriodRv",
+                                       StringValue("ns3::ConstantRandomVariable[Constant=" + interval + "]"),
+                                       "BurstSizeRv",
+                                       StringValue("ns3::ConstantRandomVariable[Constant=" + burstSize + "]"));
 
         // m_appHelpers.push_back(client);
     }
     else if (appInfo.m_type == "poisson")
     {
+        // TODO: implement poisson distribution
     }
     else
     {
@@ -117,6 +125,48 @@ PanlinkAppInstaller::Install(Ptr<Node> node, InetSocketAddress dstAddr, std::str
     }
 
     return app;
+}
+
+ApplicationContainer 
+PanlinkAppInstaller::InstallSinkApp(NodeContainer nodes)
+{
+    NS_LOG_FUNCTION(this);
+
+    ApplicationContainer apps;
+    for (auto [dstNodeId, appType, port] : m_sinkAppList)
+    {
+        ApplicationContainer sinkApp;
+        if (appType == "udp")
+        {
+            UdpServerHelper server(port);
+            sinkApp = server.Install(nodes.Get(dstNodeId));
+            sinkApp.Start(Seconds(0.0));
+            sinkApp.Stop(Simulator::GetMaximumSimulationTime());
+
+            m_appHelpers.push_back(server);
+        }
+        else if (appType == "constant")
+        {
+            BurstSinkHelper sink("ns3::UdpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), port));
+            sinkApp = sink.Install(nodes.Get(dstNodeId));
+            sinkApp.Start(Seconds(0.0));
+            sinkApp.Stop(Simulator::GetMaximumSimulationTime());
+
+            // m_appHelpers.push_back(sink);
+        }
+        else if (appType == "poisson")
+        {
+            // TODO: implement poisson
+        }
+        else
+        {
+            NS_LOG_ERROR("Unknown application type: " << appType);
+            return apps;
+        }
+        apps.Add(sinkApp);
+    }
+
+    return apps;
 }
 
 int64_t

@@ -128,7 +128,7 @@ main(int argc, char* argv[])
     //                     Read Configuration Files                     ||
     //==================================================================//
     BssMap bssMap = ReadBssMapFromJson(nodesConfig);
-    AppInfo appInfo = ReadAppInfoFromJson(appConfig);
+    AppMap appMap = ReadAppInfoFromJson(appConfig);
 
     //==================================================================//
     //                     Configure Wi-Fi Network                      ||
@@ -262,7 +262,7 @@ main(int argc, char* argv[])
 
             if (node.m_type == "PO")
             {
-                g_mac.SetType("ns3::StaWifiMac",
+                g_mac.SetType("ns3::ApWifiMac",
                               "Ssid",
                               SsidValue(ssid),
                               "EnableBeaconJitter",
@@ -332,40 +332,8 @@ main(int argc, char* argv[])
     streamNumber += g_inet.AssignStreams(g_nodes, streamNumber);
 
     /* Install applications */
-    PanlinkAppInstaller appInstaller(appInfo);
+    PanlinkAppInstaller appInstaller(appMap);
     appInstaller.Install(g_nodes, g_interfaces, g_srcAppMap);
-
-    ApplicationContainer serverApp;
-    auto serverNodes = std::ref(wifiStaNodes);
-    Ipv4InterfaceContainer serverInterfaces;
-    NodeContainer clientNodes;
-    for (std::size_t i = 0; i < nStations; i++)
-    {
-        serverInterfaces.Add(staNodeInterfaces.Get(i));
-        clientNodes.Add(wifiApNode.Get(0));
-    }
-
-    // UDP flow
-    uint16_t port = 9;
-    UdpServerHelper server(port);
-    serverApp = server.Install(serverNodes.get());
-    streamNumber += server.AssignStreams(serverNodes.get(), streamNumber);
-
-    serverApp.Start(Seconds(0.0));
-    serverApp.Stop(simulationTime + Seconds(1.0));
-
-    for (std::size_t i = 0; i < nStations; i++)
-    {
-        UdpClientHelper client(serverInterfaces.GetAddress(i), port);
-        client.SetAttribute("MaxPackets", UintegerValue(4294967295U));
-        client.SetAttribute("Interval", TimeValue(Seconds(0.1)));
-        client.SetAttribute("PacketSize", UintegerValue(payloadSize));
-        ApplicationContainer clientApp = client.Install(clientNodes.Get(i));
-        streamNumber += client.AssignStreams(clientNodes.Get(i), streamNumber);
-
-        clientApp.Start(Seconds(1.0));
-        clientApp.Stop(simulationTime + Seconds(1.0));
-    }
 
     Simulator::Schedule(Seconds(0), &Ipv4GlobalRoutingHelper::PopulateRoutingTables);
 
