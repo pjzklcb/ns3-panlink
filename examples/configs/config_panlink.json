@@ -1,0 +1,47 @@
+{
+    "nodes": [
+        {
+            "id": 0,
+            "type": "PO",
+            "position": {
+                "x": 250.0,
+                "y": 250.0,
+                "z": 1.5
+            },
+            "channel": 42,
+            "bandwidth": 80,
+            "applications": [],
+            "agents": []
+        },
+        {
+            "id": 1,
+            "type": "PC",
+            "position": {
+                "x": 255.0,
+                "y": 250.0,
+                "z": 1.5
+            },
+            "channel": 42,
+            "bandwidth": 80,
+            "applications": [
+                {
+                    "name": "ping",
+                    "dst": 0,
+                    "start_time": 0.5,
+                    "end_time": 0.8
+                },
+                {
+                    "name": "test",
+                    "dst": 0,
+                    "start_time": 1.0,
+                    "end_time": 100.0
+                }
+            ],
+            "agents": [
+                {
+                    "type": "channel_access"
+                }
+            ]
+        }
+    ]
+}

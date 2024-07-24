@@ -42,7 +42,7 @@ struct SrcApp
  */
 enum AgentType
 {
-    AGENT_DISABLED = 0,
+    NO_AGENT = 0,
     CHANNEL_ACCESS
 };
 
@@ -86,6 +86,12 @@ struct AppInfo
 typedef std::map<uint32_t /* bss ID */, BssInfo> BssMap;
 
 typedef std::map<std::string /* application name */, AppInfo> AppMap;
+
+/**
+ * \param filename the name of the JSON file
+ * \return Panlink nodes configured in the JSON
+ */
+std::vector<PanlinkNode> ReadNodesFromJson(std::string filename);
 
 /**
  * \param filename the name of the JSON file

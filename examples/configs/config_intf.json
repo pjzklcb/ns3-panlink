@@ -1,0 +1,83 @@
+{
+    "ap_list": [
+        {
+            "position": {
+                "x": 270.0,
+                "y": 270.0,
+                "z": 1.5
+            },
+            "channel": 42,
+            "bandwidth": 80,
+            "sta_list": [],
+            "application_list": []
+        },
+        {
+            "position": {
+                "x": 230.0,
+                "y": 230.0,
+                "z": 1.5
+            },
+            "channel": 42,
+            "bandwidth": 80,
+            "sta_list": [
+                {
+                    "sta_idx": 0,
+                    "position": {
+                        "x": 238.0,
+                        "y": 243.0,
+                        "z": 1.5
+                    },
+                    "channel": 42,
+                    "bandwidth": 80,
+                    "application_list": [
+                        {
+                            "name": "ping",
+                            "start_time": 0.5,
+                            "end_time": 0.8
+                        },
+                        {
+                            "name": "test",
+                            "start_time": 1.0,
+                            "end_time": 100.0
+                        }
+                    ]
+                }
+            ],
+            "application_list": []
+        },
+        {
+            "position": {
+                "x": 270.0,
+                "y": 230.0,
+                "z": 1.5
+            },
+            "channel": 42,
+            "bandwidth": 80,
+            "sta_list": [
+                {
+                    "sta_idx": 0,
+                    "position": {
+                        "x": 252.0,
+                        "y": 245.0,
+                        "z": 1.5
+                    },
+                    "channel": 42,
+                    "bandwidth": 80,
+                    "application_list": []
+                }
+            ],
+            "application_list": [
+                {
+                    "name": "ping",
+                    "start_time": 0.5,
+                    "end_time": 0.8
+                },
+                {
+                    "name": "test",
+                    "start_time": 1.0,
+                    "end_time": 100.0
+                }
+            ]
+        }
+    ]
+}

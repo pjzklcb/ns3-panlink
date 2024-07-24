@@ -32,14 +32,19 @@ namespace ns3
  */
 struct InFlightPacketInfo
 {
+    /* APP */
+    bool m_isData{false};
+    uint32_t m_port{0};
+    Time m_appTxTime{Seconds(0)};     // time the packet was created by app (E2E)
+    Time m_appRxTime{Seconds(0)};     // time the packet was received by app (E2E)
+
     Mac48Address m_srcAddress;
     Mac48Address m_dstAddress;
     AcIndex m_ac;
     uint32_t m_packetSize;
     Time m_edcaEnqueueTime{Seconds(0)}; // time the packet was enqueued into an EDCA queue
     Time m_edcaDequeueTime{Seconds(0)}; // time the packet was dequeued from EDCA queue
-    Time appTypeTxTime{Seconds(0)};     // time the packet was created by app (E2E)
-    Time appTypeRxTime{Seconds(0)};     // time the packet was received by app (E2E)
+    
     Time m_HoLTime{Seconds(0)};         // time the packet became Head of Line
     Time m_L2RxTime{Seconds(0)};  // time packet got forwarded up to the Mac Layer (L2 latency =
                                   // L2RxTime - edcaEnqueueTime)

@@ -17,8 +17,8 @@
  * Authors: Pan Jinzhe <pjzklcb@gmail.com>
  */
 
-#ifndef PANLINK_APP_INSTALLER_H
-#define PANLINK_APP_INSTALLER_H
+#ifndef APP_INSTALLER
+#define APP_INSTALLER
 
 #include "panlink-utils.h"
 
@@ -35,22 +35,22 @@ typedef std::tuple<uint32_t /* dst node id */, std::string /* type */, uint32_t 
 /**
  * \ingroup panlink
  *
- * The application installer for Panlink. Sink applications will be installed automatically based on
+ * The application installer. Sink applications will be installed automatically based on
  * the source applications.
  */
-class PanlinkAppInstaller
+class AppInstaller
 {
   public:
     /**
      * \param appMap the application map
      */
-    PanlinkAppInstaller(AppMap appMap);
-    ~PanlinkAppInstaller();
+    AppInstaller(AppMap appMap);
+    ~AppInstaller();
 
     // delete default constructor, copy constructor and assignment operator
-    PanlinkAppInstaller() = delete;
-    PanlinkAppInstaller(const PanlinkAppInstaller&) = delete;
-    PanlinkAppInstaller& operator=(const PanlinkAppInstaller&) = delete;
+    AppInstaller() = delete;
+    AppInstaller(const AppInstaller&) = delete;
+    AppInstaller& operator=(const AppInstaller&) = delete;
 
     /**
      * Install sink applications to the given nodes.
@@ -98,4 +98,4 @@ class PanlinkAppInstaller
 
 } // namespace ns3
 
-#endif /* PANLINK_APP_INSTALLER_H */
+#endif /* APP_INSTALLER */

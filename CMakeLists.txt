@@ -12,7 +12,8 @@ include_directories(${pybind11_INCLUDE_DIRS})
 set(source_files
     env/panlink-env-monitor.cc
     model/panlink-sta-wifi-mac.cc
-    utils/panlink-app-installer.cc
+    utils/app-installer.cc
+    utils/intf-deployer.cc
     utils/panlink-utils.cc
 )
 
@@ -20,7 +21,8 @@ set(header_files
     env/panlink-obs-act.h
     env/panlink-env-monitor.h
     model/panlink-sta-wifi-mac.h
-    utils/panlink-app-installer.h
+    utils/app-installer.h
+    utils/intf-deployer.h
     utils/panlink-utils.h
 )
 

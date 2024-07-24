@@ -17,28 +17,28 @@
  * Authors: Pan Jinzhe <pjzklcb@gmail.com>
  */
 
-#include "panlink-app-installer.h"
+#include "app-installer.h"
 
 namespace ns3
 {
 
-NS_LOG_COMPONENT_DEFINE("PanlinkAppInstaller");
+NS_LOG_COMPONENT_DEFINE("AppInstaller");
 
-PanlinkAppInstaller::PanlinkAppInstaller(AppMap appMap)
+AppInstaller::AppInstaller(AppMap appMap)
     : m_appMap(appMap)
 {
     NS_LOG_FUNCTION(this);
 }
 
-PanlinkAppInstaller::~PanlinkAppInstaller()
+AppInstaller::~AppInstaller()
 {
     NS_LOG_FUNCTION(this);
 }
 
 ApplicationContainer
-PanlinkAppInstaller::Install(NodeContainer nodes,
-                             Ipv4InterfaceContainer interfaces,
-                             SrcAppMap srcApps)
+AppInstaller::Install(NodeContainer nodes,
+                      Ipv4InterfaceContainer interfaces,
+                      SrcAppMap srcApps)
 {
     NS_LOG_FUNCTION(this);
 
@@ -54,10 +54,15 @@ PanlinkAppInstaller::Install(NodeContainer nodes,
 
             InetSocketAddress dstAddr = InetSocketAddress(interfaces.GetAddress(dstNodeId), port);
             ApplicationContainer app = Install(nodes.Get(srcNodeId), dstAddr, appName);
-
+            
             app.Start(Seconds(srcApp.m_startTime));
             app.Stop(Seconds(srcApp.m_endTime));
             apps.Add(app);
+
+            std::cout << "Installed application: " << appName 
+                      << " from node-: " << srcNodeId << " to node-: " << dstNodeId 
+                      << "(IP: " << interfaces.GetAddress(dstNodeId) 
+                      << ", Port:" << port << ")" << std::endl;
 
             // Record the sink app
             auto it = m_appMap.find(appName);
@@ -76,7 +81,7 @@ PanlinkAppInstaller::Install(NodeContainer nodes,
 }
 
 ApplicationContainer
-PanlinkAppInstaller::Install(Ptr<Node> node, InetSocketAddress dstAddr, std::string appName)
+AppInstaller::Install(Ptr<Node> node, InetSocketAddress dstAddr, std::string appName)
 {
     NS_LOG_FUNCTION(this);
 
@@ -88,7 +93,7 @@ PanlinkAppInstaller::Install(Ptr<Node> node, InetSocketAddress dstAddr, std::str
         NS_LOG_ERROR("Unknown application: " << appName);
         return app;
     }
-
+    
     AppInfo appInfo = m_appMap[appName];
     if (appInfo.m_type == "udp")
     {
@@ -128,7 +133,7 @@ PanlinkAppInstaller::Install(Ptr<Node> node, InetSocketAddress dstAddr, std::str
 }
 
 ApplicationContainer 
-PanlinkAppInstaller::InstallSinkApp(NodeContainer nodes)
+AppInstaller::InstallSinkApp(NodeContainer nodes)
 {
     NS_LOG_FUNCTION(this);
 
@@ -170,7 +175,7 @@ PanlinkAppInstaller::InstallSinkApp(NodeContainer nodes)
 }
 
 int64_t
-PanlinkAppInstaller::AssignStreams(NodeContainer nodes, int64_t stream)
+AppInstaller::AssignStreams(NodeContainer nodes, int64_t stream)
 {
     NS_LOG_FUNCTION(this);
 

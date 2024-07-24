@@ -17,45 +17,30 @@
  * Author: Pan Jinzhe <pjzklcb@gmail.com>
  */
 
-#include "ns3/boolean.h"
-#include "ns3/command-line.h"
-#include "ns3/config.h"
-#include "ns3/double.h"
-#include "ns3/enum.h"
-#include "ns3/he-phy.h"
-#include "ns3/internet-stack-helper.h"
-#include "ns3/ipv4-address-helper.h"
-#include "ns3/ipv4-global-routing-helper.h"
-#include "ns3/log.h"
-#include "ns3/mobility-helper.h"
+#include "ns3/app-installer.h"
+#include "ns3/core-module.h"
+#include "ns3/internet-module.h"
+#include "ns3/intf-deployer.h"
+#include "ns3/mobility-module.h"
 #include "ns3/multi-model-spectrum-channel.h"
-#include "ns3/on-off-helper.h"
-#include "ns3/packet-sink-helper.h"
-#include "ns3/packet-sink.h"
-#include "ns3/panlink-app-installer.h"
+#include "ns3/network-module.h"
 #include "ns3/panlink-utils.h"
-#include "ns3/spectrum-wifi-helper.h"
-#include "ns3/ssid.h"
-#include "ns3/string.h"
-#include "ns3/udp-client-server-helper.h"
-#include "ns3/udp-server.h"
-#include "ns3/uinteger.h"
-#include "ns3/wifi-acknowledgment.h"
-
-#include <functional>
+#include "ns3/wifi-module.h"
 
 // This is an example modified from the examples/wireless/wifi-he-network.cc as the main file for
-// the panlink channel access verification.
+// the env-agent framework verification.
 
 using namespace ns3;
 
-NS_LOG_COMPONENT_DEFINE("panlink-channel-access");
+NS_LOG_COMPONENT_DEFINE("panlink-baseline");
 
 int
 main(int argc, char* argv[])
 {
+    std::string timestamp = "0";
     uint32_t seed = 10; // random seed
     Time simulationTime = Seconds(3);
+    bool enableIntf = false;
     bool downlink{true};
     bool useRts{false};
     bool useExtendedBlockAck{false};
@@ -65,21 +50,23 @@ main(int argc, char* argv[])
     std::string dlAckSeqType{"NO-OFDMA"};
     bool enableUlOfdma{false};
     bool enableBsrp{false};
-    int mcs{11}; // -1 indicates an unset value
     uint32_t payloadSize =
         700; // must fit in the max TX duration when transmitting at MCS 0 over an RU of 26 tones
     Time accessReqInterval{0};
     int gi = 800;
 
     std::string configPath = "contrib/panlink/examples/configs/";
-    std::string nodesConfig = configPath + "nodes.json";
+    std::string nodesConfig = configPath + "config_panlink.json";
+    std::string intfConfig = configPath + "config_intf.json";
     std::string appConfig = configPath + "application.json";
     bool pcap = false;
     bool verbose = false;
 
     CommandLine cmd(__FILE__);
+    cmd.AddValue("timestamp", "The timestamp for this example to run", timestamp);
     cmd.AddValue("seed", "The random seed for this example to run", seed);
     cmd.AddValue("simulationTime", "Total simulation time", simulationTime);
+    cmd.AddValue("enableIntf", "Enable interference", enableIntf);
     cmd.AddValue("frequency",
                  "Whether working in the 2.4, 5 or 6 GHz band (other values gets rejected)",
                  frequency);
@@ -105,33 +92,33 @@ main(int argc, char* argv[])
         "muSchedAccessReqInterval",
         "Duration of the interval between two requests for channel access made by the MU scheduler",
         accessReqInterval);
-    cmd.AddValue("mcs", "if set, limit testing to a specific MCS (0-11)", mcs);
     cmd.AddValue("payloadSize", "The application payload size in bytes", payloadSize);
     cmd.AddValue("pcap", "Enable generating pcap files", pcap);
     cmd.AddValue("verbose", "Enable printing logs", verbose);
     cmd.Parse(argc, argv);
 
-    WifiHelper g_wifi;
-    WifiMacHelper g_mac;
-    SpectrumWifiPhyHelper g_phy;
-    InternetStackHelper g_inet;
-    Ipv4AddressHelper g_ipv4addr;
-    MobilityHelper g_mobility;
+    WifiHelper g_wifiHelper;
+    WifiMacHelper g_macHelper;
+    SpectrumWifiPhyHelper g_phyHelper;
+    InternetStackHelper g_inetHelper;
+    Ipv4AddressHelper g_ipv4Helper;
+    MobilityHelper g_mobilityHelper;
     NodeContainer g_nodes;
     NetDeviceContainer g_devices;
     Ipv4InterfaceContainer g_interfaces;
     SrcAppMap g_srcAppMap;
 
-    g_mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
+    g_mobilityHelper.SetMobilityModel("ns3::ConstantPositionMobilityModel");
 
     //==================================================================//
     //                     Read Configuration Files                     ||
     //==================================================================//
-    BssMap bssMap = ReadBssMapFromJson(nodesConfig);
-    AppMap appMap = ReadAppInfoFromJson(appConfig);
+    std::cout << "Reading configuration files..." << std::endl;
+    std::vector<PanlinkNode> g_panlinkInfo = ReadNodesFromJson(nodesConfig);
+    AppMap g_appMap = ReadAppInfoFromJson(appConfig);
 
     //==================================================================//
-    //                     Configure Wi-Fi Network                      ||
+    //                      Configure Wi-Fi Stack                       ||
     //==================================================================//
 
     if (useRts)
@@ -164,32 +151,19 @@ main(int argc, char* argv[])
     Config::SetDefault("ns3::WifiMac::MpduBufferSize",
                        UintegerValue(useExtendedBlockAck ? 256 : 64));
 
-    StringValue ctrlRate;
-    auto nonHtRefRateMbps = HePhy::GetNonHtReferenceRate(mcs) / 1e6;
-
-    std::ostringstream ossDataMode;
-    ossDataMode << "HeMcs" << mcs;
-
-    g_wifi.SetStandard(WIFI_STANDARD_80211ax);
+    g_wifiHelper.SetStandard(WIFI_STANDARD_80211ax);
     std::string freqStr;
     if (frequency == 6)
     {
-        ctrlRate = StringValue(ossDataMode.str());
         freqStr = "BAND_6GHZ";
         Config::SetDefault("ns3::LogDistancePropagationLossModel::ReferenceLoss", DoubleValue(48));
     }
     else if (frequency == 5)
     {
-        std::ostringstream ossControlMode;
-        ossControlMode << "OfdmRate" << nonHtRefRateMbps << "Mbps";
-        ctrlRate = StringValue(ossControlMode.str());
         freqStr = "BAND_5GHZ";
     }
     else if (frequency == 2.4)
     {
-        std::ostringstream ossControlMode;
-        ossControlMode << "ErpOfdmRate" << nonHtRefRateMbps << "Mbps";
-        ctrlRate = StringValue(ossControlMode.str());
         freqStr = "BAND_2_4GHZ";
         Config::SetDefault("ns3::LogDistancePropagationLossModel::ReferenceLoss", DoubleValue(40));
     }
@@ -199,17 +173,17 @@ main(int argc, char* argv[])
     }
 
     // Set guard interval
-    g_wifi.ConfigHeOptions("GuardInterval", TimeValue(NanoSeconds(gi)));
+    g_wifiHelper.ConfigHeOptions("GuardInterval", TimeValue(NanoSeconds(gi)));
 
     if (dlAckSeqType != "NO-OFDMA")
     {
-        g_mac.SetMultiUserScheduler("ns3::RrMultiUserScheduler",
-                                    "EnableUlOfdma",
-                                    BooleanValue(enableUlOfdma),
-                                    "EnableBsrp",
-                                    BooleanValue(enableBsrp),
-                                    "AccessReqInterval",
-                                    TimeValue(accessReqInterval));
+        g_macHelper.SetMultiUserScheduler("ns3::RrMultiUserScheduler",
+                                          "EnableUlOfdma",
+                                          BooleanValue(enableUlOfdma),
+                                          "EnableBsrp",
+                                          BooleanValue(enableBsrp),
+                                          "AccessReqInterval",
+                                          TimeValue(accessReqInterval));
     }
 
     // Set channel
@@ -225,124 +199,137 @@ main(int argc, char* argv[])
         CreateObject<LogDistancePropagationLossModel>();
     spectrumChannel->AddPropagationLossModel(lossModel);
 
-    g_phy.SetPcapDataLinkType(WifiPhyHelper::DLT_IEEE802_11_RADIO);
-    g_phy.SetChannel(spectrumChannel);
+    g_phyHelper.SetPcapDataLinkType(WifiPhyHelper::DLT_IEEE802_11_RADIO);
+    g_phyHelper.SetChannel(spectrumChannel);
 
     //==================================================================//
-    //                       Deploy Wi-Fi Network                       ||
+    //                       Deploy Panlink Nodes                       ||
     //==================================================================//
-    for (auto& [bssIdx, bssInfo] : bssMap)
+    std::cout << "Deploying " << g_panlinkInfo.size() << " nodes..." << std::endl;
+
+    NodeContainer panlinkNodes;
+    NetDeviceContainer panlinkDevices;
+    Ipv4InterfaceContainer panlinkInterfaces;
+    Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator>();
+
+    panlinkNodes.Create(g_panlinkInfo.size());
+    Ssid ssid = Ssid("panlink");
+    for (uint32_t i = 0; i < g_panlinkInfo.size(); i++)
     {
-        Ssid ssid = Ssid(bssInfo.m_ssid);
-        const char* bssIpBase = bssInfo.m_bssIp.data();
+        auto& node = g_panlinkInfo[i];
+        uint32_t channel = node.m_channel;
+        uint32_t bandwidth = node.m_bandwidth;
+        std::string channelStr("{" + std::to_string(channel) + ", " + std::to_string(bandwidth) +
+                               ", " + freqStr + ", 0}");
 
-        /* Create nodes */
-        NodeContainer bssNodes;
-        NetDeviceContainer bssDevices;
-        Ipv4InterfaceContainer bssInterfaces;
+        /* Install Wi-Fi stack */
+        g_wifiHelper.SetRemoteStationManager("ns3::ConstantRateWifiManager",
+                                             "DataMode",
+                                             StringValue("HeMcs9"),
+                                             "ControlMode",
+                                             StringValue("HeMcs0"));
 
-        bssNodes.Create(bssInfo.m_nodes.size());
-        Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator>();
-
-        /* Config each node */
-        for (uint32_t i = 0; i < bssInfo.m_nodes.size(); i++)
+        if (node.m_type == "PO")
         {
-            PanlinkNode& node = bssInfo.m_nodes[i];
-            uint32_t channel = node.m_channel;
-            uint32_t bandwidth = node.m_bandwidth;
-            std::string channelStr("{" + std::to_string(channel) + ", " +
-                                   std::to_string(bandwidth) + ", " + freqStr + ", 0}");
+            g_macHelper.SetType("ns3::ApWifiMac",
+                                "Ssid",
+                                SsidValue(ssid),
+                                "EnableBeaconJitter",
+                                BooleanValue(true));
+        }
+        else if (node.m_type == "PC")
+        {
+            g_macHelper.SetType("ns3::StaWifiMac", "Ssid", SsidValue(ssid));
+        }
+        else if (node.m_type == "AP")
+        {
+            g_macHelper.SetType("ns3::ApWifiMac",
+                                "Ssid",
+                                SsidValue(ssid),
+                                "EnableBeaconJitter",
+                                BooleanValue(true));
+        }
+        else if (node.m_type == "STA")
+        {
+            g_macHelper.SetType("ns3::StaWifiMac", "Ssid", SsidValue(ssid));
+        }
+        else
+        {
+            NS_ABORT_MSG("Node type not recognized!");
+        }
 
-            /* Install Wi-Fi stack */
-            g_wifi.SetRemoteStationManager("ns3::ConstantRateWifiManager",
-                                           "DataMode",
-                                           StringValue(ossDataMode.str()),
-                                           "ControlMode",
-                                           ctrlRate);
+        g_phyHelper.Set("ChannelSettings", StringValue(channelStr));
 
-            if (node.m_type == "PO")
+        panlinkDevices.Add(g_wifiHelper.Install(g_phyHelper, g_macHelper, panlinkNodes.Get(i)));
+
+        /* Config position */
+        positionAlloc->Add(Vector(node.m_xPosition, node.m_yPosition, node.m_zPosition));
+
+        /* Record applications */
+        for (auto& app : node.m_applications)
+        {
+            auto it = g_srcAppMap.find(node.m_id);
+            if (it == g_srcAppMap.end())
             {
-                g_mac.SetType("ns3::ApWifiMac",
-                              "Ssid",
-                              SsidValue(ssid),
-                              "EnableBeaconJitter",
-                              BooleanValue(true));
-            }
-            else if (node.m_type == "PC")
-            {
-                g_mac.SetType("ns3::StaWifiMac", "Ssid", SsidValue(ssid));
-            }
-            else if (node.m_type == "AP")
-            {
-                g_mac.SetType("ns3::ApWifiMac",
-                              "Ssid",
-                              SsidValue(ssid),
-                              "EnableBeaconJitter",
-                              BooleanValue(true));
-            }
-            else if (node.m_type == "STA")
-            {
-                g_mac.SetType("ns3::StaWifiMac", "Ssid", SsidValue(ssid));
+                g_srcAppMap[node.m_id] = std::vector<SrcApp>{app};
             }
             else
             {
-                NS_ABORT_MSG("Node type not recognized!");
-            }
-
-            g_phy.Set("ChannelSettings", StringValue(channelStr));
-
-            bssDevices.Add(g_wifi.Install(g_phy, g_mac, bssNodes.Get(i)));
-
-            /* Config position */
-            positionAlloc->Add(Vector(node.m_xPosition, node.m_yPosition, node.m_zPosition));
-
-            /* Record applications */
-            for (auto& app : node.m_applications)
-            {
-                auto it = g_srcAppMap.find(node.m_id);
-                if (it == g_srcAppMap.end())
-                {
-                    g_srcAppMap[node.m_id] = std::vector<SrcApp>{app};
-                }
-                else
-                {
-                    g_srcAppMap[node.m_id].push_back(app);
-                }
+                g_srcAppMap[node.m_id].push_back(app);
             }
         }
-
-        /* Install Internet stack */
-        g_inet.Install(bssNodes);
-        g_ipv4addr.SetBase(bssIpBase, "255.255.255.0");
-        bssInterfaces = g_ipv4addr.Assign(bssDevices);
-
-        /* Install mobility */
-        g_mobility.SetPositionAllocator(positionAlloc);
-        g_mobility.Install(bssNodes);
-
-        // Add to the global containers
-        g_nodes.Add(bssNodes);
-        g_devices.Add(bssDevices);
-        g_interfaces.Add(bssInterfaces);
     }
 
-    // Assign random stream number
-    int64_t streamNumber = 150;
-    streamNumber += g_wifi.AssignStreams(g_devices, streamNumber);
-    streamNumber += g_inet.AssignStreams(g_nodes, streamNumber);
+    /* Install mobility */
+    g_mobilityHelper.SetPositionAllocator(positionAlloc);
+    g_mobilityHelper.Install(panlinkNodes);
 
-    /* Install applications */
-    PanlinkAppInstaller appInstaller(appMap);
-    appInstaller.Install(g_nodes, g_interfaces, g_srcAppMap);
+    /* Internet stack*/
+    g_inetHelper.Install(panlinkNodes);
+    g_ipv4Helper.SetBase("192.168.0.0", "255.255.255.0");
+    panlinkInterfaces = g_ipv4Helper.Assign(panlinkDevices);
 
+    g_nodes.Add(panlinkNodes);
+    g_devices.Add(panlinkDevices);
+    g_interfaces.Add(panlinkInterfaces);
+    
+    std::cout << "Panlink nodes deployed." << std::endl;
+    //==================================================================//
+    //                       Deploy Interference                        ||
+    //==================================================================//
+    if (enableIntf)
+    {
+        std::cout << "Deploying interference..." << std::endl;
+        IntfDeployer intfDeployer;
+        std::cout << "Interference deployed." << std::endl;
+    }
+
+    //==================================================================//
+    //                         Other Processes                          ||
+    //==================================================================//
     Simulator::Schedule(Seconds(0), &Ipv4GlobalRoutingHelper::PopulateRoutingTables);
 
+    int64_t streamNumber = 150;
+    streamNumber += g_wifiHelper.AssignStreams(g_devices, streamNumber);
+    streamNumber += g_inetHelper.AssignStreams(g_nodes, streamNumber);
+    
+    /* Install applications */
+    AppInstaller appInstaller(g_appMap);
+    appInstaller.Install(g_nodes, g_interfaces, g_srcAppMap);
+
+    /* Bind envs */
+
+    /* Start simulation */
+    std::cout << "Start simulation..." << std::endl;
     Simulator::Stop(simulationTime + Seconds(1.0));
     Simulator::Run();
 
-    // Statistic process
+    //==================================================================//
+    //                        Statistic Process                         ||
+    //==================================================================//
 
     Simulator::Destroy();
-
+    std::cout << "ns-3 simulation done." << std::endl;
+    
     return 0;
 }
