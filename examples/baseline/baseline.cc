@@ -40,7 +40,7 @@ main(int argc, char* argv[])
     std::string timestamp = "0";
     uint32_t seed = 10; // random seed
     Time simulationTime = Seconds(3);
-    bool enableIntf = false;
+    bool enableIntf{false};
     bool downlink{true};
     bool useRts{false};
     bool useExtendedBlockAck{false};
