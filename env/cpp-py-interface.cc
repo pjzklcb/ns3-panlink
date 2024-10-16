@@ -17,7 +17,7 @@
  * Author:  Muyuan Shen <muyuan_shen@hust.edu.cn>
  */
 
-#include "panlink-obs-act.h"
+#include "obs-act-type.h"
 
 #include "ns3/ai-module.h"
 

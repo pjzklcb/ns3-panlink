@@ -13,7 +13,7 @@ add_subdirectory(contrib/ai)
 add_subdirectory(contrib/vr-app)
 
 set(source_files
-    env/panlink-env-monitor.cc
+    env/env-monitor.cc
     model/panlink-sta-wifi-mac.cc
     utils/app-installer.cc
     utils/intf-deployer.cc
@@ -21,8 +21,9 @@ set(source_files
 )
 
 set(header_files
-    env/panlink-obs-act.h
-    env/panlink-env-monitor.h
+    env/obs-act-type.h
+    env/packet-info.h
+    env/env-monitor.h
     model/panlink-sta-wifi-mac.h
     utils/app-installer.h
     utils/intf-deployer.h
@@ -43,9 +44,9 @@ build_lib(
     ${libwifi}
 )
 
-pybind11_add_module(panlink_py_interface env/panlink_py_interface.cc)
-set_target_properties(panlink_py_interface PROPERTIES
+pybind11_add_module(cpp_py_interface env/cpp-py-interface.cc)
+set_target_properties(cpp_py_interface PROPERTIES
         LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/env)
-target_link_libraries(panlink_py_interface PRIVATE
+target_link_libraries(cpp_py_interface PRIVATE
         ${libpanlink}
 )

@@ -17,7 +17,7 @@
  * Authors: Pan Jinzhe <pjzklcb@gmail.com>
  */
 
-#include "panlink-env-monitor.h"
+#include "env-monitor.h"
 
 #include "ns3/panlink-utils.h"
 #include "ns3/ipv4-address.h"
@@ -25,10 +25,10 @@
 namespace ns3
 {
 
-NS_LOG_COMPONENT_DEFINE("PanlinkEnvMonitor");
+NS_LOG_COMPONENT_DEFINE("EnvMonitor");
 
 // void
-// PanlinkEnvMonitor::NotifyEdcaEnqueue(Ptr<const WifiMpdu> item)
+// EnvMonitor::NotifyEdcaEnqueue(Ptr<const WifiMpdu> item)
 // {
 //     if (!item->GetHeader().IsQosData())
 //     {
@@ -49,7 +49,7 @@ NS_LOG_COMPONENT_DEFINE("PanlinkEnvMonitor");
 // }
 
 // void
-// PanlinkEnvMonitor::NotifyAppTx(Ptr<const Packet> packet, const Address& address)
+// EnvMonitor::NotifyAppTx(Ptr<const Packet> packet, const Address& address)
 // {
 //     Ptr<const Packet> p = packet;
 
@@ -82,7 +82,7 @@ NS_LOG_COMPONENT_DEFINE("PanlinkEnvMonitor");
 // }
 
 // void
-// PanlinkEnvMonitor::NotifyPhyTxBegin(std::string context, Ptr<const Packet> p, double txPowerW)
+// EnvMonitor::NotifyPhyTxBegin(std::string context, Ptr<const Packet> p, double txPowerW)
 // {
 //     totalTx += 1;
 //     nodePacketTxTime[ContextToNodeId(context)][p->GetUid()].push_back(Simulator::Now());
@@ -118,7 +118,7 @@ NS_LOG_COMPONENT_DEFINE("PanlinkEnvMonitor");
 // }
 
 // void
-// PanlinkEnvMonitor::PhyTxDoneTrace(std::string context, Ptr<const Packet> p)
+// EnvMonitor::PhyTxDoneTrace(std::string context, Ptr<const Packet> p)
 // {
 //     nodePacketTxEndTime[ContextToNodeId(context)][p->GetUid()].push_back(Simulator::Now());
 // }
@@ -130,13 +130,13 @@ NS_LOG_COMPONENT_DEFINE("PanlinkEnvMonitor");
 //  * \param p The packet.
 //  */
 // void
-// PanlinkEnvMonitor::PhyTxDropTrace(std::string context, Ptr<const Packet> p)
+// EnvMonitor::PhyTxDropTrace(std::string context, Ptr<const Packet> p)
 // {
 //     nodePacketTxEndTime[ContextToNodeId(context)][p->GetUid()].push_back(Simulator::Now());
 // }
 
 // void
-// PanlinkEnvMonitor::NotifyMacForwardUp(Ptr<const Packet> p)
+// EnvMonitor::NotifyMacForwardUp(Ptr<const Packet> p)
 // {
 //     // std::cout << "MacForwardUp UID " << p->GetUid() << std::endl;
 //     // Ptr<const Packet> p = packet;
@@ -180,7 +180,7 @@ NS_LOG_COMPONENT_DEFINE("PanlinkEnvMonitor");
 // }
 
 // void
-// PanlinkEnvMonitor::NotifyAppRx(Ptr<const Packet> packet, const Address& address)
+// EnvMonitor::NotifyAppRx(Ptr<const Packet> packet, const Address& address)
 // {
 //     // std::cout << "App Rx UID " << packet->GetUid() << std::endl;
 
@@ -223,7 +223,7 @@ NS_LOG_COMPONENT_DEFINE("PanlinkEnvMonitor");
 // }
 
 // void
-// PanlinkEnvMonitor::NotifyMsduDequeuedFromEdcaQueue(Ptr<const WifiMpdu> item)
+// EnvMonitor::NotifyMsduDequeuedFromEdcaQueue(Ptr<const WifiMpdu> item)
 // {
 //     // std::cout << "Dequeue UID " << item->GetPacket()->GetUid() << std::endl;
 
@@ -329,13 +329,13 @@ NS_LOG_COMPONENT_DEFINE("PanlinkEnvMonitor");
 // }
 
 // void
-// PanlinkEnvMonitor::NotifyMsduDroppedAfterDequeueFromEdcaQueue(Ptr<const WifiMpdu> item)
+// EnvMonitor::NotifyMsduDroppedAfterDequeueFromEdcaQueue(Ptr<const WifiMpdu> item)
 // {
 //     // std::cout << "did it work?" << std::endl;
 // }
 
 // void
-// PanlinkEnvMonitor::FragmentTx(Ptr<const Packet> fragment,
+// EnvMonitor::FragmentTx(Ptr<const Packet> fragment,
 //                                 const Address& from,
 //                                 const Address& to,
 //                                 const SeqTsSizeFragHeader& header)
@@ -380,7 +380,7 @@ NS_LOG_COMPONENT_DEFINE("PanlinkEnvMonitor");
 // }
 
 // void
-// PanlinkEnvMonitor::FragmentRx(Ptr<const Packet> fragment,
+// EnvMonitor::FragmentRx(Ptr<const Packet> fragment,
 //                                 const Address& from,
 //                                 const Address& to,
 //                                 const SeqTsSizeFragHeader& header)
@@ -436,7 +436,7 @@ NS_LOG_COMPONENT_DEFINE("PanlinkEnvMonitor");
 // }
 
 // void
-// PanlinkEnvMonitor::BurstTx(Ptr<const Packet> burst,
+// EnvMonitor::BurstTx(Ptr<const Packet> burst,
 //                             const Address& from,
 //                             const Address& to,
 //                             const SeqTsSizeFragHeader& header)
@@ -449,7 +449,7 @@ NS_LOG_COMPONENT_DEFINE("PanlinkEnvMonitor");
 // }
 
 // void
-// PanlinkEnvMonitor::BurstRx(Ptr<const Packet> burst,
+// EnvMonitor::BurstRx(Ptr<const Packet> burst,
 //                             const Address& from,
 //                             const Address& to,
 //                             const SeqTsSizeFragHeader& header)
@@ -468,7 +468,7 @@ NS_LOG_COMPONENT_DEFINE("PanlinkEnvMonitor");
 //  * \param cw The contention window.
 //  */
 // void
-// PanlinkEnvMonitor::CwTrace(std::string context, uint32_t cw, uint8_t /* linkId */)
+// EnvMonitor::CwTrace(std::string context, uint32_t cw, uint8_t /* linkId */)
 // {
 //     // std::cout << Simulator::Now().GetSeconds() << " " << ContextToNodeId(context) << " " <<
 //     // cw
@@ -483,7 +483,7 @@ NS_LOG_COMPONENT_DEFINE("PanlinkEnvMonitor");
 //  * \param newVal The backoff value.
 //  */
 // void
-// PanlinkEnvMonitor::BackoffTrace(std::string context, uint32_t newVal, uint8_t /* linkId */)
+// EnvMonitor::BackoffTrace(std::string context, uint32_t newVal, uint8_t /* linkId */)
 // {
 //     // std::cout << Simulator::Now().GetSeconds() << " " << ContextToNodeId(context) << " " <<
 //     // newVal
