@@ -45,6 +45,8 @@ class PanlinkStaWifiMac : public StaWifiMac
 
   private:
 
+};
+
 } // namespace ns3
 
 #endif /* PANLINK_STA_WIFI_MAC_H */

@@ -1,3 +1,6 @@
+add_subdirectory(contrib/ai)
+add_subdirectory(contrib/vr-app)
+
 set(source_files
     model/panlink-sta-wifi-mac.cc
 )
