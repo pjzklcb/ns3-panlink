@@ -9,6 +9,9 @@ find_package(Python REQUIRED COMPONENTS Interpreter Development)
 find_package(pybind11 CONFIG REQUIRED)
 include_directories(${pybind11_INCLUDE_DIRS})
 
+add_subdirectory(contrib/ai)
+add_subdirectory(contrib/vr-app)
+
 set(source_files
     env/panlink-env-monitor.cc
     model/panlink-sta-wifi-mac.cc
