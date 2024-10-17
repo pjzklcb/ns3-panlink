@@ -9,12 +9,25 @@
 #ifndef PACKET_INFO_H
 #define PACKET_INFO_H
 
-#include "ns3/core-module.h"
-#include "ns3/wifi-module.h"
+#include "ns3/mac48-address.h"
+#include "ns3/qos-utils.h"
+#include "ns3/nstime.h"
 
 
 namespace ns3
 {
+
+/**
+ * Types of AI agents.
+ */
+enum AgentType
+{
+    NO_RL = 0,
+    RL_CCA_SENSITIVITY,
+    RL_CHANNEL_ACCESS,
+    RL_RATE_CONTROL,
+    RL_AGGREGATION
+};
 
 /**
  * Record all the in-flight packet information

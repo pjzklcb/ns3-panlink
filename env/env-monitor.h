@@ -9,7 +9,7 @@
 #ifndef ENV_MONITOR_H
 #define ENV_MONITOR_H
 
-#include "packet-info.h"
+#include "env-utils.h"
 
 #include "ns3/singleton.h"
 #include "ns3/vr-app-module.h"

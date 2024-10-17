@@ -11,21 +11,13 @@
 
 #include "obs-act-list.h"
 
+#include "ns3/env-utils.h"
 #include "ns3/node.h"
 #include "ns3/ns3-ai-msg-interface.h"
 #include "ns3/object.h"
 
 namespace ns3
 {
-
-enum AgentType
-{
-    NO_RL = 0,
-    RL_CCA_SENSITIVITY,
-    RL_CHANNEL_ACCESS,
-    RL_RATE_CONTROL,
-    RL_AGGREGATION
-};
 
 /**
  * \brief base class for all env agents.
@@ -41,12 +33,12 @@ class EnvAgent : public Object
     // Delete default constructor
     EnvAgent() = delete;
     ~EnvAgent() override;
-    
+
     /**
      * EnvAgent must bind to a node and specify the corresponding memory ID.
-     * 
+     *
      * \param node the bound node
-     * \param memoryId the memory ID 
+     * \param memoryId the memory ID
      */
     EnvAgent(Ptr<Node> node, uint32_t memoryId);
 
@@ -60,19 +52,26 @@ class EnvAgent : public Object
      * \param type the type of this env agent
      */
     void SetAgentType(AgentType type);
+
     /**
      * Get the type of this env agent
      */
     AgentType GetAgentType() const;
+    /**
+     * Get the bound node.
+     */
+    Ptr<Node> GetNode() const;
 
     /**
      * Get the observation of environment.
+     *
+     * \param obs the observation from the environment
      */
-    void GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, void* info);
+    virtual void GetEnvObs(void* obs);
     /**
      * Set the action feedbacked from RL agent.
      */
-    void SetEnvAct(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface);
+    virtual void SetEnvAct();
 
   protected:
     AgentType m_type;    //!< the type of this env agent

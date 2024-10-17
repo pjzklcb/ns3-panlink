@@ -9,6 +9,7 @@
 #include "env-agent.h"
 
 #include "ns3/enum.h"
+#include "ns3/simulator.h"
 
 namespace ns3
 {
@@ -42,16 +43,43 @@ EnvAgent::GetAgentType() const
     return m_type;
 }
 
+Ptr<Node>
+EnvAgent::GetNode() const
+{
+    return m_node;
+}
+
 void 
-EnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, void* info)
+EnvAgent::GetEnvObs(void* obs)
 {
     NS_LOG_FUNCTION(this);
+
+    m_counter += 1;
+    Time now = Simulator::Now();
+
+    Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface = 
+        Ns3AiMsgInterface::Get()->GetInterface<Obs, Act>();
+
+    msgInterface->CppSendBegin();
+    auto& env = msgInterface->GetCpp2PyVector()->at(m_memoryId);
+    env.nodeId = m_node->GetId();
+    env.agentType = m_type;
+    env.counter = m_counter;
+    env.simTime = now.GetSeconds();
+    msgInterface->CppSendEnd();
 }
 
 void
-EnvAgent::SetEnvAct(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface)
+EnvAgent::SetEnvAct()
 {
     NS_LOG_FUNCTION(this);
+
+    // Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface = 
+    //     Ns3AiMsgInterface::Get()->GetInterface<Obs, Act>();
+    
+    // msgInterface->CppRecvBegin();
+    // auto& act = msgInterface->GetCpp2PyVector()->at(m_memoryId);
+    // msgInterface->CppRecvEnd();
 }
 
 } // namespace ns3

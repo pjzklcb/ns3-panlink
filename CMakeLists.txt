@@ -62,7 +62,9 @@ add_subdirectory(contrib/vr-app)
 set(source_files
     env/env-monitor.cc
     env/env-agent.cc
+    env/cca-env-agent.cc
     env/env-agent-manager.cc
+    helper/panlink-helper.cc
     model/panlink-sta-wifi-mac.cc
     utils/app-installer.cc
     utils/intf-deployer.cc
@@ -72,9 +74,11 @@ set(source_files
 set(header_files
     env/env-monitor.h
     env/env-agent.h
+    env/cca-env-agent.h
     env/env-agent-manager.h
+    env/env-utils.h
     env/obs-act-list.h
-    env/packet-info.h
+    helper/panlink-helper.h
     model/panlink-sta-wifi-mac.h
     utils/app-installer.h
     utils/intf-deployer.h

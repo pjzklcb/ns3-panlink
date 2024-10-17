@@ -21,6 +21,7 @@
 #define PANLINK_UTILS_H
 
 #include "ns3/wifi-module.h"
+#include "ns3/env-utils.h"
 
 namespace ns3
 {
@@ -35,15 +36,6 @@ struct SrcApp
     uint32_t m_port;
     double m_startTime;
     double m_endTime;
-};
-
-/**
- * Types of Wi-Fi agents.
- */
-enum AgentType
-{
-    NO_AGENT = 0,
-    CHANNEL_ACCESS
 };
 
 /**

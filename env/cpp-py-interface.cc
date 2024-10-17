@@ -34,14 +34,17 @@ PYBIND11_MODULE(panlink_py_interface, m)
 {
     py::class_<Obs>(m, "PyEnvStruct")
         .def(py::init<>())
-        .def_readwrite("txNode", &Obs::txNode)
+        .def_readwrite("nodeId", &Obs::nodeId)
+        .def_readwrite("agentType", &Obs::agentType)
+        .def_readwrite("counter", &Obs::counter)
+        .def_readwrite("simTime", &Obs::simTime)
         .def_readwrite("mcs", &Obs::mcs)
         .def_readwrite("holDelay", &Obs::holDelay)
         .def_readwrite("throughput", &Obs::throughput);
 
     py::class_<Act>(m, "PyActStruct")
         .def(py::init<>())
-        .def_readwrite("newCcaSensitivity", &Act::newCcaSensitivity);
+        .def_readwrite("ccaSensitivity", &Act::ccaSensitivity);
 
     py::class_<ns3::Ns3AiMsgInterfaceImpl<Obs, Act>::Cpp2PyMsgVector>(m, "PyEnvVector")
         .def("resize",

@@ -9,12 +9,18 @@
 #ifndef OBS_ACT_LIST_H
 #define OBS_ACT_LIST_H
 
+
 #include <array>
 #include <cstdint>
 
 struct Obs
 {
-    uint32_t txNode;
+    // mechanism
+    uint32_t nodeId;
+    uint32_t agentType;
+    uint32_t counter;
+    double simTime;
+
     uint32_t mcs;
     double holDelay;
     double throughput;
@@ -22,7 +28,7 @@ struct Obs
 
 struct Act
 {
-    double newCcaSensitivity;
+    double ccaSensitivity;
 };
 
 #endif // OBS_ACT_LIST_H

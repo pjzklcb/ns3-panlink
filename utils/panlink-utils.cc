@@ -88,9 +88,14 @@ ReadNodesFromJson(std::string filename)
             for (auto& agent : node["agents"].GetArray())
             {
                 std::string agentType = agent["type"].GetString();
-                if (agentType == "channel_access")
+                if (agentType == "CCA" || agentType == "cca_sensitivity" || 
+                    agentType == "CCA-Sensitivity")
                 {
-                    panlinkNode.m_agents.push_back(CHANNEL_ACCESS);
+                    panlinkNode.m_agents.push_back(RL_CCA_SENSITIVITY);
+                }
+                else if (agentType == "channel_access" || agentType == "Channel-Access")
+                {
+                    panlinkNode.m_agents.push_back(RL_CHANNEL_ACCESS);
                 }
                 else
                 {
@@ -184,9 +189,14 @@ ReadBssMapFromJson(std::string filename)
                 for (auto& agent : node["agents"].GetArray())
                 {
                     std::string agentType = agent.GetString();
-                    if (agentType == "channel_access")
+                    if (agentType == "CCA" || agentType == "cca_sensitivity" || 
+                        agentType == "CCA-Sensitivity")
                     {
-                        panlinkNode.m_agents.push_back(CHANNEL_ACCESS);
+                        panlinkNode.m_agents.push_back(RL_CCA_SENSITIVITY);
+                    }
+                    else if (agentType == "channel_access" || agentType == "Channel-Access")
+                    {
+                        panlinkNode.m_agents.push_back(RL_CHANNEL_ACCESS);
                     }
                     else
                     {
