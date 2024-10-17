@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2024
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Author: Pan Jinzhe <pjzklcb@gmail.com>
  */
@@ -130,17 +119,17 @@ main(int argc, char* argv[])
     if (dlAckSeqType == "ACK-SU-FORMAT")
     {
         Config::SetDefault("ns3::WifiDefaultAckManager::DlMuAckSequenceType",
-                           EnumValue(WifiAcknowledgment::DL_MU_BAR_BA_SEQUENCE));
+                           EnumValue<WifiAcknowledgment::Method>(WifiAcknowledgment::DL_MU_BAR_BA_SEQUENCE));
     }
     else if (dlAckSeqType == "MU-BAR")
     {
         Config::SetDefault("ns3::WifiDefaultAckManager::DlMuAckSequenceType",
-                           EnumValue(WifiAcknowledgment::DL_MU_TF_MU_BAR));
+                           EnumValue<WifiAcknowledgment::Method>(WifiAcknowledgment::DL_MU_TF_MU_BAR));
     }
     else if (dlAckSeqType == "AGGR-MU-BAR")
     {
         Config::SetDefault("ns3::WifiDefaultAckManager::DlMuAckSequenceType",
-                           EnumValue(WifiAcknowledgment::DL_MU_AGGREGATE_TF));
+                           EnumValue<WifiAcknowledgment::Method>(WifiAcknowledgment::DL_MU_AGGREGATE_TF));
     }
     else if (dlAckSeqType != "NO-OFDMA")
     {
