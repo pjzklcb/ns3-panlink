@@ -1,3 +1,50 @@
+# we need CONFIG for debug mode in macOS
+find_package(Protobuf CONFIG)
+if(NOT Protobuf_FOUND)
+    find_package(Protobuf REQUIRED)
+endif()
+include_directories(${Protobuf_INCLUDE_DIRS})
+
+# Check if C++-based ML frameworks are available
+# Must do before build_lib (which adds examples/ subdirectory)
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/model/libtensorflow)
+    message(STATUS "TensorFlow C library found, examples using libtensorflow are enabled")
+    set(NS3AI_LIBTENSORFLOW_EXAMPLES ON)
+    set(Libtensorflow_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/model/libtensorflow/include")
+    if(NOT EXISTS ${Libtensorflow_INCLUDE_DIR})
+        message(FATAL_ERROR "Include directory of TensorFlow C library does not exist")
+    endif()
+    set(Libtensorflow_LIBRARY_DIR "${CMAKE_CURRENT_SOURCE_DIR}/model/libtensorflow/lib")
+    if(NOT EXISTS ${Libtensorflow_LIBRARY_DIR})
+        message(FATAL_ERROR "Library directory of TensorFlow C library does not exist")
+    else()
+        file(GLOB TensorFlow_LIBRARIES "${Libtensorflow_LIBRARY_DIR}/*.so" "${Libtensorflow_LIBRARY_DIR}/*.dylib")
+    endif()
+else()
+    message(STATUS "TensorFlow C library not found, examples using libtensorflow are disabled")
+    set(NS3AI_LIBTENSORFLOW_EXAMPLES OFF)
+endif()
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/model/libtorch)
+    message(STATUS "PyTorch C++ library found, examples using libtorch are enabled")
+    set(NS3AI_LIBTORCH_EXAMPLES ON)
+    set(Libtorch_INCLUDE_DIRS
+            "${CMAKE_CURRENT_SOURCE_DIR}/model/libtorch/include;${CMAKE_CURRENT_SOURCE_DIR}/model/libtorch/include/torch/csrc/api/include")
+    foreach(dir ${Libtorch_INCLUDE_DIRS})
+        if(NOT EXISTS ${dir})
+            message(FATAL_ERROR "Include directory ${dir} of PyTorch C++ library does not exist")
+        endif()
+    endforeach ()
+    set(Libtorch_LIBRARY_DIR "${CMAKE_CURRENT_SOURCE_DIR}/model/libtorch/lib")
+    if(NOT EXISTS ${Libtorch_LIBRARY_DIR})
+        message(FATAL_ERROR "Library directory of PyTorch C++ library does not exist")
+    else()
+        file(GLOB Torch_LIBRARIES "${Libtorch_LIBRARY_DIR}/*.so" "${Libtorch_LIBRARY_DIR}/*.dylib")
+    endif()
+else()
+    message(STATUS "PyTorch C++ library not found, examples using libtorch are disabled")
+    set(NS3AI_LIBTORCH_EXAMPLES OFF)
+endif()
+
 # workaround for library outside /src
 # If placed in /src, this block is unnecessary
 set(libname ai)
@@ -43,20 +90,20 @@ else()
 endif()
 
 # Compile proto files
-add_library(proto-objects OBJECT "${CMAKE_CURRENT_SOURCE_DIR}/model/gym-interface/messages.proto")
-protobuf_generate(
-        TARGET proto-objects
-        IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/model/gym-interface"
-        LANGUAGE cpp
-        PROTOC_OUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/model/gym-interface/cpp"
-)
-protobuf_generate(
-        TARGET proto-objects
-        IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/model/gym-interface"
-        LANGUAGE python
-        PROTOC_OUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/model/gym-interface/py"
-)
-add_dependencies(${libai} proto-objects)
+# add_library(proto-objects OBJECT "${CMAKE_CURRENT_SOURCE_DIR}/model/gym-interface/messages.proto")
+# protobuf_generate(
+#         TARGET proto-objects
+#         IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/model/gym-interface"
+#         LANGUAGE cpp
+#         PROTOC_OUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/model/gym-interface/cpp"
+# )
+# protobuf_generate(
+#         TARGET proto-objects
+#         IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/model/gym-interface"
+#         LANGUAGE python
+#         PROTOC_OUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/model/gym-interface/py"
+# )
+# add_dependencies(${libai} proto-objects)
 
-# Build Gym msg binding module
-add_subdirectory(model/gym-interface/py)
+# # Build Gym msg binding module
+# add_subdirectory(model/gym-interface/py)
