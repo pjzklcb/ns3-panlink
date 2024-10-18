@@ -55,12 +55,6 @@ if __name__ == '__main__':
     # register agents
     agent_manager = AgentManager()
     n_vec_size = agent_manager.register_agents(os.path.join(config_dir, 'config_panlink.json'))
-
-    # create result directory
-    if args.stats:
-        result_dir = os.path.join(panlink_dir, 'result-' + timestamp)
-        if not os.path.exists(result_dir):
-            os.makedirs(result_dir)
     
     # create and save ns3 settings
     ns3_settings = {
@@ -71,8 +65,15 @@ if __name__ == '__main__':
         'pcap': args.pcap,
         'stats': args.stats
     }
-    with open(os.path.join(result_dir, 'ns3_settings.json'), 'w') as f:
-        json.dump(ns3_settings, f, indent=4)
+
+    # create result directory
+    if args.stats:
+        result_dir = os.path.join(panlink_dir, 'result-' + timestamp)
+        if not os.path.exists(result_dir):
+            os.makedirs(result_dir)
+        
+        with open(os.path.join(result_dir, 'ns3_settings.json'), 'w') as f:
+            json.dump(ns3_settings, f, indent=4)
 
     exp = Experiment("panlink_baseline", ns3_dir, py_binding, 
                      handleFinish=True, useVector=True, vectorSize=n_vec_size,

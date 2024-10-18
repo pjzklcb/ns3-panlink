@@ -17,6 +17,8 @@
 #include "ns3/panlink-utils.h"
 #include "ns3/wifi-module.h"
 
+#include <filesystem>
+
 // This is an example modified from the examples/wireless/wifi-he-network.cc as the main file for
 // the env-agent framework verification.
 
@@ -50,6 +52,7 @@ main(int argc, char* argv[])
     std::string intfConfig = configPath + "config_intf.json";
     std::string appConfig = configPath + "application.json";
     bool pcap = false;
+    bool stats = false;
     bool verbose = false;
 
     CommandLine cmd(__FILE__);
@@ -84,6 +87,7 @@ main(int argc, char* argv[])
         accessReqInterval);
     cmd.AddValue("payloadSize", "The application payload size in bytes", payloadSize);
     cmd.AddValue("pcap", "Enable generating pcap files", pcap);
+    cmd.AddValue("stats", "Enable results saving", stats);
     cmd.AddValue("verbose", "Enable printing logs", verbose);
     cmd.Parse(argc, argv);
 
@@ -309,6 +313,17 @@ main(int argc, char* argv[])
     /* Install applications */
     AppInstaller appInstaller(g_appMap);
     appInstaller.Install(g_nodes, g_interfaces, g_srcAppMap);
+
+    /* Create result dir */
+    if (stats)
+    {
+        std::string resultDir = "contrib/panlink/result-" + timestamp;
+        namespace fs = std::filesystem;
+        if (!fs::is_directory(resultDir) || !fs::exists(resultDir))
+        {
+            fs::create_directory(resultDir);
+        }
+    }
 
     //==================================================================//
     //                         Install Agents                           ||
