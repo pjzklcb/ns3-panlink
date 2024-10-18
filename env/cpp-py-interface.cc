@@ -30,7 +30,7 @@ namespace py = pybind11;
 PYBIND11_MAKE_OPAQUE(ns3::Ns3AiMsgInterfaceImpl<Obs, Act>::Cpp2PyMsgVector);
 PYBIND11_MAKE_OPAQUE(ns3::Ns3AiMsgInterfaceImpl<Obs, Act>::Py2CppMsgVector);
 
-PYBIND11_MODULE(panlink_py_interface, m)
+PYBIND11_MODULE(cpp_py_interface, m)
 {
     py::class_<Obs>(m, "PyEnvStruct")
         .def(py::init<>())

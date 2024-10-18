@@ -1,10 +1,3 @@
-set(gsl_libraries)
-if(${GSL_FOUND})
-  set(gsl_libraries
-      ${GSL_LIBRARIES}
-  )
-endif()
-
 check_include_file_cxx(stdint.h HAVE_STDINT_H)
 if(HAVE_STDINT_H)
     add_definitions(-DHAVE_STDINT_H)
@@ -15,6 +8,13 @@ include_directories(${Boost_INCLUDE_DIRS})
 find_package(Python REQUIRED COMPONENTS Interpreter Development)
 find_package(pybind11 CONFIG REQUIRED)
 include_directories(${pybind11_INCLUDE_DIRS})
+
+set(gsl_libraries)
+if(${GSL_FOUND})
+  set(gsl_libraries
+      ${GSL_LIBRARIES}
+  )
+endif()
 
 add_subdirectory(contrib/ai)
 add_subdirectory(contrib/vr-app)
@@ -50,13 +50,12 @@ build_lib(
   SOURCE_FILES ${source_files}
   HEADER_FILES ${header_files}
   LIBRARIES_TO_LINK 
-    
-    ${libai}
     ${libapplications}
     ${libcore}
     ${libinternet}
     ${libvr-app}
     ${libwifi}
+    ${gsl_libraries}
 )
 
 pybind11_add_module(cpp_py_interface env/cpp-py-interface.cc)

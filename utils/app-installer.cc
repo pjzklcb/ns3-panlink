@@ -60,7 +60,7 @@ AppInstaller::Install(NodeContainer nodes,
             apps.Add(app);
 
             std::cout << "Installed application: " << appName 
-                      << " from node-: " << srcNodeId << " to node-: " << dstNodeId 
+                      << " from node-" << srcNodeId << " to node-" << dstNodeId 
                       << "(IP: " << interfaces.GetAddress(dstNodeId) 
                       << ", Port:" << port << ")" << std::endl;
 
