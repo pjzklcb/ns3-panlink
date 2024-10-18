@@ -37,6 +37,13 @@ EnvAgent::SetAgentType(AgentType type)
     m_type = type;
 }
 
+void 
+EnvAgent::SetPeriod(Time period)
+{
+    NS_LOG_FUNCTION(this << period);
+    m_period = period;
+}
+
 AgentType
 EnvAgent::GetAgentType() const
 {
@@ -47,6 +54,12 @@ Ptr<Node>
 EnvAgent::GetNode() const
 {
     return m_node;
+}
+
+Time
+EnvAgent::GetPeriod() const
+{
+    return m_period;
 }
 
 void 

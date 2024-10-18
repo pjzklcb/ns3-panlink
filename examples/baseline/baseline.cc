@@ -13,6 +13,7 @@
 #include "ns3/mobility-module.h"
 #include "ns3/multi-model-spectrum-channel.h"
 #include "ns3/network-module.h"
+#include "ns3/panlink-helper.h"
 #include "ns3/panlink-utils.h"
 #include "ns3/wifi-module.h"
 
@@ -45,7 +46,7 @@ main(int argc, char* argv[])
     int gi = 800;
 
     std::string configPath = "contrib/panlink/examples/configs/";
-    std::string nodesConfig = configPath + "config_panlink.json";
+    std::string panlinkConfig = configPath + "config_panlink.json";
     std::string intfConfig = configPath + "config_intf.json";
     std::string appConfig = configPath + "application.json";
     bool pcap = false;
@@ -103,7 +104,7 @@ main(int argc, char* argv[])
     //                     Read Configuration Files                     ||
     //==================================================================//
     std::cout << "Reading configuration files..." << std::endl;
-    std::vector<PanlinkNode> g_panlinkInfo = ReadNodesFromJson(nodesConfig);
+    std::vector<PanlinkNodeInfo> g_panlinkInfo = ReadNodesFromJson(panlinkConfig);
     AppMap g_appMap = ReadAppInfoFromJson(appConfig);
 
     //==================================================================//
@@ -118,18 +119,21 @@ main(int argc, char* argv[])
 
     if (dlAckSeqType == "ACK-SU-FORMAT")
     {
-        Config::SetDefault("ns3::WifiDefaultAckManager::DlMuAckSequenceType",
-                           EnumValue<WifiAcknowledgment::Method>(WifiAcknowledgment::DL_MU_BAR_BA_SEQUENCE));
+        Config::SetDefault(
+            "ns3::WifiDefaultAckManager::DlMuAckSequenceType",
+            EnumValue<WifiAcknowledgment::Method>(WifiAcknowledgment::DL_MU_BAR_BA_SEQUENCE));
     }
     else if (dlAckSeqType == "MU-BAR")
     {
-        Config::SetDefault("ns3::WifiDefaultAckManager::DlMuAckSequenceType",
-                           EnumValue<WifiAcknowledgment::Method>(WifiAcknowledgment::DL_MU_TF_MU_BAR));
+        Config::SetDefault(
+            "ns3::WifiDefaultAckManager::DlMuAckSequenceType",
+            EnumValue<WifiAcknowledgment::Method>(WifiAcknowledgment::DL_MU_TF_MU_BAR));
     }
     else if (dlAckSeqType == "AGGR-MU-BAR")
     {
-        Config::SetDefault("ns3::WifiDefaultAckManager::DlMuAckSequenceType",
-                           EnumValue<WifiAcknowledgment::Method>(WifiAcknowledgment::DL_MU_AGGREGATE_TF));
+        Config::SetDefault(
+            "ns3::WifiDefaultAckManager::DlMuAckSequenceType",
+            EnumValue<WifiAcknowledgment::Method>(WifiAcknowledgment::DL_MU_AGGREGATE_TF));
     }
     else if (dlAckSeqType != "NO-OFDMA")
     {
@@ -281,7 +285,7 @@ main(int argc, char* argv[])
     g_nodes.Add(panlinkNodes);
     g_devices.Add(panlinkDevices);
     g_interfaces.Add(panlinkInterfaces);
-    
+
     std::cout << "Panlink nodes deployed." << std::endl;
     //==================================================================//
     //                       Deploy Interference                        ||
@@ -301,14 +305,21 @@ main(int argc, char* argv[])
     int64_t streamNumber = 150;
     streamNumber += g_wifiHelper.AssignStreams(g_devices, streamNumber);
     streamNumber += g_inetHelper.AssignStreams(g_nodes, streamNumber);
-    
+
     /* Install applications */
     AppInstaller appInstaller(g_appMap);
     appInstaller.Install(g_nodes, g_interfaces, g_srcAppMap);
 
-    /* Bind envs */
+    //==================================================================//
+    //                         Install Agents                           ||
+    //==================================================================//
+    PanlinkHelper panlinkHelper(timestamp);
+    panlinkHelper.InitEnvAgentManager(g_panlinkInfo);
+    panlinkHelper.ScheduleInitInfoExchange(Seconds(0.1));
 
-    /* Start simulation */
+    //==================================================================//
+    //                         Run Simulation                           ||
+    //==================================================================//
     std::cout << "Start simulation..." << std::endl;
     Simulator::Stop(simulationTime + Seconds(1.0));
     Simulator::Run();
@@ -319,6 +330,6 @@ main(int argc, char* argv[])
 
     Simulator::Destroy();
     std::cout << "ns-3 simulation done." << std::endl;
-    
+
     return 0;
 }

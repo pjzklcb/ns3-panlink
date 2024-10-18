@@ -52,6 +52,12 @@ class EnvAgent : public Object
      * \param type the type of this env agent
      */
     void SetAgentType(AgentType type);
+    /**
+     * Set the info exchange period of the node (0 for trigger-based).
+     *
+     * \param period the info exchange period
+     */
+    void SetPeriod(Time period);
 
     /**
      * Get the type of this env agent
@@ -61,6 +67,10 @@ class EnvAgent : public Object
      * Get the bound node.
      */
     Ptr<Node> GetNode() const;
+    /**
+     * Get the info exchange period of the node.
+     */
+    Time GetPeriod() const;
 
     /**
      * Get the observation of environment.
@@ -78,6 +88,7 @@ class EnvAgent : public Object
     Ptr<Node> m_node;    //!< the bound node
     uint32_t m_memoryId; //!< memory ID assigned to the bound node
     uint32_t m_counter;  //!< interaction counter
+    Time m_period;       //!< the info exchange period (0 for trigger-based)
 };
 
 } // namespace ns3

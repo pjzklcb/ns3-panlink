@@ -8,15 +8,18 @@
 
 #include "env-agent-manager.h"
 
+#include "ns3/node-list.h"
+#include "ns3/simulator.h"
+
 namespace ns3
 {
 
 NS_LOG_COMPONENT_DEFINE("EnvAgentManager");
 
 void 
-EnvAgentManager::RegisterEnvAgents(Ptr<Node> node, std::vector<AgentType> agentList)
+EnvAgentManager::RegisterEnvAgents(Ptr<Node> node, std::vector<AgentInfo> agentList)
 {
-    NS_LOG_FUNCTION(this << node << agentList);
+    NS_LOG_FUNCTION(this << node);
 
     if (agentList.size() == 0)
     {
@@ -33,22 +36,80 @@ EnvAgentManager::RegisterEnvAgents(Ptr<Node> node, std::vector<AgentType> agentL
     }
 
     // create EnvAgent
-    for (auto type : agentList)
+    for (auto agentInfo : agentList)
     {
+        auto type = agentInfo.m_type;
         uint32_t memoryId = m_memoryMap[node->GetId()];
-        m_agentMap[node->GetId()][type] = CreateEnvAgent(node, type, memoryId);
+        m_agentMap[node->GetId()][type] = CreateEnvAgent(node, agentInfo, memoryId);
         std::cout << "Node-" << node->GetId() << " has an agent of type " << type << std::endl;
     }
 }
 
-Ptr<EnvAgent>
-EnvAgentManager::CreateEnvAgent(Ptr<Node> node, AgentType type, uint32_t memoryId)
+bool 
+EnvAgentManager::IsEmpty()
 {
-    NS_LOG_FUNCTION(this << node << type << memoryId);
+    NS_LOG_FUNCTION(this);
+    return m_memoryMap.size() == 0;
+}
+
+void 
+EnvAgentManager::RegisterDummyAgent()
+{
+    NS_LOG_FUNCTION(this);
+
+    m_agentMap[0] = std::map<AgentType, Ptr<EnvAgent>>();
+    auto dummyAgent = CreateEnvAgent(Ptr<Node>(), AgentInfo(AgentType::NO_RL, Seconds(1)), 0);
+    m_agentMap[0][AgentType::NO_RL] = dummyAgent;
+
+    std::cout << "Dummy agent installed." << std::endl;
+}
+
+void 
+EnvAgentManager::ScheduleInitInfoExchange()
+{
+    NS_LOG_FUNCTION(this);
+    for (auto it = m_agentMap.begin(); it != m_agentMap.end(); it++)
+    {
+        for (auto agentIt = it->second.begin(); agentIt != it->second.end(); agentIt++)
+        {
+            auto period = agentIt->second->GetPeriod();
+            if (period == Seconds(0))
+            {
+                // Skip trigger-based agent
+                continue;
+            }
+
+            // Schedule an information exchange
+            uint32_t nodeId = it->first;
+            AgentType type = agentIt->first;
+            Simulator::Schedule(period, &EnvAgentManager::ScheduleInfoExchange, this, nodeId, type, period);
+        }
+    }
+}
+
+void 
+EnvAgentManager::ScheduleInfoExchange(uint32_t nodeId, AgentType type, Time period)
+{
+    NS_LOG_FUNCTION(this << nodeId << type << period);
+    
+    DoEnvInfoExchange(nodeId, type, nullptr);
+
+    // Periodically trigger information exchange
+    Simulator::Schedule(period, &EnvAgentManager::ScheduleInfoExchange, this, nodeId, type, period);
+}
+
+Ptr<EnvAgent>
+EnvAgentManager::CreateEnvAgent(Ptr<Node> node, AgentInfo agentInfo, uint32_t memoryId)
+{
+    NS_LOG_FUNCTION(this << node << memoryId);
     
     Ptr<EnvAgent> agent;
-    switch (type)
+    switch (agentInfo.m_type)
     {
+    case AgentType::NO_RL:
+        agent = CreateObject<EnvAgent>(node, memoryId);
+        break;
+        
     case AgentType::RL_CCA_SENSITIVITY:
         agent = CreateObject<CcaEnvAgent>(node, memoryId);
         break;
@@ -58,7 +119,8 @@ EnvAgentManager::CreateEnvAgent(Ptr<Node> node, AgentType type, uint32_t memoryI
         break;
     }
     
-    agent->SetAgentType(type);
+    agent->SetAgentType(agentInfo.m_type);
+    agent->SetPeriod(agentInfo.m_period);
     
     return agent;
 }

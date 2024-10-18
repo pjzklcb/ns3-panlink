@@ -8,8 +8,11 @@
 
 #include "panlink-helper.h"
 
+#include "ns3/env-agent-manager.h"
+#include "ns3/node-list.h"
 #include "ns3/log.h"
 #include "ns3/ns3-ai-msg-interface.h"
+#include "ns3/simulator.h"
 
 namespace ns3
 {
@@ -40,6 +43,36 @@ PanlinkHelper::PanlinkHelper(std::string timestamp)
                            m_timestamp + " Cpp to Python Msg",
                            m_timestamp + " Python to Cpp Msg",
                            m_timestamp + " Lockable");
+}
+
+void 
+PanlinkHelper::InitEnvAgentManager(std::vector<PanlinkNodeInfo> panlinkInfo)
+{
+    NS_LOG_FUNCTION(this);
+
+    // Create EnvAgentManager instance
+    auto agentManager = EnvAgentManager::Get();
+
+    for (auto node : panlinkInfo)
+    {
+        agentManager->RegisterEnvAgents(NodeList::GetNode(node.m_id), node.m_agents);
+    }
+}
+
+void 
+PanlinkHelper::ScheduleInitInfoExchange(Time startTime)
+{
+    NS_LOG_FUNCTION(this);
+
+    auto agentManager = EnvAgentManager::Get();
+    // Register dummy agent if there is no agent
+    if (agentManager->IsEmpty())
+    {
+        agentManager->RegisterDummyAgent();
+    }
+
+    // Schedule an initial information exchange
+    Simulator::Schedule(startTime, &EnvAgentManager::ScheduleInitInfoExchange, agentManager);
 }
 
 } // namespace ns3

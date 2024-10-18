@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2024
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Pan Jinzhe <pjzklcb@gmail.com>
  */
@@ -28,10 +17,10 @@ namespace ns3
 
 NS_LOG_COMPONENT_DEFINE("PanlinkUtils");
 
-std::vector<PanlinkNode>
+std::vector<PanlinkNodeInfo>
 ReadNodesFromJson(std::string filename)
 {
-    std::vector<PanlinkNode> nodes;
+    std::vector<PanlinkNodeInfo> nodes;
 
     // Open the JSON file
     std::ifstream file(filename);
@@ -60,16 +49,16 @@ ReadNodesFromJson(std::string filename)
         // Iterate over each node
         for (auto& node : document["nodes"].GetArray())
         {
-            PanlinkNode panlinkNode;
-            panlinkNode.m_id = node["id"].GetUint();
-            panlinkNode.m_type = node["type"].GetString();
-            panlinkNode.m_xPosition = node["position"]["x"].GetDouble();
-            panlinkNode.m_yPosition = node["position"]["y"].GetDouble();
-            panlinkNode.m_zPosition = node["position"]["z"].GetDouble();
-            panlinkNode.m_channel = node["channel"].GetUint();
-            panlinkNode.m_bandwidth = node["bandwidth"].GetUint();
-            panlinkNode.m_applications = std::vector<SrcApp>();
-            panlinkNode.m_agents = std::vector<AgentType>();
+            PanlinkNodeInfo nodeInfo;
+            nodeInfo.m_id = node["id"].GetUint();
+            nodeInfo.m_type = node["type"].GetString();
+            nodeInfo.m_xPosition = node["position"]["x"].GetDouble();
+            nodeInfo.m_yPosition = node["position"]["y"].GetDouble();
+            nodeInfo.m_zPosition = node["position"]["z"].GetDouble();
+            nodeInfo.m_channel = node["channel"].GetUint();
+            nodeInfo.m_bandwidth = node["bandwidth"].GetUint();
+            nodeInfo.m_applications = std::vector<SrcApp>();
+            nodeInfo.m_agents = std::vector<AgentInfo>();
 
             // Iterate over each application
             rapidjson::Value applications = node["applications"].GetArray();
@@ -82,20 +71,24 @@ ReadNodesFromJson(std::string filename)
                                  app["start_time"].GetDouble(),
                                  app["end_time"].GetDouble()};
 
-                panlinkNode.m_applications.push_back(srcApp);
+                nodeInfo.m_applications.push_back(srcApp);
             }
             // Iterate over each agent
             for (auto& agent : node["agents"].GetArray())
             {
                 std::string agentType = agent["type"].GetString();
-                if (agentType == "CCA" || agentType == "cca_sensitivity" || 
-                    agentType == "CCA-Sensitivity")
+                double period = agent["period"].GetDouble();
+                AgentType type;
+                if (agentType == "CCA" || 
+                    agentType == "cca_sensitivity" || agentType == "cca-sensitivity" ||
+                    agentType == "CCA-Sensitivity" || agentType == "CCA_Sensitivity")
                 {
-                    panlinkNode.m_agents.push_back(RL_CCA_SENSITIVITY);
+                    type = RL_CCA_SENSITIVITY;
                 }
-                else if (agentType == "channel_access" || agentType == "Channel-Access")
+                else if (agentType == "channel_access" || agentType == "Channel-Access"||
+                         agentType == "channel access" || agentType == "Channel Access")
                 {
-                    panlinkNode.m_agents.push_back(RL_CHANNEL_ACCESS);
+                    type = RL_CHANNEL_ACCESS;
                 }
                 else
                 {
@@ -103,125 +96,134 @@ ReadNodesFromJson(std::string filename)
                     return nodes;
                 }
                 // TODO: Add other agents
+
+                nodeInfo.m_agents.push_back({type, Seconds(period)});
             }
-            std::cout << "Node ID: " << panlinkNode.m_id << ", Node type: " << panlinkNode.m_type
-                      << ", Position: " << panlinkNode.m_xPosition << ", "
-                      << panlinkNode.m_yPosition << ", " << panlinkNode.m_zPosition
-                      << ", Channel: " << panlinkNode.m_channel
-                      << ", Bandwidth: " << panlinkNode.m_bandwidth << std::endl;
-            nodes.push_back(panlinkNode);
+            std::cout << "Node ID: " << nodeInfo.m_id << ", Node type: " << nodeInfo.m_type
+                      << ", Position: (" << nodeInfo.m_xPosition << ", "
+                      << nodeInfo.m_yPosition << ", " << nodeInfo.m_zPosition
+                      << "), Channel: " << nodeInfo.m_channel
+                      << ", Bandwidth: " << nodeInfo.m_bandwidth << std::endl;
+            nodes.push_back(nodeInfo);
         }
     }
 
     return nodes;
 }
 
-BssMap
-ReadBssMapFromJson(std::string filename)
-{
-    BssMap bssMap;
+// BssMap
+// ReadBssMapFromJson(std::string filename)
+// {
+//     BssMap bssMap;
 
-    // Open the JSON file
-    std::ifstream file(filename);
-    if (!file.is_open())
-    {
-        NS_LOG_ERROR("Failed to open " << filename);
-        return bssMap;
-    }
+//     // Open the JSON file
+//     std::ifstream file(filename);
+//     if (!file.is_open())
+//     {
+//         NS_LOG_ERROR("Failed to open " << filename);
+//         return bssMap;
+//     }
 
-    // Read the JSON file into a string
-    std::string json_str((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+//     // Read the JSON file into a string
+//     std::string json_str((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
 
-    // Parse the JSON string
-    rapidjson::Document document;
-    document.Parse(json_str.c_str());
+//     // Parse the JSON string
+//     rapidjson::Document document;
+//     document.Parse(json_str.c_str());
 
-    if (document.HasParseError())
-    {
-        NS_LOG_ERROR("Failed to parse " << filename << ": "
-                                        << rapidjson::GetParseErrorFunc(document.GetParseError()));
-        return bssMap;
-    }
+//     if (document.HasParseError())
+//     {
+//         NS_LOG_ERROR("Failed to parse " << filename << ": "
+//                                         << rapidjson::GetParseErrorFunc(document.GetParseError()));
+//         return bssMap;
+//     }
 
-    if (document.IsObject() && document.HasMember("bss") && document["bss"].IsArray())
-    {
-        // Iterate over each bss
-        for (auto& bss : document["bss"].GetArray())
-        {
-            BssInfo bssInfo;
+//     if (document.IsObject() && document.HasMember("bss") && document["bss"].IsArray())
+//     {
+//         // Iterate over each bss
+//         for (auto& bss : document["bss"].GetArray())
+//         {
+//             BssInfo bssInfo;
 
-            // Extract the bss's properties from the JSON object
-            bssInfo.m_bssIdx = bss["bss_idx"].GetInt();
-            bssInfo.m_ssid = bss["ssid"].GetString();
-            bssInfo.m_bssIp = bss["bss_ip"].GetString();
-            bssInfo.m_nodes = std::vector<PanlinkNode>();
+//             // Extract the bss's properties from the JSON object
+//             bssInfo.m_bssIdx = bss["bss_idx"].GetInt();
+//             bssInfo.m_ssid = bss["ssid"].GetString();
+//             bssInfo.m_bssIp = bss["bss_ip"].GetString();
+//             bssInfo.m_nodes = std::vector<PanlinkNodeInfo>();
 
-            std::cout << "BSS ID: " << bssInfo.m_bssIdx << ", SSID: " << bssInfo.m_ssid
-                      << ", BSS IP: " << bssInfo.m_bssIp << std::endl;
+//             std::cout << "BSS ID: " << bssInfo.m_bssIdx << ", SSID: " << bssInfo.m_ssid
+//                       << ", BSS IP: " << bssInfo.m_bssIp << std::endl;
 
-            // Iterate over each node
-            for (auto& node : bss["nodes"].GetArray())
-            {
-                PanlinkNode panlinkNode;
-                panlinkNode.m_id = node["node_idx"].GetInt();
-                panlinkNode.m_bssIdx = bssInfo.m_bssIdx;
-                panlinkNode.m_type = node["node_type"].GetString();
-                panlinkNode.m_xPosition = node["position"]["x"].GetDouble();
-                panlinkNode.m_yPosition = node["position"]["y"].GetDouble();
-                panlinkNode.m_zPosition = node["position"]["z"].GetDouble();
-                panlinkNode.m_channel = node["channel"].GetInt();
-                panlinkNode.m_bandwidth = node["bandwidth"].GetInt();
-                panlinkNode.m_applications = std::vector<SrcApp>();
-                panlinkNode.m_agents = std::vector<AgentType>();
+//             // Iterate over each node
+//             for (auto& node : bss["nodes"].GetArray())
+//             {
+//                 PanlinkNodeInfo nodeInfo;
+//                 nodeInfo.m_id = node["node_idx"].GetInt();
+//                 nodeInfo.m_bssIdx = bssInfo.m_bssIdx;
+//                 nodeInfo.m_type = node["node_type"].GetString();
+//                 nodeInfo.m_xPosition = node["position"]["x"].GetDouble();
+//                 nodeInfo.m_yPosition = node["position"]["y"].GetDouble();
+//                 nodeInfo.m_zPosition = node["position"]["z"].GetDouble();
+//                 nodeInfo.m_channel = node["channel"].GetInt();
+//                 nodeInfo.m_bandwidth = node["bandwidth"].GetInt();
+//                 nodeInfo.m_applications = std::vector<SrcApp>();
+//                 nodeInfo.m_agents = std::vector<AgentInfo>();
 
-                // Iterate over each application
-                for (auto& app : node["applications"].GetArray())
-                {
-                    SrcApp srcApp;
-                    srcApp.m_name = app["name"].GetString();
-                    srcApp.m_dst = app["dst"].GetInt();
-                    srcApp.m_port = app["port"].GetInt();
-                    srcApp.m_startTime = app["start_time"].GetDouble();
-                    srcApp.m_endTime = app["end_time"].GetDouble();
-                    panlinkNode.m_applications.push_back(srcApp);
-                }
-                // Iterate over each agent
-                for (auto& agent : node["agents"].GetArray())
-                {
-                    std::string agentType = agent.GetString();
-                    if (agentType == "CCA" || agentType == "cca_sensitivity" || 
-                        agentType == "CCA-Sensitivity")
-                    {
-                        panlinkNode.m_agents.push_back(RL_CCA_SENSITIVITY);
-                    }
-                    else if (agentType == "channel_access" || agentType == "Channel-Access")
-                    {
-                        panlinkNode.m_agents.push_back(RL_CHANNEL_ACCESS);
-                    }
-                    else
-                    {
-                        NS_LOG_ERROR("Unknown agent type: " << agent.GetString());
-                    }
-                    // TODO: Add other agents
-                }
+//                 // Iterate over each application
+//                 for (auto& app : node["applications"].GetArray())
+//                 {
+//                     SrcApp srcApp;
+//                     srcApp.m_name = app["name"].GetString();
+//                     srcApp.m_dst = app["dst"].GetInt();
+//                     srcApp.m_port = app["port"].GetInt();
+//                     srcApp.m_startTime = app["start_time"].GetDouble();
+//                     srcApp.m_endTime = app["end_time"].GetDouble();
+//                     nodeInfo.m_applications.push_back(srcApp);
+//                 }
+//                 // Iterate over each agent
+//                 for (auto& agent : node["agents"].GetArray())
+//                 {
+//                     std::string agentType = agent["type"].GetString();
+//                     double period = agent["period"].GetDouble();
+//                     AgentType type;
+//                 if (agentType == "CCA" || 
+//                         agentType == "cca_sensitivity" || agentType == "cca-sensitivity" ||
+//                         agentType == "CCA-Sensitivity" || agentType == "CCA_Sensitivity")
+//                     {
+//                         type = RL_CCA_SENSITIVITY;
+//                     }
+//                     else if (agentType == "channel_access" || agentType == "Channel-Access"||
+//                             agentType == "channel access" || agentType == "Channel Access")
+//                     {
+//                         type = RL_CHANNEL_ACCESS;
+//                     }
+//                     else
+//                     {
+//                         NS_LOG_ERROR("Unknown agent type: " << agent.GetString());
+//                         return bssMap;
+//                     }
+//                     // TODO: Add other agents
 
-                bssInfo.m_nodes.push_back(panlinkNode);
+//                     nodeInfo.m_agents.push_back({type, Seconds(period)});
+//                 }
 
-                std::cout << "Node ID: " << panlinkNode.m_id
-                          << ", Node type: " << panlinkNode.m_type
-                          << ", Position: " << panlinkNode.m_xPosition << ", "
-                          << panlinkNode.m_yPosition << ", " << panlinkNode.m_zPosition
-                          << ", Channel: " << panlinkNode.m_channel
-                          << ", Bandwidth: " << panlinkNode.m_bandwidth << std::endl;
-            }
+//                 bssInfo.m_nodes.push_back(nodeInfo);
 
-            // Add the BssInfo to the BssMap
-            bssMap[bssInfo.m_bssIdx] = bssInfo;
-        }
-    }
+//                 std::cout << "Node ID: " << nodeInfo.m_id
+//                           << ", Node type: " << nodeInfo.m_type
+//                           << ", Position: " << nodeInfo.m_xPosition << ", "
+//                           << nodeInfo.m_yPosition << ", " << nodeInfo.m_zPosition
+//                           << ", Channel: " << nodeInfo.m_channel
+//                           << ", Bandwidth: " << nodeInfo.m_bandwidth << std::endl;
+//             }
 
-    return bssMap;
-}
+//             // Add the BssInfo to the BssMap
+//             bssMap[bssInfo.m_bssIdx] = bssInfo;
+//         }
+//     }
+
+//     return bssMap;
+// }
 
 AppMap
 ReadAppInfoFromJson(std::string filename)

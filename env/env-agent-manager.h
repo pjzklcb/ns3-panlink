@@ -14,6 +14,7 @@
 
 #include "ns3/ptr.h"
 #include "ns3/singleton.h"
+#include "ns3/panlink-utils.h"
 
 namespace ns3
 {
@@ -30,17 +31,41 @@ class EnvAgentManager : public Singleton<EnvAgentManager>
      * \param node the bound node
      * \param agentList the list of agents
      */
-    void RegisterEnvAgents(Ptr<Node> node, std::vector<AgentType> agentList);
+    void RegisterEnvAgents(Ptr<Node> node, std::vector<AgentInfo> agentList);
+
+    /**
+     * Check if there is no agent installed.
+     */
+    bool IsEmpty();
+
+    /**
+     * Register a dummy agent.
+     */
+    void RegisterDummyAgent();
+
+    /**
+     * Schedule an information exchange for all registered agents that do info
+     * exchange periodically.
+     */
+    void ScheduleInitInfoExchange();
+    /**
+     * Schedule an information exchange for the specified agent.
+     * 
+     * \param nodeId the node ID
+     * \param type the type of the agent
+     * \param period the info exchange period of the agent
+     */
+    void ScheduleInfoExchange(uint32_t nodeId, AgentType type, Time period);
 
   private:
     /**
      * Create EnvAgent with given type and bound it to the specified node.
      * 
      * \param node the bound node
-     * \param type the type of the agent
+     * \param agentInfo the configuration of the agent
      * \param memoryId the memory ID assigned to the node
      */
-    Ptr<EnvAgent> CreateEnvAgent(Ptr<Node> node, AgentType type, uint32_t memoryId);
+    Ptr<EnvAgent> CreateEnvAgent(Ptr<Node> node, AgentInfo agentInfo, uint32_t memoryId);
 
     /**
      * Execute information exchange for the specified agent.
