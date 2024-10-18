@@ -41,7 +41,7 @@ EnvAgentManager::RegisterEnvAgents(Ptr<Node> node, std::vector<AgentInfo> agentL
         auto type = agentInfo.m_type;
         uint32_t memoryId = m_memoryMap[node->GetId()];
         m_agentMap[node->GetId()][type] = CreateEnvAgent(node, agentInfo, memoryId);
-        std::cout << "Node-" << node->GetId() << " has an agent of type " << type << std::endl;
+        std::cout << "Node-" << node->GetId() << " installs an agent with type=" << type << std::endl;
     }
 }
 
@@ -68,11 +68,11 @@ void
 EnvAgentManager::ScheduleInitInfoExchange()
 {
     NS_LOG_FUNCTION(this);
-    for (auto it = m_agentMap.begin(); it != m_agentMap.end(); it++)
+    for (auto [nodeId, agentList] : m_agentMap)
     {
-        for (auto agentIt = it->second.begin(); agentIt != it->second.end(); agentIt++)
+        for (auto [type, agent] : agentList)
         {
-            auto period = agentIt->second->GetPeriod();
+            auto period = agent->GetPeriod();
             if (period == Seconds(0))
             {
                 // Skip trigger-based agent
@@ -80,8 +80,6 @@ EnvAgentManager::ScheduleInitInfoExchange()
             }
 
             // Schedule an information exchange
-            uint32_t nodeId = it->first;
-            AgentType type = agentIt->first;
             Simulator::Schedule(period, &EnvAgentManager::ScheduleInfoExchange, this, nodeId, type, period);
         }
     }

@@ -91,6 +91,13 @@ main(int argc, char* argv[])
     cmd.AddValue("verbose", "Enable printing logs", verbose);
     cmd.Parse(argc, argv);
 
+    if (verbose)
+    {
+        LogComponentEnableAll(LOG_PREFIX_ALL);
+        LogComponentEnable("EnvAgent", LOG_LEVEL_ALL);
+        LogComponentEnable("EnvAgentManager", LOG_LEVEL_ALL);
+    }
+
     WifiHelper g_wifiHelper;
     WifiMacHelper g_macHelper;
     SpectrumWifiPhyHelper g_phyHelper;

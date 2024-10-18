@@ -63,7 +63,8 @@ if __name__ == '__main__':
         'simulationTime': args.duration,
         'enableIntf': args.use_intf,
         'pcap': args.pcap,
-        'stats': args.stats
+        'stats': args.stats,
+        "verbose": True
     }
 
     # create result directory
