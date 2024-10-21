@@ -28,8 +28,8 @@ class CcaEnvAgent : public EnvAgent
 
     CcaEnvAgent(Ptr<Node> node, uint32_t memoryId);
 
-    void GetEnvObs(void* obs) override;
-    void SetEnvAct() override;
+    void GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, void* obs) override;
+    void SetEnvAct(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface) override;
 
   private:
 };

@@ -64,7 +64,7 @@ if __name__ == '__main__':
         'enableIntf': args.use_intf,
         'pcap': args.pcap,
         'stats': args.stats,
-        "verbose": True
+        "verbose": False
     }
 
     # create result directory
@@ -117,7 +117,7 @@ if __name__ == '__main__':
         pass
 
     finally:
-        time_cost = int(time.imte()) - int(timestamp)
+        time_cost = int(time.time()) - int(timestamp)
         print("Finally exiting...")
         print("Time cost: {}min {}s, Python time cost: {}s".format(
             time_cost // 60, time_cost % 60, py_time_cost))

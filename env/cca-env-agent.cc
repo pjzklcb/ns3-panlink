@@ -26,32 +26,22 @@ CcaEnvAgent::CcaEnvAgent(Ptr<Node> node, uint32_t memoryId)
 }
 
 void 
-CcaEnvAgent::GetEnvObs(void* obs)
+CcaEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, void* obs)
 {
     NS_LOG_FUNCTION(this);
 
-    EnvAgent::GetEnvObs(obs);
+    EnvAgent::GetEnvObs(msgInterface, obs);
 
-    // Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface = 
-    //     Ns3AiMsgInterface::Get()->GetInterface<Obs, Act>();
-
-    // msgInterface->CppSendBegin();
-    // auto env = msgInterface->GetCpp2PyVector()->at(m_memoryId);
+    // auto& env = msgInterface->GetCpp2PyVector()->at(m_memoryId);
     // env.nodeId = m_node->GetId();
-    // msgInterface->CppSendEnd();
 }
 
 void
-CcaEnvAgent::SetEnvAct()
+CcaEnvAgent::SetEnvAct(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface)
 {
     NS_LOG_FUNCTION(this);
 
-    // Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface = 
-    //     Ns3AiMsgInterface::Get()->GetInterface<Obs, Act>();
-    
-    // msgInterface->CppRecvBegin();
-    // auto act = msgInterface->GetCpp2PyVector()->at(m_memoryId);
-    // msgInterface->CppRecvEnd();
+    // auto& act = msgInterface->GetCpp2PyVector()->at(m_memoryId);
 }
 
 } // namespace ns3

@@ -58,7 +58,7 @@ EnvAgentManager::RegisterDummyAgent()
     NS_LOG_FUNCTION(this);
 
     m_agentMap[0] = std::map<AgentType, Ptr<EnvAgent>>();
-    auto dummyAgent = CreateEnvAgent(Ptr<Node>(), AgentInfo(AgentType::NO_RL, Seconds(1)), 0);
+    auto dummyAgent = CreateEnvAgent(NodeList::GetNode(0), AgentInfo(AgentType::NO_RL, Seconds(1)), 0);
     m_agentMap[0][AgentType::NO_RL] = dummyAgent;
 
     std::cout << "Dummy agent installed." << std::endl;
@@ -128,6 +128,9 @@ EnvAgentManager::DoEnvInfoExchange(uint32_t nodeId, AgentType type, void* obs)
 {
     NS_LOG_FUNCTION(this << nodeId << type);
 
+    Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface = 
+        Ns3AiMsgInterface::Get()->GetInterface<Obs, Act>();
+
     auto it = m_agentMap[nodeId].find(type);
     if (it == m_agentMap[nodeId].end())
     {
@@ -136,8 +139,14 @@ EnvAgentManager::DoEnvInfoExchange(uint32_t nodeId, AgentType type, void* obs)
     }
 
     auto agent = it->second;
-    agent->GetEnvObs(obs);
-    agent->SetEnvAct();
+
+    msgInterface->CppSendBegin();
+    agent->GetEnvObs(msgInterface, obs);
+    msgInterface->CppSendEnd();
+
+    msgInterface->CppRecvBegin();
+    agent->SetEnvAct(msgInterface);
+    msgInterface->CppRecvEnd();
 }
 
 }

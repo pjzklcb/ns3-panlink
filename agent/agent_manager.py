@@ -44,6 +44,9 @@ class AgentManager:
                 if node_type in {"AP", "STA"}:
                     print("Node-{} is not AI node.".format(node_id))
                     continue
+                if len(agents_info) == 0:
+                    print("Node-{} has no agent.".format(node_id))
+                    continue
                 
                 memory_id = len(self.agent_dict)
                 self.agent_dict[node_id] = []

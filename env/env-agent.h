@@ -75,13 +75,14 @@ class EnvAgent : public Object
     /**
      * Get the observation of environment.
      *
+     * \param msgInterface the message interface
      * \param obs the observation from the environment
      */
-    virtual void GetEnvObs(void* obs);
+    virtual void GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, void* obs);
     /**
      * Set the action feedbacked from RL agent.
      */
-    virtual void SetEnvAct();
+    virtual void SetEnvAct(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface);
 
   protected:
     AgentType m_type;    //!< the type of this env agent
