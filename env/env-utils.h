@@ -34,11 +34,12 @@ enum AgentType
 struct InFlightPacketInfo
 {
     /* APP */
+    uint32_t m_nodeId;  // source node ID
+    uint32_t m_packetSize;
     bool m_isData{false};
     bool m_isBurst{false};
-    uint32_t m_seqN;
     uint32_t m_dstPort{0};
-    uint32_t m_packetSize;
+    uint32_t m_seqN{0};
     Time m_appTxTime{Seconds(0)}; // time the packet was created by app
     Time m_appRxTime{Seconds(0)}; // time the packet was received by app
 
@@ -59,12 +60,11 @@ struct InFlightPacketInfo
     uint32_t m_txCounter{0}; // transmission counter
     std::vector<std::pair<Time, Time>> m_phyTxTime{
         {{Seconds(0), Seconds(0)}}}; // time the packet was sent by PHY
+    double m_txPowerW;
 };
 
-typedef std::map<uint32_t /* Node ID */, std::map<uint64_t /* UID */, InFlightPacketInfo>>
-    InFlightPacketMap;
+typedef std::map<uint64_t /* UID */, InFlightPacketInfo> InFlightPacketMap;
 typedef std::map<uint32_t /* seqN */, std::vector<uint64_t /* UID */>> FragmentsInBurst;
-typedef std::map<uint32_t /* Node ID */, FragmentsInBurst> InFlightBurstMap;
 
 /**
  * Parse context strings of the form "/NodeList/x/DeviceList/x/..." to extract the node ID.

@@ -9,9 +9,11 @@
 #ifndef ENV_PHY_TRACER_H
 #define ENV_PHY_TRACER_H
 
+#include "env-utils.h"
+
+#include "ns3/nstime.h"
 #include "ns3/object.h"
 #include "ns3/packet.h"
-#include "ns3/nstime.h"
 
 namespace ns3
 {
@@ -23,20 +25,24 @@ class EnvPhyTracer : public Object
 {
   public:
     /**
-     * Handle the packer transmission begin traceback.
-     * 
-     * \param context string contains the node ID
+     * Handle the packet transmission begin traceback.
+     *
+     * \param map the in-flight packet map
+     * \param nodeId the source node ID
      * \param p the packet
      * \param txPowerW the tx power
      */
-    void HandlePhyTxBegin(std::string context, Ptr<const Packet> p, double txPowerW);
+    void HandlePhyTxBegin(InFlightPacketMap& map,
+                          uint32_t nodeId,
+                          Ptr<const Packet> p,
+                          double txPowerW);
     /**
-     * Handle the packer transmission end traceback.
-     * 
-     * \param context string contains the node ID
+     * Handle the packet transmission end traceback.
+     *
+     * \param map the in-flight packet map
      * \param p the packet
      */
-    void HandlePhyTxEnd(std::string context, Ptr<const Packet> p);
+    void HandlePhyTxEnd(InFlightPacketMap& map, Ptr<const Packet> p);
 
   private:
     std::map<uint32_t /* Node ID */, std::vector<std::pair<Time, Time>>> m_airTime;

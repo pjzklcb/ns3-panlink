@@ -29,6 +29,23 @@ class EnvMonitor : public Singleton<EnvMonitor>
 {
   public:
     /**
+     * Set the nodes under monitoring.
+     */
+    void SetNodes(NodeContainer nodes);
+    /**
+     * Set the net devices under monitoring.
+     */
+    void SetDevices(NetDeviceContainer devices);
+    /**
+     * Set the IPv4 interfaces under monitoring.
+     */
+    void SetIpv4Interfaces(Ipv4InterfaceContainer ipv4Interfaces);
+    /**
+     * Set the source applications under monitoring.
+     */
+    void SetSrcApps(SrcAppMap srcApps);
+
+    /**
      * Connect all the traceback sources.
      */
     void ConnectTraceSources();
@@ -182,7 +199,7 @@ class EnvMonitor : public Singleton<EnvMonitor>
     std::map<Ipv4Address, uint32_t /* Node ID */> m_ipv4AddressMap;
 
     InFlightPacketMap m_packetMap;
-    InFlightBurstMap m_burstMap;
+    FragmentsInBurst m_burstMap;
 };
 
 } // namespace ns3

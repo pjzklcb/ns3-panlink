@@ -8,15 +8,40 @@
 
 #include "env-monitor.h"
 
-#include "ns3/panlink-utils.h"
+#include "ns3/config.h"
 #include "ns3/ipv4-address.h"
+#include "ns3/panlink-utils.h"
 
 namespace ns3
 {
 
 NS_LOG_COMPONENT_DEFINE("EnvMonitor");
 
-void 
+void
+EnvMonitor::SetNodes(NodeContainer nodes)
+{
+    m_nodes = nodes;
+}
+
+void
+EnvMonitor::SetDevices(NetDeviceContainer devices)
+{
+    m_devices = devices;
+}
+
+void
+EnvMonitor::SetIpv4Interfaces(Ipv4InterfaceContainer ipv4Interfaces)
+{
+    m_ipv4Interfaces = ipv4Interfaces;
+}
+
+void
+EnvMonitor::SetSrcApps(SrcAppMap srcApps)
+{
+    m_srcApps = srcApps;
+}
+
+void
 EnvMonitor::ConnectTraceSources()
 {
     NS_LOG_FUNCTION(this);
@@ -24,7 +49,7 @@ EnvMonitor::ConnectTraceSources()
     m_appTracer = CreateObject<EnvAppTracer>();
     m_macTracer = CreateObject<EnvMacTracer>();
     m_phyTracer = CreateObject<EnvPhyTracer>();
-    
+
     ConnectAppTrace();
     ConnectMacTrace();
     ConnectPhyTrace();
@@ -32,15 +57,48 @@ EnvMonitor::ConnectTraceSources()
 
 void
 EnvMonitor::ConnectAppTrace()
-{}
+{
+}
 
 void
 EnvMonitor::ConnectMacTrace()
-{}
+{
+}
 
 void
 EnvMonitor::ConnectPhyTrace()
-{}
+{
+    // Trace PHY TX begin
+    Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/$ns3::WifiPhy/PhyTxBegin",
+                    MakeCallback(&EnvMonitor::NotifyPhyTxBegin, this));
+
+    // Trace PHY TX end
+    Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/$ns3::WifiPhy/PhyTxEnd",
+                    MakeCallback(&EnvMonitor::NotifyPhyTxEnd, this));
+}
+
+void
+EnvMonitor::NotifyAppTx(std::string context,
+                        Ptr<const Packet> packet,
+                        const Address& from,
+                        const Address& to)
+{
+    uint32_t nodeId = ContextToNodeId(context);
+    auto inet = InetSocketAddress::ConvertFrom(to);
+
+    m_appTracer->HandleAppTx(m_packetMap, nodeId, packet, inet.GetPort());
+}
+
+void
+EnvMonitor::NotifyAppRx(std::string context,
+                        Ptr<const Packet> packet,
+                        const Address& from,
+                        const Address& to)
+{
+    uint32_t nodeId = ContextToNodeId(context);
+
+    m_appTracer->HandleAppRx(m_packetMap, nodeId, packet);
+}
 
 // void
 // EnvMonitor::NotifyEdcaEnqueue(Ptr<const WifiMpdu> item)
@@ -51,7 +109,8 @@ EnvMonitor::ConnectPhyTrace()
 //     }
 //     // init a map entry if the packet's UID is not present
 //     auto mapIt =
-//         m_inFlightPacketMap.insert({item->GetPacket()->GetUid(), std::list<InFlightPacketInfo>()})
+//         m_inFlightPacketMap.insert({item->GetPacket()->GetUid(),
+//         std::list<InFlightPacketInfo>()})
 //             .first;
 
 //     InFlightPacketInfo info;
@@ -96,47 +155,21 @@ EnvMonitor::ConnectPhyTrace()
 //     mapIt->second.insert(mapIt->second.end(), info);
 // }
 
-// void
-// EnvMonitor::NotifyPhyTxBegin(std::string context, Ptr<const Packet> p, double txPowerW)
-// {
-//     totalTx += 1;
-//     nodePacketTxTime[ContextToNodeId(context)][p->GetUid()].push_back(Simulator::Now());
+void
+EnvMonitor::NotifyPhyTxBegin(std::string context, Ptr<const Packet> p, double txPowerW)
+{
+    uint32_t nodeId = ContextToNodeId(context);
 
-//     auto mapIt = m_inFlightPacketMap.find(p->GetUid());
-//     if (mapIt == m_inFlightPacketMap.end())
-//     {
-//         return;
-//     }
+    m_phyTracer->HandlePhyTxBegin(m_packetMap, nodeId, p, txPowerW);
+}
 
-//     auto listIt = std::find_if(mapIt->second.begin(),
-//                                mapIt->second.end(),
-//                                [&p](const InFlightPacketInfo& info) {
-//                                    return info.m_ptrToPacket->GetUid() == p->GetUid();
-//                                });
+void
+EnvMonitor::NotifyPhyTxEnd(std::string context, Ptr<const Packet> p)
+{
+    uint32_t nodeId = ContextToNodeId(context);
 
-//     if (listIt == mapIt->second.end())
-//     {
-//         // std::cout << "Forwarding up a packet that has not been enqueued?" << std::endl;
-//         return;
-//     }
-
-//     InFlightPacketInfo info;
-//     info.m_srcAddress = listIt->m_srcAddress;
-//     info.m_dstAddress = listIt->m_dstAddress;
-//     info.m_ptrToPacket = listIt->m_ptrToPacket;
-//     info.m_edcaEnqueueTime = listIt->m_edcaEnqueueTime;
-//     info.appTypeTxTime = listIt->appTypeTxTime;
-//     info.m_phyTxTime = Simulator::Now();
-
-//     mapIt->second.erase(listIt);
-//     mapIt->second.insert(mapIt->second.end(), info);
-// }
-
-// void
-// EnvMonitor::PhyTxDoneTrace(std::string context, Ptr<const Packet> p)
-// {
-//     nodePacketTxEndTime[ContextToNodeId(context)][p->GetUid()].push_back(Simulator::Now());
-// }
+    m_phyTracer->HandlePhyTxEnd(m_packetMap, p);
+}
 
 // /**
 //  * PHY TX drop trace.
@@ -411,8 +444,8 @@ EnvMonitor::ConnectPhyTrace()
 //     auto mapIt = m_inFlightPacketMap.find(p->GetUid());
 //     if (mapIt == m_inFlightPacketMap.end())
 //     {
-//         std::cout << "No packet with UID " << p->GetUid() << " is currently in queue" << std::endl;
-//         return;
+//         std::cout << "No packet with UID " << p->GetUid() << " is currently in queue" <<
+//         std::endl; return;
 //     }
 //     // mapIt->second.;
 //     auto listIt = std::find_if(mapIt->second.begin(),
@@ -456,8 +489,10 @@ EnvMonitor::ConnectPhyTrace()
 //                             const Address& to,
 //                             const SeqTsSizeFragHeader& header)
 // {
-//     NS_LOG_INFO("Sent burst seq=" << header.GetSeq() << " of header.GetSize ()=" << header.GetSize()
-//                                   << " (burst->GetSize ()=" << burst->GetSize() << ") bytes from "
+//     NS_LOG_INFO("Sent burst seq=" << header.GetSeq() << " of header.GetSize ()=" <<
+//     header.GetSize()
+//                                   << " (burst->GetSize ()=" << burst->GetSize() << ") bytes from
+//                                   "
 //                                   << AddressToString(from) << " to " << AddressToString(to)
 //                                   << " at " << header.GetTs().As(Time::S));
 //     // std::cout << "APPTX" << std::endl;
