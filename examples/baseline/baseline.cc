@@ -47,7 +47,7 @@ main(int argc, char* argv[])
     Time accessReqInterval{0};
     int gi = 800;
 
-    std::string configPath = "contrib/panlink/examples/configs/";
+    std::string configPath = "contrib/panlink/configs/";
     std::string panlinkConfig = configPath + "config_panlink.json";
     std::string intfConfig = configPath + "config_intf.json";
     std::string appConfig = configPath + "application.json";

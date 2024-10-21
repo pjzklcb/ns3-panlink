@@ -25,7 +25,7 @@ import cpp_py_interface as py_binding
 sys.path.append(panlink_dir + '/agent')
 from agent_manager import AgentManager
 
-config_dir = os.path.join(panlink_dir, 'examples/configs')
+config_dir = os.path.join(panlink_dir, 'configs')
 
 if __name__ == '__main__':
 

@@ -9,6 +9,8 @@
 #ifndef ENV_APP_TRACER_H
 #define ENV_APP_TRACER_H
 
+#include "env-utils.h"
+
 #include "ns3/nstime.h"
 #include "ns3/object.h"
 #include "ns3/packet.h"
@@ -26,68 +28,66 @@ class EnvAppTracer : public Object
     /**
      * Hanlde the packet creation traceback.
      *
+     * \param map the in-flight packet map
      * \param nodeId the node ID
      * \param packet the created packet
      * \param dstPort the destination port
      */
-    void HandleAppTx(uint32_t nodeId, Ptr<const Packet> packet, uint16_t dstPort);
+    void HandleAppTx(InFlightPacketMap& map,
+                     uint32_t nodeId,
+                     Ptr<const Packet> packet,
+                     uint16_t dstPort);
     /**
      * Handle the packet reception traceback.
      *
-     * \param nodeId the node ID
+     * \param map the in-flight packet map
      * \param packet the received packet
-     * \param dstPort the destination port
      */
-    void HandleAppRx(uint32_t nodeId, Ptr<const Packet> packet, uint16_t dstPort);
+    void HandleAppRx(InFlightPacketMap& map, Ptr<const Packet> packet);
 
     /**
      * Handle the burst creation traceback.
      *
-     * \param nodeId the node ID
+     * \param burstMap the burst map indicates contained fragments
      * \param burst the created burst
-     * \param dstPort the destination port
      * \param header the header of the created burst
      */
-    void HandleBurstTx(uint32_t nodeId,
+    void HandleBurstTx(FragmentsInBurst& burstMap,
                        Ptr<const Packet> burst,
-                       uint16_t dstPort,
                        const SeqTsSizeFragHeader& header);
     /**
      * Handle the burst reception traceback.
      *
-     * \param nodeId the node ID
+     * \param burstMap the burst map indicates contained fragments
+     * \param map the in-flight packet map
      * \param burst the received burst
-     * \param dstPort the destination port
      * \param header the header of the created burst
      */
-    void HandleBurstRx(uint32_t nodeId,
+    void HandleBurstRx(FragmentsInBurst& burstMap,
+                       InFlightPacketMap& map,
                        Ptr<const Packet> burst,
-                       uint16_t dstPort,
                        const SeqTsSizeFragHeader& header);
     /**
      * Handle the fragmentation creation traceback.
      *
+     * \param map the in-flight packet map
      * \param nodeId the node ID
      * \param fragment the created fragment
      * \param dstPort the destination port
      * \param header the header of the created fragment
      */
-    void HandleFragmentTx(uint32_t nodeId,
+    void HandleFragmentTx(InFlightPacketMap& map,
+                          uint32_t nodeId,
                           Ptr<const Packet> fragment,
                           uint16_t dstPort,
                           const SeqTsSizeFragHeader& header);
     /**
      * Handle the fragmentation reception traceback.
      *
-     * \param nodeId the node ID
+     * \param map the in-flight packet map
      * \param fragment the received fragment
-     * \param dstPort the destination port
-     * \param header the header of the created fragment
      */
-    void HandleFragmentRx(uint32_t nodeId,
-                          Ptr<const Packet> fragment,
-                          uint16_t dstPort,
-                          const SeqTsSizeFragHeader& header);
+    void HandleFragmentRx(InFlightPacketMap& map, Ptr<const Packet> fragment);
 
   private:
     std::map<uint32_t /* Node ID */, std::vector<std::pair<Time, double>>> m_e2eDelay;

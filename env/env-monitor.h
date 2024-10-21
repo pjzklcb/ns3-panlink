@@ -9,10 +9,10 @@
 #ifndef ENV_MONITOR_H
 #define ENV_MONITOR_H
 
-#include "env-utils.h"
 #include "env-app-tracer.h"
 #include "env-mac-tracer.h"
 #include "env-phy-tracer.h"
+#include "env-utils.h"
 
 #include "ns3/panlink-utils.h"
 #include "ns3/singleton.h"
@@ -125,7 +125,7 @@ class EnvMonitor : public Singleton<EnvMonitor>
 
     /**
      * Notify that a packet has been enqueued into an EDCA queue.
-     * 
+     *
      * \param item the enqueued packet
      */
     void NotifyEdcaEnqueue(Ptr<const WifiMpdu> item);
@@ -140,14 +140,14 @@ class EnvMonitor : public Singleton<EnvMonitor>
 
     /**
      * Notify that a packet has been forwarded up by the Mac Layer.
-     * 
+     *
      * \param p the forwarded packet
      */
     void NotifyMacForwardUp(Ptr<const Packet> p);
 
     /**
      * Notify that a packet has been acked.
-     * 
+     *
      * \param context string contains the node ID
      * \param item the acked packet
      */
@@ -155,7 +155,7 @@ class EnvMonitor : public Singleton<EnvMonitor>
 
     /**
      * Notify that CW has been updated.
-     * 
+     *
      * \param context string contains the node ID
      * \param cw the updated contention window
      * \param linkId the link ID
@@ -163,7 +163,7 @@ class EnvMonitor : public Singleton<EnvMonitor>
     void NotifyCwUpdate(std::string context, uint32_t cw, uint8_t linkId);
     /**
      * Notify that new backoff has been created.
-     * 
+     *
      * \param context string contains the node ID
      * \param backoff the new backoff
      * \param linkId the link ID
@@ -172,7 +172,7 @@ class EnvMonitor : public Singleton<EnvMonitor>
 
     /**
      * Notify that a packet is start to be transmitted.
-     * 
+     *
      * \param context string contains the node ID
      * \param p the packet
      * \param txPowerW the tx power
@@ -180,7 +180,7 @@ class EnvMonitor : public Singleton<EnvMonitor>
     void NotifyPhyTxBegin(std::string context, Ptr<const Packet> p, double txPowerW);
     /**
      * Notify that the transmission of a packet is ended.
-     * 
+     *
      * \param context string contains the node ID
      * \param p the packet
      */

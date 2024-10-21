@@ -34,12 +34,14 @@ enum AgentType
 struct InFlightPacketInfo
 {
     /* APP */
-    uint32_t m_nodeId;  // source node ID
+    uint32_t m_nodeId; // source node ID
     uint32_t m_packetSize;
     bool m_isData{false};
     bool m_isBurst{false};
+    bool m_burstRx{false}; // the burst is successfully received
     uint32_t m_dstPort{0};
-    uint32_t m_seqN{0};
+    uint32_t m_burstSeq{0};
+    uint32_t m_fragSeq{0};
     Time m_appTxTime{Seconds(0)}; // time the packet was created by app
     Time m_appRxTime{Seconds(0)}; // time the packet was received by app
 

@@ -9,6 +9,8 @@
 #ifndef ENV_MAC_TRACER_H
 #define ENV_MAC_TRACER_H
 
+#include "env-utils.h"
+
 #include "ns3/object.h"
 #include "ns3/nstime.h"
 #include "ns3/wifi-mpdu.h"
