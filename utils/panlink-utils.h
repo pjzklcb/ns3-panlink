@@ -27,6 +27,9 @@ struct SrcApp
     double m_endTime;
 };
 
+typedef std::map<uint32_t /* src node id */, std::vector<SrcApp>> SrcAppMap;
+typedef std::tuple<uint32_t /* dst node id */, std::string /* type */, uint32_t /* port */> SinkApp;
+
 /**
  * The information of an agent installed on a node.
  */
@@ -94,14 +97,6 @@ std::vector<PanlinkNodeInfo> ReadNodesFromJson(std::string filename);
  * \return AppMap contains the name and its AppInfo
  */
 AppMap ReadAppInfoFromJson(std::string filename);
-
-// uint32_t MacAddressToNodeId(Mac48Address address);
-
-// uint32_t ContextToNodeId(std::string context);
-
-// Mac48Address ContextToMac(std::string context);
-
-// std::string AddressToString(const Address& addr);
 
 } // namespace ns3
 

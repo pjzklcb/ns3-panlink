@@ -21,9 +21,13 @@ add_subdirectory(contrib/vr-app)
 
 set(source_files
     env/env-monitor.cc
+    env/env-app-tracer.cc
+    env/env-mac-tracer.cc
+    env/env-phy-tracer.cc
     env/env-agent.cc
     env/cca-env-agent.cc
     env/env-agent-manager.cc
+    env/env-utils.cc
     helper/panlink-helper.cc
     model/panlink-sta-wifi-mac.cc
     utils/app-installer.cc
@@ -33,6 +37,9 @@ set(source_files
 
 set(header_files
     env/env-monitor.h
+    env/env-app-tracer.h
+    env/env-mac-tracer.h
+    env/env-phy-tracer.h
     env/env-agent.h
     env/cca-env-agent.h
     env/env-agent-manager.h

@@ -10,9 +10,8 @@
 #define PACKET_INFO_H
 
 #include "ns3/mac48-address.h"
-#include "ns3/qos-utils.h"
 #include "ns3/nstime.h"
-
+#include "ns3/qos-utils.h"
 
 namespace ns3
 {
@@ -32,27 +31,56 @@ enum AgentType
 /**
  * Record all the in-flight packet information
  */
-struct PacketInfo
+struct InFlightPacketInfo
 {
     /* APP */
     bool m_isData{false};
-    uint32_t m_port{0};
-    Time m_appTxTime{Seconds(0)};     // time the packet was created by app (E2E)
-    Time m_appRxTime{Seconds(0)};     // time the packet was received by app (E2E)
+    bool m_isBurst{false};
+    uint32_t m_seqN;
+    uint32_t m_dstPort{0};
+    uint32_t m_packetSize;
+    Time m_appTxTime{Seconds(0)}; // time the packet was created by app
+    Time m_appRxTime{Seconds(0)}; // time the packet was received by app
 
+    /* MAC */
+    bool m_expired{false};
+    bool m_dequeued{false};
+    bool m_acked{false};
     Mac48Address m_srcAddress;
     Mac48Address m_dstAddress;
     AcIndex m_ac;
-    uint32_t m_packetSize;
-    Time m_edcaEnqueueTime{Seconds(0)}; // time the packet was enqueued into an EDCA queue
-    Time m_edcaDequeueTime{Seconds(0)}; // time the packet was dequeued from EDCA queue
-    
-    Time m_HoLTime{Seconds(0)};         // time the packet became Head of Line
-    Time m_L2RxTime{Seconds(0)};  // time packet got forwarded up to the Mac Layer (L2 latency =
-                                  // L2RxTime - edcaEnqueueTime)
-    Time m_phyTxTime{Seconds(0)}; // time packet began transmission
-    bool m_dequeued{false};
+    Time m_enqueueTime{Seconds(0)}; // time the packet was enqueued into an EDCA queue
+    Time m_dequeueTime{Seconds(0)}; // time the packet was dequeued from EDCA queue
+    Time m_HoLTime{Seconds(0)};     // time the packet became Head of Line
+    Time m_L2RxTime{Seconds(0)};    // time packet got forwarded up by the Mac Layer (L2 latency =
+                                    // L2RxTime - EnqueueTime)
+
+    /* PHY */
+    uint32_t m_txCounter{0}; // transmission counter
+    std::vector<std::pair<Time, Time>> m_phyTxTime{
+        {{Seconds(0), Seconds(0)}}}; // time the packet was sent by PHY
 };
+
+typedef std::map<uint32_t /* Node ID */, std::map<uint64_t /* UID */, InFlightPacketInfo>>
+    InFlightPacketMap;
+typedef std::map<uint32_t /* seqN */, std::vector<uint64_t /* UID */>> FragmentsInBurst;
+typedef std::map<uint32_t /* Node ID */, FragmentsInBurst> InFlightBurstMap;
+
+/**
+ * Parse context strings of the form "/NodeList/x/DeviceList/x/..." to extract the node ID.
+ *
+ * \param context The context to parse.
+ * \return the NodeId
+ */
+uint32_t ContextToNodeId(std::string context);
+
+/**
+ * Fetch the Mac address of the node ID parsed from the context.
+ *
+ * \param context The context to parse.
+ * \return the device MAC address
+ */
+Mac48Address ContextToMac(std::string context);
 
 } // namespace ns3
 
