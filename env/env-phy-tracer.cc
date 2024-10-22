@@ -28,7 +28,7 @@ EnvPhyTracer::HandlePhyTxBegin(InFlightPacketMap& map,
     auto [it, inserted] = map.try_emplace(uid, InFlightPacketInfo());
     if (inserted)
     {
-        // packet is directly generated and sent (not enqueued)
+        // packet is not EDCA enqueued
         it->second.m_nodeId = nodeId;
         it->second.m_packetSize = p->GetSize();
     }

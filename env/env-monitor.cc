@@ -53,6 +53,7 @@ EnvMonitor::ConnectTraceSources()
     ConnectAppTrace();
     ConnectMacTrace();
     ConnectPhyTrace();
+    Simulator::ScheduleNow(&EnvMonitor::ConnectEdcaQueueTrace, this);
 }
 
 void
@@ -81,10 +82,10 @@ EnvMonitor::ConnectAppTrace()
         }
         else
         {
-            std::string configPath = "/NodeList/" + std::to_string(srcNodeId) +
-                                     "/ApplicationList/*/$ns3::BurstyApplication/";
-            Config::Connect(configPath + "BurstTx", MakeCallback(&EnvMonitor::NotifyBurstTx, this));
-            Config::Connect(configPath + "FragmentTx",
+            std::string prefix = "/NodeList/" + std::to_string(srcNodeId) +
+                                 "/ApplicationList/*/$ns3::BurstyApplication/";
+            Config::Connect(prefix + "BurstTx", MakeCallback(&EnvMonitor::NotifyBurstTx, this));
+            Config::Connect(prefix + "FragmentTx",
                             MakeCallback(&EnvMonitor::NotifyFragmentTx, this));
         }
     }
@@ -100,10 +101,10 @@ EnvMonitor::ConnectAppTrace()
         }
         else
         {
-            std::string configPath =
+            std::string prefix =
                 "/NodeList/" + std::to_string(dstNodeId) + "/ApplicationList/*/$ns3::BurstSink/";
-            Config::Connect(configPath + "BurstRx", MakeCallback(&EnvMonitor::NotifyBurstRx, this));
-            Config::Connect(configPath + "FragmentRx",
+            Config::Connect(prefix + "BurstRx", MakeCallback(&EnvMonitor::NotifyBurstRx, this));
+            Config::Connect(prefix + "FragmentRx",
                             MakeCallback(&EnvMonitor::NotifyFragmentRx, this));
         }
     }
@@ -112,6 +113,48 @@ EnvMonitor::ConnectAppTrace()
 void
 EnvMonitor::ConnectMacTrace()
 {
+    // Trace MAC forward up
+    Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Mac/$ns3::WifiMac/MacRx",
+                    MakeCallback(&EnvMonitor::NotifyMacForwardUp, this));
+
+    // Trace MPDU ack
+    Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Mac/$ns3::WifiMac/AckedMpdu",
+                    MakeCallback(&EnvMonitor::NotifyAckedMpdu, this));
+
+    for (const auto& ac : {"BE", "BK", "VI", "VO"})
+    {
+        std::string prefix = "/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Mac/$ns3::WifiMac/";
+
+        // Trace CW update
+        Config::Connect(prefix + ac + "_Txop/CwTrace",
+                        MakeCallback(&EnvMonitor::NotifyCwUpdate, this));
+
+        // Trace new backoff
+        Config::Connect(prefix + ac + "_Txop/BackoffTrace",
+                        MakeCallback(&EnvMonitor::NotifyNewBackoff, this));
+    }
+}
+
+void
+EnvMonitor::ConnectEdcaQueueTrace()
+{
+    for (auto devIt = m_devices.Begin(); devIt != m_devices.End(); ++devIt)
+    {
+        auto mac = DynamicCast<WifiNetDevice>(*devIt)->GetMac();
+        for (const auto& ac : {AC_BE, AC_BK, AC_VI, AC_VO})
+        {
+            std::string name = AcIndexToString(ac);
+            mac->GetTxopQueue(ac)->TraceConnect("Enqueue",
+                                                name,
+                                                MakeCallback(&EnvMonitor::NotifyEdcaEnqueue, this));
+            mac->GetTxopQueue(ac)->TraceConnectWithoutContext(
+                "Dequeue",
+                MakeCallback(&EnvMonitor::NotifyEdcaDequeue, this));
+            mac->GetTxopQueue(ac)->TraceConnectWithoutContext(
+                "Expired",
+                MakeCallback(&EnvMonitor::NotifyEdcaExpired, this));
+        }
+    }
 }
 
 void
@@ -190,27 +233,58 @@ EnvMonitor::NotifyFragmentRx(std::string context,
     m_appTracer->HandleFragmentRx(m_packetMap, fragment);
 }
 
-// void
-// EnvMonitor::NotifyEdcaEnqueue(Ptr<const WifiMpdu> item)
-// {
-//     if (!item->GetHeader().IsQosData())
-//     {
-//         return;
-//     }
-//     // init a map entry if the packet's UID is not present
-//     auto mapIt =
-//         m_inFlightPacketMap.insert({item->GetPacket()->GetUid(),
-//         std::list<InFlightPacketInfo>()})
-//             .first;
+void
+EnvMonitor::NotifyEdcaEnqueue(std::string ac, Ptr<const WifiMpdu> item)
+{
+    if (!item->GetHeader().IsQosData())
+    {
+        return;
+    }
 
-//     InFlightPacketInfo info;
-//     info.m_srcAddress = item->GetHeader().GetAddr2();
-//     info.m_dstAddress = item->GetHeader().GetAddr1();
-//     info.m_ptrToPacket = item->GetPacket();
-//     info.m_edcaEnqueueTime = Simulator::Now();
+    auto nodeId = MacAddressToNodeId(m_macAddressMap, item->GetHeader().GetAddr2());
 
-//     mapIt->second.insert(mapIt->second.end(), info);
-// }
+    m_macTracer->HandleEdcaEnqueue(m_packetMap, nodeId, item, StringToAcIndex(ac));
+}
+
+void
+EnvMonitor::NotifyEdcaDequeue(Ptr<const WifiMpdu> item)
+{
+    m_macTracer->HandleEdcaDequeue(m_packetMap, item);
+}
+
+void
+EnvMonitor::NotifyEdcaExpired(Ptr<const WifiMpdu> item)
+{
+    m_macTracer->HandleEdcaExpired(m_packetMap, item);
+}
+
+void 
+EnvMonitor::NotifyMacForwardUp(std::string context, Ptr<const Packet> p)
+{
+    m_macTracer->HandleMacForwardUp(m_packetMap, p);
+}
+
+void 
+EnvMonitor::NotifyAckedMpdu(std::string context, Ptr<const WifiMpdu> item)
+{
+    m_macTracer->HandleAckedMpdu(m_packetMap, item);
+}
+
+void 
+EnvMonitor::NotifyCwUpdate(std::string context, uint32_t cw, uint8_t linkId)
+{
+    uint32_t nodeId = ContextToNodeId(context);
+    AcIndex ac = ContextToAcIndex(context);
+    m_macTracer->HandleCwUpdate(nodeId, cw, linkId, ac);
+}
+
+void
+EnvMonitor::NotifyNewBackoff(std::string context, uint32_t backoff, uint8_t linkId)
+{
+    uint32_t nodeId = ContextToNodeId(context);
+    AcIndex ac = ContextToAcIndex(context);
+    m_macTracer->HandleNewBackoff(nodeId, backoff, linkId, ac);
+}
 
 void
 EnvMonitor::NotifyPhyTxBegin(std::string context, Ptr<const Packet> p, double txPowerW)

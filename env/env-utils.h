@@ -51,7 +51,7 @@ struct InFlightPacketInfo
     bool m_acked{false};
     Mac48Address m_srcAddress;
     Mac48Address m_dstAddress;
-    AcIndex m_ac;
+    AcIndex m_ac{AC_BE_NQOS};
     Time m_enqueueTime{Seconds(0)}; // time the packet was enqueued into an EDCA queue
     Time m_dequeueTime{Seconds(0)}; // time the packet was dequeued from EDCA queue
     Time m_HoLTime{Seconds(0)};     // time the packet became Head of Line
@@ -77,12 +77,37 @@ typedef std::map<uint32_t /* seqN */, std::vector<uint64_t /* UID */>> Fragments
 uint32_t ContextToNodeId(std::string context);
 
 /**
- * Fetch the Mac address of the node ID parsed from the context.
+ * Get the node ID of the specified MAC address
  *
- * \param context The context to parse.
- * \return the device MAC address
+ * \param map the address map
+ * \param address the specified MAC address
+ * \return the node ID
  */
-Mac48Address ContextToMac(std::string context);
+uint32_t MacAddressToNodeId(std::map<Mac48Address, uint32_t>& map, Mac48Address address);
+
+/**
+ * Get the AC index of the specified string
+ *
+ * \param ac the string
+ * \return the AC index
+ */
+AcIndex StringToAcIndex(std::string ac);
+
+/**
+ * Get the string of the specified AC index
+ *
+ * \param ac the AC index
+ * \return the string
+ */
+std::string AcIndexToString(AcIndex ac);
+
+/**
+ * Parse context strings of the form ".../$ns3::WifiMac/BE_Txop/..." to extract the AC index.
+ *
+ * \param context the context
+ * \return the AC index
+ */
+AcIndex ContextToAcIndex(std::string context);
 
 } // namespace ns3
 

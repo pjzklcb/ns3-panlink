@@ -27,7 +27,7 @@ EnvAppTracer::HandleAppTx(InFlightPacketMap& map,
 
     if (auto it = map.find(uid); it != map.end())
     {
-        NS_ABORT_MSG("Packet with UID " << uid << " is already in map");
+        NS_ABORT_MSG("Packet with UID=" << uid << " is already in map");
         return;
     }
 
@@ -51,7 +51,7 @@ EnvAppTracer::HandleAppRx(InFlightPacketMap& map, Ptr<const Packet> packet)
 
     if (auto it = map.find(uid); it == map.end())
     {
-        NS_ABORT_MSG("Packet with UID " << uid << " is not in map");
+        NS_ABORT_MSG("Packet with UID=" << uid << " is not in map");
         return;
     }
 
@@ -60,7 +60,7 @@ EnvAppTracer::HandleAppRx(InFlightPacketMap& map, Ptr<const Packet> packet)
 }
 
 void
-EnvAppTracer::HandleBurstTx(FragmentsInBurst& map,
+EnvAppTracer::HandleBurstTx(FragmentsInBurst& burstMap,
                             Ptr<const Packet> burst,
                             const SeqTsSizeFragHeader& header)
 {
@@ -68,14 +68,14 @@ EnvAppTracer::HandleBurstTx(FragmentsInBurst& map,
 
     auto burstSeq = header.GetSeq();
 
-    if (auto it = map.find(burstSeq); it != map.end())
+    if (auto it = burstMap.find(burstSeq); it != burstMap.end())
     {
         NS_ABORT_MSG("Burst with Seq=" << burstSeq << " is already in map");
         return;
     }
 
     // Register a burst entry
-    map[burstSeq] = std::vector<uint64_t>();
+    burstMap[burstSeq] = std::vector<uint64_t>();
 }
 
 void
@@ -103,7 +103,7 @@ EnvAppTracer::HandleBurstRx(FragmentsInBurst& burstMap,
         }
         else
         {
-            NS_ABORT_MSG("Fragment with UID " << fragUid << " is not in map");
+            NS_ABORT_MSG("Fragment with UID=" << fragUid << " is not in map");
         }
     }
 }
@@ -121,7 +121,7 @@ EnvAppTracer::HandleFragmentTx(InFlightPacketMap& map,
 
     if (auto it = map.find(uid); it != map.end())
     {
-        NS_ABORT_MSG("Fragment with UID " << uid << " is already in map");
+        NS_ABORT_MSG("Fragment with UID=" << uid << " is already in map");
         return;
     }
 
@@ -135,6 +135,8 @@ EnvAppTracer::HandleFragmentTx(InFlightPacketMap& map,
     info.m_burstSeq = header.GetSeq();
     info.m_fragSeq = header.GetFragSeq();
     info.m_appTxTime = Simulator::Now();
+
+    map[uid] = info;
 }
 
 void
@@ -146,7 +148,7 @@ EnvAppTracer::HandleFragmentRx(InFlightPacketMap& map, Ptr<const Packet> fragmen
 
     if (auto it = map.find(uid); it == map.end())
     {
-        NS_ABORT_MSG("Fragment with UID " << uid << " is not in map");
+        NS_ABORT_MSG("Fragment with UID=" << uid << " is not in map");
         return;
     }
 

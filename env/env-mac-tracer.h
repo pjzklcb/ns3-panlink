@@ -11,8 +11,8 @@
 
 #include "env-utils.h"
 
-#include "ns3/object.h"
 #include "ns3/nstime.h"
+#include "ns3/object.h"
 #include "ns3/wifi-mpdu.h"
 
 namespace ns3
@@ -26,58 +26,71 @@ class EnvMacTracer : public Object
   public:
     /**
      * Handle the mpdu enqueue traceback.
-     * 
+     *
+     * \param map the in-flight packet map
+     * \param nodeId the node ID
      * \param item the enqueued packet
+     * \param ac the AC
      */
-    void HandleEdcaEnqueue(Ptr<const WifiMpdu> item);
+    void HandleEdcaEnqueue(InFlightPacketMap& map,
+                           uint32_t nodeId,
+                           Ptr<const WifiMpdu> item,
+                           AcIndex ac);
     /**
      * Handle the mpdu dequeue traceback.
-     * 
+     *
+     * \param map the in-flight packet map
      * \param item the dequeued packet
      */
-    void HandleEdcaDequeue(Ptr<const WifiMpdu> item);
+    void HandleEdcaDequeue(InFlightPacketMap& map, Ptr<const WifiMpdu> item);
     /**
      * Handle the mpdu expired traceback.
-     * 
+     *
+     * \param map the in-flight packet map
      * \param item the expired packet
      */
-    void HandleEdcaExpired(Ptr<const WifiMpdu> item);
+    void HandleEdcaExpired(InFlightPacketMap& map, Ptr<const WifiMpdu> item);
 
     /**
      * Handle the mac forwardup traceback.
-     * 
+     *
+     * \param map the in-flight packet map
      * \param p the forwarded packet
      */
-    void HandleMacForwardUp(Ptr<const Packet> p);
+    void HandleMacForwardUp(InFlightPacketMap& map, Ptr<const Packet> p);
 
     /**
-     * Handle the mpdu acked traceback.
-     * 
-     * \param context string contains the node ID
+     * Handle the acked mpdu traceback.
+     *
+     * \param map the in-flight packet map
      * \param item the acked packet
      */
-    void HandleMpduAcked(std::string context, Ptr<const WifiMpdu> item);
+    void HandleAckedMpdu(InFlightPacketMap& map, Ptr<const WifiMpdu> item);
 
     /**
      * Handle contention window update traceback.
-     * 
-     * \param context string contains the node ID
+     *
+     * \param nodeId the node ID
      * \param cw the updated contention window
      * \param linkId the link ID
+     * \param ac the AC
      */
-    void HandleCwUpdate(std::string context, uint32_t cw, uint8_t linkId);
+    void HandleCwUpdate(uint32_t nodeId, uint32_t cw, uint8_t linkId, AcIndex ac);
     /**
      * Handle the new backoff traceback.
-     * 
-     * \param context string contains the node ID
+     *
+     * \param nodeId the node ID
      * \param backoff the new backoff
      * \param linkId the link ID
+     * \param ac the AC
      */
-    void HandleNewBackoff(std::string context, uint32_t backoff, uint8_t linkId);
+    void HandleNewBackoff(uint32_t nodeId, uint32_t backoff, uint8_t linkId, AcIndex ac);
 
   private:
-    std::vector<std::pair<Time, uint32_t>> m_cw;
-    std::vector<std::pair<Time, uint32_t>> m_backoff;
+    typedef std::map<AcIndex, std::vector<std::pair<Time, uint32_t>>> EdcaQueueMap;
+
+    std::map<uint32_t /* Node ID */, EdcaQueueMap> m_cw;
+    std::map<uint32_t /* Node ID */, EdcaQueueMap> m_backoff;
 };
 
 } // namespace ns3

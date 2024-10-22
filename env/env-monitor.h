@@ -63,6 +63,10 @@ class EnvMonitor : public Singleton<EnvMonitor>
      * Bind trace sources related to PHY.
      */
     void ConnectPhyTrace();
+    /**
+     * Bind trace sources related to EDCA queue.
+     */
+    void ConnectEdcaQueueTrace();
 
     /**
      * Notify that a packet has been created by the app.
@@ -126,9 +130,10 @@ class EnvMonitor : public Singleton<EnvMonitor>
     /**
      * Notify that a packet has been enqueued into an EDCA queue.
      *
+     * \param ac the AC
      * \param item the enqueued packet
      */
-    void NotifyEdcaEnqueue(Ptr<const WifiMpdu> item);
+    void NotifyEdcaEnqueue(std::string ac, Ptr<const WifiMpdu> item);
     /**
      * Notify that a packet has been dequeued from an EDCA queue.
      */
@@ -143,15 +148,14 @@ class EnvMonitor : public Singleton<EnvMonitor>
      *
      * \param p the forwarded packet
      */
-    void NotifyMacForwardUp(Ptr<const Packet> p);
+    void NotifyMacForwardUp(std::string context, Ptr<const Packet> p);
 
     /**
      * Notify that a packet has been acked.
      *
-     * \param context string contains the node ID
      * \param item the acked packet
      */
-    void NotifyMpduAcked(std::string context, Ptr<const WifiMpdu> item);
+    void NotifyAckedMpdu(std::string context, Ptr<const WifiMpdu> item);
 
     /**
      * Notify that CW has been updated.
@@ -196,7 +200,6 @@ class EnvMonitor : public Singleton<EnvMonitor>
     Ptr<EnvPhyTracer> m_phyTracer;
 
     std::map<Mac48Address, uint32_t /* Node ID */> m_macAddressMap;
-    std::map<Ipv4Address, uint32_t /* Node ID */> m_ipv4AddressMap;
 
     InFlightPacketMap m_packetMap;
     FragmentsInBurst m_burstMap;
