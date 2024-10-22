@@ -9,7 +9,11 @@
 #ifndef PANLINK_HELPER_H
 #define PANLINK_HELPER_H
 
+#include "ns3/env-agent-manager.h"
+#include "ns3/env-monitor.h"
+#include "ns3/ipv4-interface-container.h"
 #include "ns3/panlink-utils.h"
+
 #include <string>
 
 namespace ns3
@@ -28,15 +32,28 @@ class PanlinkHelper
     PanlinkHelper(std::string timestamp);
 
     /**
-     * Initialize the environment agent manager
-     * 
+     * Initialize the environment monitor.
+     *
+     * \param nodes the nodes
+     * \param devices the net devices
+     * \param ipv4Interfaces the IPv4 interfaces
+     * \param srcApps the source applications
+     */
+    void InitEnvMonitor(const NodeContainer& nodes,
+                        const NetDeviceContainer& devices,
+                        const Ipv4InterfaceContainer& ipv4Interfaces,
+                        const SrcAppMap& srcApps);
+
+    /**
+     * Initialize the environment agent manager.
+     *
      * \param panlinkInfo the list of Panlink nodes
      */
     void InitEnvAgentManager(std::vector<PanlinkNodeInfo> panlinkInfo);
 
     /**
      * Schedule an initial information exchange.
-     * 
+     *
      * \param startTime the start time
      */
     void ScheduleInitInfoExchange(Time startTime);

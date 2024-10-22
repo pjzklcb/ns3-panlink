@@ -8,9 +8,8 @@
 
 #include "panlink-helper.h"
 
-#include "ns3/env-agent-manager.h"
-#include "ns3/node-list.h"
 #include "ns3/log.h"
+#include "ns3/node-list.h"
 #include "ns3/ns3-ai-msg-interface.h"
 #include "ns3/simulator.h"
 
@@ -26,7 +25,8 @@ PanlinkHelper::PanlinkHelper()
 }
 
 PanlinkHelper::~PanlinkHelper()
-{}
+{
+}
 
 PanlinkHelper::PanlinkHelper(std::string timestamp)
     : m_timestamp(timestamp)
@@ -45,7 +45,26 @@ PanlinkHelper::PanlinkHelper(std::string timestamp)
                            m_timestamp + " Lockable");
 }
 
-void 
+void
+PanlinkHelper::InitEnvMonitor(const NodeContainer& nodes,
+                              const NetDeviceContainer& devices,
+                              const Ipv4InterfaceContainer& ipv4Interfaces,
+                              const SrcAppMap& srcApps)
+{
+    NS_LOG_FUNCTION(this);
+
+    // Create EnvMonitor instance
+    auto envMonitor = EnvMonitor::Get();
+    envMonitor->SetNodes(nodes);
+    envMonitor->SetDevices(devices);
+    envMonitor->SetIpv4Interfaces(ipv4Interfaces);
+    envMonitor->SetSrcApps(srcApps);
+
+    // Connect all trace sources
+    envMonitor->ConnectTraceSources();
+}
+
+void
 PanlinkHelper::InitEnvAgentManager(std::vector<PanlinkNodeInfo> panlinkInfo)
 {
     NS_LOG_FUNCTION(this);
@@ -59,7 +78,7 @@ PanlinkHelper::InitEnvAgentManager(std::vector<PanlinkNodeInfo> panlinkInfo)
     }
 }
 
-void 
+void
 PanlinkHelper::ScheduleInitInfoExchange(Time startTime)
 {
     NS_LOG_FUNCTION(this);

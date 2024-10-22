@@ -116,7 +116,7 @@ main(int argc, char* argv[])
     //==================================================================//
     std::cout << "Reading configuration files..." << std::endl;
     std::vector<PanlinkNodeInfo> g_panlinkInfo = ReadNodesFromJson(panlinkConfig);
-    AppMap g_appMap = ReadAppInfoFromJson(appConfig);
+    AppDict g_appDict = ReadAppInfoFromJson(appConfig);
 
     //==================================================================//
     //                      Configure Wi-Fi Stack                       ||
@@ -318,7 +318,7 @@ main(int argc, char* argv[])
     streamNumber += g_inetHelper.AssignStreams(g_nodes, streamNumber);
 
     /* Install applications */
-    AppInstaller appInstaller(g_appMap);
+    AppInstaller appInstaller(g_appDict);
     appInstaller.Install(g_nodes, g_interfaces, g_srcAppMap);
 
     /* Create result dir */
@@ -336,6 +336,7 @@ main(int argc, char* argv[])
     //                         Install Agents                           ||
     //==================================================================//
     PanlinkHelper panlinkHelper(timestamp);
+    panlinkHelper.InitEnvMonitor(g_nodes, g_devices, g_interfaces, g_srcAppMap);
     panlinkHelper.InitEnvAgentManager(g_panlinkInfo);
     panlinkHelper.ScheduleInitInfoExchange(Seconds(0.1));
 
