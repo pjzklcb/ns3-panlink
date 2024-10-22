@@ -50,7 +50,7 @@ main(int argc, char* argv[])
     std::string configPath = "contrib/panlink/configs/";
     std::string panlinkConfig = configPath + "config_panlink.json";
     std::string intfConfig = configPath + "config_intf.json";
-    std::string appConfig = configPath + "application.json";
+    std::string appConfig = configPath + "app_dict.json";
     bool pcap = false;
     bool stats = false;
     bool verbose = false;
@@ -116,7 +116,7 @@ main(int argc, char* argv[])
     //==================================================================//
     std::cout << "Reading configuration files..." << std::endl;
     std::vector<PanlinkNodeInfo> g_panlinkInfo = ReadNodesFromJson(panlinkConfig);
-    AppDict g_appDict = ReadAppInfoFromJson(appConfig);
+    AppInstaller::Get()->ReadAppDictFromJson(appConfig);
 
     //==================================================================//
     //                      Configure Wi-Fi Stack                       ||
@@ -318,8 +318,7 @@ main(int argc, char* argv[])
     streamNumber += g_inetHelper.AssignStreams(g_nodes, streamNumber);
 
     /* Install applications */
-    AppInstaller appInstaller(g_appDict);
-    appInstaller.Install(g_nodes, g_interfaces, g_srcAppMap);
+    AppInstaller::Get()->InstallApplications(g_nodes, g_interfaces, g_srcAppMap);
 
     /* Create result dir */
     if (stats)

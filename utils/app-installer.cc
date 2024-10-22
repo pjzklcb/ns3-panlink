@@ -24,21 +24,95 @@ namespace ns3
 
 NS_LOG_COMPONENT_DEFINE("AppInstaller");
 
-AppInstaller::AppInstaller(AppMap appMap)
-    : m_appMap(appMap)
+void
+AppInstaller::ReadAppDictFromJson(std::string filename)
 {
-    NS_LOG_FUNCTION(this);
+    NS_LOG_FUNCTION(this << filename);
+
+    // Open the JSON file
+    std::ifstream file(filename);
+    if (!file.is_open())
+    {
+        NS_LOG_ERROR("Failed to open " << filename);
+    }
+
+    // Read the JSON file into a string
+    std::string json_str((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+
+    // Parse the JSON string
+    rapidjson::Document document;
+    document.Parse(json_str.c_str());
+
+    if (document.HasParseError())
+    {
+        NS_LOG_ERROR("Failed to parse " << filename << ": "
+                                        << rapidjson::GetParseErrorFunc(document.GetParseError()));
+    }
+
+    if (!document.IsObject() || !document.HasMember("applications") ||
+        !document["applications"].IsObject())
+    {
+        NS_LOG_ERROR("Failed to parse: app_dict.json has invalid applications.");
+    }
+
+    for (const auto& app : document["applications"].GetArray())
+    {
+        std::string appName = app["name"].GetString();
+        if (auto it = m_appDict.find(appName); it != m_appDict.end())
+        {
+            NS_LOG_ERROR("Duplicated application name: " << appName << " in " << filename);
+        }
+
+        AppInfo appInfo;
+        appInfo.m_payloadInterval = ParseRandomVariableStream(app["payload_interval"]);
+        appInfo.m_payloadSize = ParseRandomVariableStream(app["payload_size"]);
+        appInfo.m_fragmentSize = app["fragment_size"].GetInt();
+
+        m_appDict[appName] = appInfo;
+    }
 }
 
-AppInstaller::~AppInstaller()
+std::string
+AppInstaller::ParseRandomVariableStream(const rapidjson::Value& item)
 {
-    NS_LOG_FUNCTION(this);
+    std::string rand;
+    if (item.IsDouble())
+    {
+        rand = "ns3::ConstantRandomVariable[Constant=" + std::to_string(item.GetDouble()) + "]";
+        return rand;
+    }
+    if (item.IsInt())
+    {
+        rand = "ns3::ConstantRandomVariable[Constant=" + std::to_string(item.GetInt()) + "]";
+        return rand;
+    }
+
+    if (!item.IsObject())
+    {
+        NS_ABORT_MSG("Missing application member in app_dict.json");
+        return rand;
+    }
+
+    std::string dict = item["dict"].GetString();
+    if (dict == "largest_extreme")
+    {
+        auto location = std::to_string(item["location"].GetDouble());
+        auto scale = std::to_string(item["scale"].GetDouble());
+        rand =
+            "ns3::LargestExtremeValueRandomVariable[Location=" + location + "|Scale=" + scale + "]";
+    }
+    else
+    {
+        NS_LOG_ERROR("Unknown distribution in app_dict.json");
+    }
+
+    return rand;
 }
 
 ApplicationContainer
-AppInstaller::Install(NodeContainer nodes,
-                      Ipv4InterfaceContainer interfaces,
-                      SrcAppMap srcApps)
+AppInstaller::InstallApplications(const NodeContainer& nodes,
+                                  const Ipv4InterfaceContainer& interfaces,
+                                  const SrcAppMap& srcApps)
 {
     NS_LOG_FUNCTION(this);
 
@@ -46,128 +120,75 @@ AppInstaller::Install(NodeContainer nodes,
 
     for (auto [srcNodeId, srcAppList] : srcApps)
     {
-        for (auto srcApp : srcAppList)
+        for (size_t i = 0; i < srcAppList.size(); i++)
         {
+            auto srcApp = srcAppList[i];
             std::string appName = srcApp.m_name;
+            if (auto it = m_appDict.find(appName); it == m_appDict.end())
+            {
+                NS_ABORT_MSG("Unknown application-" << appName);
+            }
+
             uint32_t dstNodeId = srcApp.m_dst;
-            uint32_t port = srcApp.m_port;
+            uint16_t port = srcApp.m_port;
 
             InetSocketAddress dstAddr = InetSocketAddress(interfaces.GetAddress(dstNodeId), port);
-            ApplicationContainer app = Install(nodes.Get(srcNodeId), dstAddr, appName);
-            
-            app.Start(Seconds(srcApp.m_startTime));
-            app.Stop(Seconds(srcApp.m_endTime));
+            ApplicationContainer app = DoInstallApplication(nodes.Get(srcNodeId), dstAddr, srcApp);
             apps.Add(app);
 
-            std::cout << "Installed application: " << appName 
-                      << " from node-" << srcNodeId << " to node-" << dstNodeId 
-                      << "(IP: " << interfaces.GetAddress(dstNodeId) 
+            std::cout << "Node-" << srcNodeId << " installed application=" << appName << " to node-"
+                      << dstNodeId << "(IP: " << interfaces.GetAddress(dstNodeId)
                       << ", Port:" << port << ")" << std::endl;
 
             // Record the sink app
-            auto it = m_appMap.find(appName);
-            if (it == m_appMap.end())
-            {
-                NS_LOG_ERROR("Unknown application: " << appName);
-                return apps;
-            }
-
-            std::string appType = m_appMap[appName].m_type;
-            SinkApp sinkApp = std::make_tuple(dstNodeId, appType, port);
+            m_sinkAppList.insert({dstNodeId, port});
         }
     }
+
+    apps.Add(InstallSinkApplications(nodes));
 
     return apps;
 }
 
 ApplicationContainer
-AppInstaller::Install(Ptr<Node> node, InetSocketAddress dstAddr, std::string appName)
+AppInstaller::DoInstallApplication(Ptr<Node> node, InetSocketAddress dstAddr, SrcApp srcApp)
 {
     NS_LOG_FUNCTION(this);
 
-    ApplicationContainer app;
+    AppInfo appInfo = m_appDict[srcApp.m_name];
 
-    auto it = m_appMap.find(appName);
-    if (it == m_appMap.end())
-    {
-        NS_LOG_ERROR("Unknown application: " << appName);
-        return app;
-    }
-    
-    AppInfo appInfo = m_appMap[appName];
-    if (appInfo.m_type == "udp")
-    {
-        UdpClientHelper client(dstAddr);
-        client.SetAttribute("MaxPackets", UintegerValue(appInfo.m_params["MaxPackets"]));
-        client.SetAttribute("Interval", TimeValue(Seconds(appInfo.m_params["Interval"])));
-        client.SetAttribute("PacketSize", UintegerValue(appInfo.m_params["PacketSize"]));
-        app = client.Install(node);
+    BurstyHelper burstyHelper("ns3::UdpSocketFactory", dstAddr);
+    burstyHelper.SetAttribute("FragmentSize", UintegerValue(appInfo.m_fragmentSize));
+    burstyHelper.SetBurstGenerator("ns3::SimpleBurstGenerator",
+                                   "PeriodRv",
+                                   StringValue(appInfo.m_payloadInterval),
+                                   "BurstSizeRv",
+                                   StringValue(appInfo.m_payloadSize));
 
-        m_appHelpers.push_back(client);
-    }
-    else if (appInfo.m_type == "constant")
-    {
-        std::string interval = std::to_string(appInfo.m_params["Interval"]); // in seconds
-        std::string burstSize = std::to_string(appInfo.m_params["BurstSize"]);
-        BurstyHelper burstyHelper("ns3::UdpSocketFactory", dstAddr);
-        burstyHelper.SetAttribute("FragmentSize", UintegerValue(appInfo.m_params["FragmentSize"]));
-        burstyHelper.SetBurstGenerator("ns3::SimpleBurstGenerator",
-                                       "PeriodRv",
-                                       StringValue("ns3::ConstantRandomVariable[Constant=" + interval + "]"),
-                                       "BurstSizeRv",
-                                       StringValue("ns3::ConstantRandomVariable[Constant=" + burstSize + "]"));
-
-        // m_appHelpers.push_back(client);
-    }
-    else if (appInfo.m_type == "poisson")
-    {
-        // TODO: implement poisson distribution
-    }
-    else
-    {
-        NS_LOG_ERROR("Unknown application type: " << appInfo.m_type);
-        return app;
-    }
+    // m_appHelpers.push_back(client);
+    auto app = burstyHelper.Install(node);
+    app.Start(Seconds(srcApp.m_startTime));
+    app.Stop(Seconds(srcApp.m_endTime));
 
     return app;
 }
 
-ApplicationContainer 
-AppInstaller::InstallSinkApp(NodeContainer nodes)
+ApplicationContainer
+AppInstaller::InstallSinkApplications(NodeContainer nodes)
 {
     NS_LOG_FUNCTION(this);
 
     ApplicationContainer apps;
-    for (auto [dstNodeId, appType, port] : m_sinkAppList)
+    for (auto [dstNodeId, port] : m_sinkAppList)
     {
-        ApplicationContainer sinkApp;
-        if (appType == "udp")
-        {
-            UdpServerHelper server(port);
-            sinkApp = server.Install(nodes.Get(dstNodeId));
-            sinkApp.Start(Seconds(0.0));
-            sinkApp.Stop(Simulator::GetMaximumSimulationTime());
+        BurstSinkHelper sink("ns3::UdpSocketFactory",
+                             InetSocketAddress(Ipv4Address::GetAny(), port));
+        auto sinkApp = sink.Install(nodes.Get(dstNodeId));
+        sinkApp.Start(Seconds(0.0));
+        sinkApp.Stop(Simulator::GetMaximumSimulationTime());
 
-            m_appHelpers.push_back(server);
-        }
-        else if (appType == "constant")
-        {
-            BurstSinkHelper sink("ns3::UdpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), port));
-            sinkApp = sink.Install(nodes.Get(dstNodeId));
-            sinkApp.Start(Seconds(0.0));
-            sinkApp.Stop(Simulator::GetMaximumSimulationTime());
+        // m_appHelpers.push_back(sink);
 
-            // m_appHelpers.push_back(sink);
-        }
-        else if (appType == "poisson")
-        {
-            // TODO: implement poisson
-        }
-        else
-        {
-            NS_LOG_ERROR("Unknown application type: " << appType);
-            return apps;
-        }
         apps.Add(sinkApp);
     }
 

@@ -59,54 +59,32 @@ EnvMonitor::ConnectTraceSources()
 void
 EnvMonitor::ConnectAppTrace()
 {
-    std::set<std::pair<uint32_t, std::string>> srcAppList;
-    std::set<std::pair<uint32_t, std::string>> snkAppList;
+    std::set<uint32_t> srcNodes;
+    std::set<uint32_t> snkNodes;
 
     for (auto [srcNodeId, appList] : m_srcApps)
     {
+        srcNodes.insert(srcNodeId);
         for (auto app : appList)
-        {
-            srcAppList.insert(std::make_pair(srcNodeId, app.m_name));
-            snkAppList.insert(std::make_pair(app.m_dst, app.m_name));
-        }
+            snkNodes.insert(app.m_dst);
     }
 
     // Connect source app trace sources
-    for (auto [srcNodeId, appName] : srcAppList)
+    for (auto srcNodeId : srcNodes)
     {
-        if (appName == "udp")
-        {
-            Config::Connect("/NodeList/" + std::to_string(srcNodeId) +
-                                "/ApplicationList/*/$ns3::UdpClient/TxWithAddresses",
-                            MakeCallback(&EnvMonitor::NotifyAppTx, this));
-        }
-        else
-        {
-            std::string prefix = "/NodeList/" + std::to_string(srcNodeId) +
-                                 "/ApplicationList/*/$ns3::BurstyApplication/";
-            Config::Connect(prefix + "BurstTx", MakeCallback(&EnvMonitor::NotifyBurstTx, this));
-            Config::Connect(prefix + "FragmentTx",
-                            MakeCallback(&EnvMonitor::NotifyFragmentTx, this));
-        }
+        std::string prefix = "/NodeList/" + std::to_string(srcNodeId) +
+                             "/ApplicationList/*/$ns3::BurstyApplication/";
+        Config::Connect(prefix + "BurstTx", MakeCallback(&EnvMonitor::NotifyBurstTx, this));
+        Config::Connect(prefix + "FragmentTx", MakeCallback(&EnvMonitor::NotifyFragmentTx, this));
     }
 
     // Connect sink app trace sources
-    for (auto [dstNodeId, appName] : snkAppList)
+    for (auto dstNodeId : snkNodes)
     {
-        if (appName == "udp")
-        {
-            Config::Connect("/NodeList/" + std::to_string(dstNodeId) +
-                                "/ApplicationList/*/$ns3::UdpServer/RxWithAddresses",
-                            MakeCallback(&EnvMonitor::NotifyAppRx, this));
-        }
-        else
-        {
-            std::string prefix =
-                "/NodeList/" + std::to_string(dstNodeId) + "/ApplicationList/*/$ns3::BurstSink/";
-            Config::Connect(prefix + "BurstRx", MakeCallback(&EnvMonitor::NotifyBurstRx, this));
-            Config::Connect(prefix + "FragmentRx",
-                            MakeCallback(&EnvMonitor::NotifyFragmentRx, this));
-        }
+        std::string prefix =
+            "/NodeList/" + std::to_string(dstNodeId) + "/ApplicationList/*/$ns3::BurstSink/";
+        Config::Connect(prefix + "BurstRx", MakeCallback(&EnvMonitor::NotifyBurstRx, this));
+        Config::Connect(prefix + "FragmentRx", MakeCallback(&EnvMonitor::NotifyFragmentRx, this));
     }
 }
 
@@ -258,19 +236,19 @@ EnvMonitor::NotifyEdcaExpired(Ptr<const WifiMpdu> item)
     m_macTracer->HandleEdcaExpired(m_packetMap, item);
 }
 
-void 
+void
 EnvMonitor::NotifyMacForwardUp(std::string context, Ptr<const Packet> p)
 {
     m_macTracer->HandleMacForwardUp(m_packetMap, p);
 }
 
-void 
+void
 EnvMonitor::NotifyAckedMpdu(std::string context, Ptr<const WifiMpdu> item)
 {
     m_macTracer->HandleAckedMpdu(m_packetMap, item);
 }
 
-void 
+void
 EnvMonitor::NotifyCwUpdate(std::string context, uint32_t cw, uint8_t linkId)
 {
     uint32_t nodeId = ContextToNodeId(context);

@@ -23,12 +23,12 @@ struct SrcApp
     std::string m_name;
     uint32_t m_dst;
     uint32_t m_port;
+    AcIndex m_ac;
     double m_startTime;
     double m_endTime;
 };
 
 typedef std::map<uint32_t /* src node id */, std::vector<SrcApp>> SrcAppMap;
-typedef std::tuple<uint32_t /* dst node id */, std::string /* type */, uint32_t /* port */> SinkApp;
 
 /**
  * The information of an agent installed on a node.
@@ -67,18 +67,7 @@ struct PanlinkNodeInfo
 //     std::vector<PanlinkNodeInfo> m_nodes;
 // };
 
-/**
- * The type of the application and its parameters.
- */
-struct AppInfo
-{
-    std::string m_type;
-    std::unordered_map<std::string, double> m_params;
-};
-
 // typedef std::map<uint32_t /* bss ID */, BssInfo> BssMap;
-
-typedef std::map<std::string /* application name */, AppInfo> AppMap;
 
 /**
  * \param filename the name of the JSON file
@@ -91,12 +80,6 @@ std::vector<PanlinkNodeInfo> ReadNodesFromJson(std::string filename);
 //  * \return BssMap contains the BssInfo
 //  */
 // BssMap ReadBssMapFromJson(std::string filename);
-
-/**
- * \param filename the name of the JSON file
- * \return AppMap contains the name and its AppInfo
- */
-AppMap ReadAppInfoFromJson(std::string filename);
 
 } // namespace ns3
 
