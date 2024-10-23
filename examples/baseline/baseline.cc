@@ -356,6 +356,15 @@ main(int argc, char* argv[])
     //                        Statistic Process                         ||
     //==================================================================//
 
+    if (stats)
+    {
+        std::string savePath = resultDir + "csv/";
+        std::filesystem::create_directory(savePath);
+
+        std::cout << "Saving results to " << savePath << std::endl;
+        EnvMonitor::Get()->SaveResultsToCsv(savePath);
+    }
+
     Simulator::Destroy();
     std::cout << "ns-3 simulation done." << std::endl;
 

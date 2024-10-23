@@ -17,6 +17,15 @@ namespace ns3
 
 NS_LOG_COMPONENT_DEFINE("EnvMonitor");
 
+EnvMonitor::~EnvMonitor()
+{
+    NS_LOG_FUNCTION(this);
+    for (auto& [nodeId, file] : m_nodeFiles)
+    {
+        file.close();
+    }
+}
+
 void
 EnvMonitor::SetNodes(NodeContainer nodes)
 {
@@ -296,6 +305,53 @@ void
 EnvMonitor::NotifyPhyTxEnd(std::string context, Ptr<const Packet> p)
 {
     m_phyTracer->HandlePhyTxEnd(m_packetMap, p);
+}
+
+void
+EnvMonitor::SaveResultsToCsv(std::string resultDir)
+{
+    SaveInFlightPacketMapToCsv(resultDir);
+    m_macTracer->SaveCwToCsv(resultDir);
+    m_macTracer->SaveBackoffToCsv(resultDir);
+}
+
+void
+EnvMonitor::SaveInFlightPacketMapToCsv(std::string resultDir)
+{
+    for (const auto& [uid, packet] : m_packetMap)
+    {
+        uint32_t nodeId = packet.m_nodeId;
+
+        // Create a new file for this node if it doesn't exist
+        if (m_nodeFiles.find(nodeId) == m_nodeFiles.end())
+        {
+            std::string fileName = resultDir + "/node" + std::to_string(nodeId) + "-packet.csv";
+            m_nodeFiles[nodeId].open(fileName);
+
+            // Write header line
+            m_nodeFiles[nodeId]
+                << "uid,size,is_data,is_burst,burst_rx,port,burst_seq,frag_seq,expired,"
+                   "acked,ac,app_tx_time,enqueue_time,phy_tx_begin_time,phy_tx_end_time,"
+                   "l2_rx_time,app_rx_time,tx_counter,tx_power\n";
+        }
+
+        // Write the packet to the file
+        for (size_t i = 0; i < packet.m_phyTxTime.size(); i++)
+        {
+            m_nodeFiles[nodeId] << uid << "," << packet.m_packetSize << "," << packet.m_isData
+                                << "," << packet.m_isBurst << "," << packet.m_burstRx << ","
+                                << packet.m_dstPort << "," << packet.m_burstSeq << ","
+                                << packet.m_fragSeq << "," << packet.m_expired << ","
+                                << packet.m_acked << "," << packet.m_ac << ","
+                                << packet.m_appTxTime.ToDouble(Time::MS) << ","
+                                << packet.m_enqueueTime.ToDouble(Time::MS) << ","
+                                << packet.m_phyTxTime[i].first.ToDouble(Time::MS) << ","
+                                << packet.m_phyTxTime[i].second.ToDouble(Time::MS) << ","
+                                << packet.m_L2RxTime.ToDouble(Time::MS) << ","
+                                << packet.m_appRxTime.ToDouble(Time::MS) << ","
+                                << packet.m_txCounter << "," << packet.m_txPowerW << std::endl;
+        }
+    }
 }
 
 } // namespace ns3

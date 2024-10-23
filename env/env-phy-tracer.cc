@@ -25,7 +25,7 @@ EnvPhyTracer::HandlePhyTxBegin(InFlightPacketMap& map,
 
     uint64_t uid = p->GetUid();
 
-    auto [it, inserted] = map.try_emplace(uid, InFlightPacketInfo());
+    auto [it, inserted] = map.try_emplace(uid);
     if (inserted)
     {
         // packet is not EDCA enqueued
@@ -34,7 +34,7 @@ EnvPhyTracer::HandlePhyTxBegin(InFlightPacketMap& map,
     }
 
     auto& info = it->second;
-    ++info.m_txCounter;
+    info.m_txCounter++;
     if (info.m_txCounter == 1)
     {
         info.m_phyTxTime[0].first = Simulator::Now();
@@ -58,11 +58,7 @@ EnvPhyTracer::HandlePhyTxEnd(InFlightPacketMap& map, Ptr<const Packet> p)
     uint64_t uid = p->GetUid();
 
     auto it = map.find(uid);
-    if (it == map.end())
-    {
-        NS_ABORT_MSG("Packet with UID " << uid << " is not in map");
-        return;
-    }
+    NS_ABORT_MSG_IF(map.find(uid) == map.end(), "Packet with UID=" << uid << " is not in map");
 
     auto& info = it->second;
     info.m_phyTxTime.back().second = Simulator::Now();

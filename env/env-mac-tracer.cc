@@ -106,4 +106,38 @@ EnvMacTracer::HandleNewBackoff(uint32_t nodeId, uint32_t backoff, uint8_t linkId
     acIt->second.emplace_back(Simulator::Now(), backoff);
 }
 
+void 
+EnvMacTracer::SaveCwToCsv(std::string resultDir)
+{
+    std::ofstream os(resultDir + "/cw.csv");
+    os << "node_id,ac,cw\n";
+    for (auto& [nodeId, acMap] : m_cw)
+    {
+        for (auto& [ac, cwList] : acMap)
+        {
+            for (auto& [time, cw] : cwList)
+            {
+                os << nodeId << "," << ac << "," << cw << "\n";
+            }
+        }
+    }
+}
+
+void
+EnvMacTracer::SaveBackoffToCsv(std::string resultDir)
+{
+    std::ofstream os(resultDir + "/backoff.csv");
+    os << "node_id,ac,backoff\n";
+    for (auto& [nodeId, acMap] : m_backoff)
+    {
+        for (auto& [ac, backoffList] : acMap)
+        {
+            for (auto& [time, backoff] : backoffList)
+            {
+                os << nodeId << "," << ac << "," << backoff << "\n";
+            }
+        }
+    }
+}
+
 } // namespace ns3

@@ -86,6 +86,19 @@ class EnvMacTracer : public Object
      */
     void HandleNewBackoff(uint32_t nodeId, uint32_t backoff, uint8_t linkId, AcIndex ac);
 
+    /**
+     * Save the CW to CSV file.
+     *
+     * \param resultDir the directory path
+     */
+    void SaveCwToCsv(std::string resultDir);
+    /**
+     * Save the backoff to CSV file.
+     *
+     * \param resultDir the directory path
+     */
+    void SaveBackoffToCsv(std::string resultDir);
+
   private:
     typedef std::map<AcIndex, std::vector<std::pair<Time, uint32_t>>> EdcaQueueMap;
 

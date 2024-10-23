@@ -28,6 +28,8 @@ namespace ns3
 class EnvMonitor : public Singleton<EnvMonitor>
 {
   public:
+    ~EnvMonitor() override;
+    
     /**
      * Set the nodes under monitoring.
      */
@@ -49,6 +51,17 @@ class EnvMonitor : public Singleton<EnvMonitor>
      * Connect all the traceback sources.
      */
     void ConnectTraceSources();
+
+    /**
+     * Save simulation results to CSV files.
+     * 
+     * \param resultDir the directory of the results
+     */
+    void SaveResultsToCsv(std::string resultDir);
+    /**
+     * Save the in-flight packet map to a CSV file.
+     */
+    void SaveInFlightPacketMapToCsv(std::string resultDir);
 
   private:
     /**
@@ -203,6 +216,7 @@ class EnvMonitor : public Singleton<EnvMonitor>
 
     InFlightPacketMap m_packetMap;
     BurstMap m_burstMap;
+    std::map<uint32_t /* Node ID */, std::ofstream> m_nodeFiles;
 };
 
 } // namespace ns3
