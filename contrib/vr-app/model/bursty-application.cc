@@ -300,7 +300,7 @@ BurstyApplication::SendFragmentedBurst(uint32_t burstSize)
                  << secondToLastFragSize << " B + " << lastFragSize << " B");
 
     Ptr<Packet> burst = Create<Packet>(burstPayload);
-    
+
     // Trace before adding header, for consistency with BurstSink
     Address from, to;
     m_socket->GetSockName(from);
@@ -318,7 +318,8 @@ BurstyApplication::SendFragmentedBurst(uint32_t burstSize)
     uint16_t fragmentSeq = 0;
     for (uint32_t i = 0; i < numFullFrags; i++)
     {
-        Ptr<Packet> fragment = burst->CreateFragment(fragmentStart, fullFragmentPayload);
+        // Ptr<Packet> fragment = burst->CreateFragment(fragmentStart, fullFragmentPayload);
+        Ptr<Packet> fragment = Create<Packet>(fullFragmentPayload);
         fragmentStart += fullFragmentPayload;
         SendFragment(fragment, burstPayload, totFrags, fragmentSeq++);
     }
@@ -326,7 +327,8 @@ BurstyApplication::SendFragmentedBurst(uint32_t burstSize)
     if (secondToLastFragSize > 0)
     {
         uint64_t secondToLastFragPayload = secondToLastFragSize - hdrTmp.GetSerializedSize();
-        Ptr<Packet> fragment = burst->CreateFragment(fragmentStart, secondToLastFragPayload);
+        // Ptr<Packet> fragment = burst->CreateFragment(fragmentStart, secondToLastFragPayload);
+        Ptr<Packet> fragment = Create<Packet>(secondToLastFragPayload);
         fragmentStart += secondToLastFragPayload;
         SendFragment(fragment, burstPayload, totFrags, fragmentSeq++);
     }
@@ -334,7 +336,8 @@ BurstyApplication::SendFragmentedBurst(uint32_t burstSize)
     if (lastFragSize > 0)
     {
         uint64_t lastFragPayload = lastFragSize - hdrTmp.GetSerializedSize();
-        Ptr<Packet> fragment = burst->CreateFragment(fragmentStart, lastFragPayload);
+        // Ptr<Packet> fragment = burst->CreateFragment(fragmentStart, lastFragPayload);
+        Ptr<Packet> fragment = Create<Packet>(lastFragPayload);
         fragmentStart += lastFragPayload;
         SendFragment(fragment, burstPayload, totFrags, fragmentSeq++);
     }
