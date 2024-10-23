@@ -321,14 +321,20 @@ main(int argc, char* argv[])
     AppInstaller::Get()->InstallApplications(g_nodes, g_interfaces, g_srcAppMap);
 
     /* Create result dir */
-    if (stats)
+    std::string resultDir = "contrib/panlink/result-" + timestamp + "/";
+    if (pcap || stats)
     {
-        std::string resultDir = "contrib/panlink/result-" + timestamp;
         namespace fs = std::filesystem;
         if (!fs::is_directory(resultDir) || !fs::exists(resultDir))
         {
             fs::create_directory(resultDir);
         }
+    }
+
+    /* Create pcap file */
+    if (pcap)
+    {
+        g_phyHelper.EnablePcap(resultDir + g_panlinkInfo[0].m_type, panlinkDevices.Get(0));
     }
 
     //==================================================================//
