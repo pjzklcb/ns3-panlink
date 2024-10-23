@@ -60,18 +60,25 @@ void
 EnvMonitor::ConnectAppTrace()
 {
     std::set<uint32_t> srcNodes;
-    std::set<uint32_t> snkNodes;
+    std::set<uint32_t> dstNodes;
 
     for (auto [srcNodeId, appList] : m_srcApps)
     {
         srcNodes.insert(srcNodeId);
         for (auto app : appList)
-            snkNodes.insert(app.m_dst);
+            dstNodes.insert(app.m_dst);
     }
 
     // Connect source app trace sources
     for (auto srcNodeId : srcNodes)
     {
+        // if (appName == "udp")
+        // {
+        //     Config::Connect("/NodeList/" + std::to_string(srcNodeId) +
+        //                         "/ApplicationList/*/$ns3::UdpClient/TxWithAddresses",
+        //                     MakeCallback(&EnvMonitor::NotifyAppTx, this));
+        // }
+
         std::string prefix = "/NodeList/" + std::to_string(srcNodeId) +
                              "/ApplicationList/*/$ns3::BurstyApplication/";
         Config::Connect(prefix + "BurstTx", MakeCallback(&EnvMonitor::NotifyBurstTx, this));
@@ -79,8 +86,15 @@ EnvMonitor::ConnectAppTrace()
     }
 
     // Connect sink app trace sources
-    for (auto dstNodeId : snkNodes)
+    for (auto dstNodeId : dstNodes)
     {
+        // if (appName == "udp")
+        // {
+        //     Config::Connect("/NodeList/" + std::to_string(dstNodeId) +
+        //                         "/ApplicationList/*/$ns3::UdpServer/RxWithAddresses",
+        //                     MakeCallback(&EnvMonitor::NotifyAppRx, this));
+        // }
+
         std::string prefix =
             "/NodeList/" + std::to_string(dstNodeId) + "/ApplicationList/*/$ns3::BurstSink/";
         Config::Connect(prefix + "BurstRx", MakeCallback(&EnvMonitor::NotifyBurstRx, this));
@@ -154,9 +168,9 @@ EnvMonitor::NotifyAppTx(std::string context,
                         const Address& to)
 {
     uint32_t nodeId = ContextToNodeId(context);
-    auto inet = InetSocketAddress::ConvertFrom(to);
+    auto dstPort = InetSocketAddress::ConvertFrom(to).GetPort();
 
-    m_appTracer->HandleAppTx(m_packetMap, nodeId, packet, inet.GetPort());
+    m_appTracer->HandleAppTx(m_packetMap, nodeId, dstPort, packet);
 }
 
 void
@@ -175,7 +189,10 @@ EnvMonitor::NotifyBurstTx(std::string context,
                           const Address& to,
                           const SeqTsSizeFragHeader& header)
 {
-    m_appTracer->HandleBurstTx(m_burstMap, burst, header);
+    uint32_t nodeId = ContextToNodeId(context);
+    auto dstPort = InetSocketAddress::ConvertFrom(to).GetPort();
+
+    m_appTracer->HandleBurstTx(m_burstMap, nodeId, dstPort, burst, header);
 }
 
 void
@@ -185,7 +202,10 @@ EnvMonitor::NotifyBurstRx(std::string context,
                           const Address& to,
                           const SeqTsSizeFragHeader& header)
 {
-    m_appTracer->HandleBurstRx(m_burstMap, m_packetMap, burst, header);
+    uint32_t nodeId = ContextToNodeId(context);
+    auto dstPort = InetSocketAddress::ConvertFrom(to).GetPort();
+
+    m_appTracer->HandleBurstRx(m_packetMap, m_burstMap, nodeId, dstPort, burst, header);
 }
 
 void
@@ -196,9 +216,9 @@ EnvMonitor::NotifyFragmentTx(std::string context,
                              const SeqTsSizeFragHeader& header)
 {
     uint32_t nodeId = ContextToNodeId(context);
-    auto inet = InetSocketAddress::ConvertFrom(to);
+    auto dstPort = InetSocketAddress::ConvertFrom(to).GetPort();
 
-    m_appTracer->HandleFragmentTx(m_packetMap, nodeId, fragment, inet.GetPort(), header);
+    m_appTracer->HandleFragmentTx(m_packetMap, m_burstMap, nodeId, dstPort, fragment, header);
 }
 
 void
@@ -208,7 +228,7 @@ EnvMonitor::NotifyFragmentRx(std::string context,
                              const Address& to,
                              const SeqTsSizeFragHeader& header)
 {
-    m_appTracer->HandleFragmentRx(m_packetMap, fragment);
+    m_appTracer->HandleFragmentRx(m_packetMap, fragment, header);
 }
 
 void

@@ -18,28 +18,22 @@ NS_LOG_COMPONENT_DEFINE("EnvAppTracer");
 void
 EnvAppTracer::HandleAppTx(InFlightPacketMap& map,
                           uint32_t nodeId,
-                          Ptr<const Packet> packet,
-                          uint16_t dstPort)
+                          uint16_t dstPort,
+                          Ptr<const Packet> packet)
 {
-    NS_LOG_FUNCTION(this << nodeId << packet << dstPort);
+    NS_LOG_FUNCTION(this << nodeId << dstPort << packet);
 
     uint64_t uid = packet->GetUid();
 
-    if (auto it = map.find(uid); it != map.end())
-    {
-        NS_ABORT_MSG("Packet with UID=" << uid << " is already in map");
-        return;
-    }
+    // Register an entry in the packet map
+    auto [packetIt, inserted] = map.try_emplace(uid);
+    NS_ABORT_MSG_IF(!inserted, "Packet with UID=" << uid << " already exists");
 
-    // Register a packet entry
-    auto info = InFlightPacketInfo();
-    info.m_nodeId = nodeId;
-    info.m_packetSize = packet->GetSize();
-    info.m_isData = true;
-    info.m_dstPort = dstPort;
-    info.m_appTxTime = Simulator::Now();
-
-    map[uid] = info;
+    packetIt->second = InFlightPacketInfo{.m_nodeId = nodeId,
+                                          .m_packetSize = packet->GetSize(),
+                                          .m_isData = true,
+                                          .m_dstPort = dstPort,
+                                          .m_appTxTime = Simulator::Now()};
 }
 
 void
@@ -48,112 +42,93 @@ EnvAppTracer::HandleAppRx(InFlightPacketMap& map, Ptr<const Packet> packet)
     NS_LOG_FUNCTION(this << packet);
 
     uint64_t uid = packet->GetUid();
+    NS_ABORT_MSG_IF(map.find(uid) == map.end(), "Packet with UID=" << uid << " does not exist.");
 
-    if (auto it = map.find(uid); it == map.end())
-    {
-        NS_ABORT_MSG("Packet with UID=" << uid << " is not in map");
-        return;
-    }
-
-    auto& info = map[uid];
-    info.m_appRxTime = Simulator::Now();
+    map[uid].m_appRxTime = Simulator::Now();
 }
 
 void
-EnvAppTracer::HandleBurstTx(FragmentsInBurst& burstMap,
+EnvAppTracer::HandleBurstTx(BurstMap& burstMap,
+                            uint32_t nodeId,
+                            uint16_t dstPort,
                             Ptr<const Packet> burst,
                             const SeqTsSizeFragHeader& header)
 {
-    NS_LOG_FUNCTION(this << burst << header);
+    NS_LOG_FUNCTION(this << nodeId << dstPort << burst);
 
-    auto burstSeq = header.GetSeq();
+    uint32_t seqN = header.GetSeq();
 
-    if (auto it = burstMap.find(burstSeq); it != burstMap.end())
-    {
-        NS_ABORT_MSG("Burst with Seq=" << burstSeq << " is already in map");
-        return;
-    }
-
-    // Register a burst entry
-    burstMap[burstSeq] = std::vector<uint64_t>();
+    // Register an entry in the burst map
+    auto [nodeIt, nodeInserted] = burstMap.try_emplace(nodeId);
+    auto [portIt, portInserted] = nodeIt->second.try_emplace(dstPort);
+    auto [seqIt, inserted] = portIt->second.try_emplace(seqN);
+    NS_ABORT_MSG_IF(!inserted,
+                    "Node-" << nodeId << ", port=" << dstPort << ": Burst with seqN=" << seqN
+                            << " already exists");
 }
 
 void
-EnvAppTracer::HandleBurstRx(FragmentsInBurst& burstMap,
-                            InFlightPacketMap& map,
+EnvAppTracer::HandleBurstRx(InFlightPacketMap& map,
+                            BurstMap& burstMap,
+                            uint32_t nodeId,
+                            uint16_t dstPort,
                             Ptr<const Packet> burst,
                             const SeqTsSizeFragHeader& header)
 {
-    NS_LOG_FUNCTION(this << burst);
+    NS_LOG_FUNCTION(this << nodeId << dstPort << burst << header);
 
-    auto burstSeq = header.GetSeq();
+    uint32_t seqN = header.GetSeq();
 
-    if (auto it = burstMap.find(burstSeq); it == burstMap.end())
+    for (auto fragUid : burstMap[nodeId][dstPort][seqN])
     {
-        NS_ABORT_MSG("Burst with Seq=" << burstSeq << " is not in map");
-        return;
-    }
-
-    for (auto fragUid : burstMap[burstSeq])
-    {
-        if (auto it = map.find(fragUid); it != map.end())
-        {
-            auto& info = map[fragUid];
-            info.m_burstRx = true;
-        }
-        else
-        {
-            NS_ABORT_MSG("Fragment with UID=" << fragUid << " is not in map");
-        }
+        NS_ABORT_MSG_IF(map.find(fragUid) == map.end(),
+                        "Fragment with UID=" << fragUid << " does not exist.");
+        map[fragUid].m_burstRx = true;
     }
 }
 
 void
 EnvAppTracer::HandleFragmentTx(InFlightPacketMap& map,
+                               BurstMap& burstMap,
                                uint32_t nodeId,
-                               Ptr<const Packet> fragment,
                                uint16_t dstPort,
+                               Ptr<const Packet> fragment,
                                const SeqTsSizeFragHeader& header)
 {
-    NS_LOG_FUNCTION(this << nodeId << fragment << dstPort);
+    NS_LOG_FUNCTION(this << nodeId << dstPort << fragment << header);
 
     uint64_t uid = fragment->GetUid();
 
-    if (auto it = map.find(uid); it != map.end())
-    {
-        NS_ABORT_MSG("Fragment with UID=" << uid << " is already in map");
-        return;
-    }
+    // Register an entry in the packet map
+    auto [packetIt, inserted] = map.try_emplace(uid);
+    NS_ABORT_MSG_IF(!inserted, "Fragment with UID=" << uid << " already exists.");
 
-    // Register a fragment entry
-    auto info = InFlightPacketInfo();
-    info.m_nodeId = nodeId;
-    info.m_packetSize = fragment->GetSize();
-    info.m_isData = true;
-    info.m_isBurst = true;
-    info.m_dstPort = dstPort;
-    info.m_burstSeq = header.GetSeq();
-    info.m_fragSeq = header.GetFragSeq();
-    info.m_appTxTime = Simulator::Now();
+    packetIt->second = InFlightPacketInfo{.m_nodeId = nodeId,
+                                          .m_packetSize = fragment->GetSize(),
+                                          .m_isData = true,
+                                          .m_isBurst = true,
+                                          .m_dstPort = dstPort,
+                                          .m_burstSeq = header.GetSeq(),
+                                          .m_fragSeq = header.GetFragSeq(),
+                                          .m_appTxTime = Simulator::Now()};
 
-    map[uid] = info;
+    // Create an entry in the node packet map
+    uint64_t seqN = header.GetSeq();
+    burstMap[nodeId][dstPort][seqN].emplace_back(uid);
 }
 
 void
-EnvAppTracer::HandleFragmentRx(InFlightPacketMap& map, Ptr<const Packet> fragment)
+EnvAppTracer::HandleFragmentRx(InFlightPacketMap& map,
+                               Ptr<const Packet> fragment,
+                               const SeqTsSizeFragHeader& header)
 {
     NS_LOG_FUNCTION(this << fragment);
 
     uint64_t uid = fragment->GetUid();
+    NS_ABORT_MSG_IF(map.find(uid) == map.end(), "Fragment with UID=" << uid << " does not exist.");
 
-    if (auto it = map.find(uid); it == map.end())
-    {
-        NS_ABORT_MSG("Fragment with UID=" << uid << " is not in map");
-        return;
-    }
-
-    auto& info = map[uid];
-    info.m_appRxTime = Simulator::Now();
+    // Find the fragment
+    map[uid].m_appRxTime = Simulator::Now();
 }
 
 } // namespace ns3

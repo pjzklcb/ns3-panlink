@@ -202,7 +202,7 @@ class EnvMonitor : public Singleton<EnvMonitor>
     std::map<Mac48Address, uint32_t /* Node ID */> m_macAddressMap;
 
     InFlightPacketMap m_packetMap;
-    FragmentsInBurst m_burstMap;
+    BurstMap m_burstMap;
 };
 
 } // namespace ns3

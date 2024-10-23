@@ -66,7 +66,8 @@ struct InFlightPacketInfo
 };
 
 typedef std::map<uint64_t /* UID */, InFlightPacketInfo> InFlightPacketMap;
-typedef std::map<uint32_t /* seqN */, std::vector<uint64_t /* UID */>> FragmentsInBurst;
+typedef std::map<uint64_t /* burst seqN */, std::vector<uint64_t /* UID */>> FragmentsInBurst;
+typedef std::map<uint32_t /* Node ID */, std::map<uint16_t /* port */, FragmentsInBurst>> BurstMap;
 
 /**
  * Parse context strings of the form "/NodeList/x/DeviceList/x/..." to extract the node ID.

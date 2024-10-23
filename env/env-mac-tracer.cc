@@ -19,16 +19,15 @@ EnvMacTracer::HandleEdcaEnqueue(InFlightPacketMap& map,
                                 Ptr<const WifiMpdu> item,
                                 AcIndex ac)
 {
-    NS_LOG_FUNCTION(this << nodeId << item);
+    NS_LOG_FUNCTION(this << nodeId << item << ac);
 
     uint64_t uid = item->GetPacket()->GetUid();
 
-    auto [it, inserted] = map.try_emplace(uid, InFlightPacketInfo());
+    auto [it, inserted] = map.try_emplace(uid);
     if (inserted)
     {
         // packet is generated in the link layer and enqueued
-        it->second.m_nodeId = nodeId;
-        it->second.m_packetSize = item->GetPacketSize();
+        it->second = InFlightPacketInfo{.m_nodeId = nodeId, .m_packetSize = item->GetPacketSize()};
     }
 
     auto& info = it->second;
@@ -38,72 +37,56 @@ EnvMacTracer::HandleEdcaEnqueue(InFlightPacketMap& map,
     info.m_enqueueTime = Simulator::Now();
 }
 
-void 
+void
 EnvMacTracer::HandleEdcaDequeue(InFlightPacketMap& map, Ptr<const WifiMpdu> item)
 {
     NS_LOG_FUNCTION(this << item);
 
     uint64_t uid = item->GetPacket()->GetUid();
-    if (auto it = map.find(uid); it == map.end())
-    {
-        NS_ABORT_MSG("Packet with UID=" << uid << " is not in map");
-        return;
-    }
+    NS_ABORT_MSG_IF(map.find(uid) == map.end(), "Packet with UID=" << uid << " is not in map");
 
     auto& info = map[uid];
     info.m_dequeued = true;
     info.m_dequeueTime = Simulator::Now();
 }
 
-void 
+void
 EnvMacTracer::HandleEdcaExpired(InFlightPacketMap& map, Ptr<const WifiMpdu> item)
 {
     NS_LOG_FUNCTION(this << item);
 
     uint64_t uid = item->GetPacket()->GetUid();
-    if (auto it = map.find(uid); it == map.end())
-    {
-        NS_ABORT_MSG("Packet with UID=" << uid << " is not in map");
-        return;
-    }
+    NS_ABORT_MSG_IF(map.find(uid) == map.end(), "Packet with UID=" << uid << " is not in map");
 
     auto& info = map[uid];
     info.m_expired = true;
 }
 
-void 
+void
 EnvMacTracer::HandleMacForwardUp(InFlightPacketMap& map, Ptr<const Packet> p)
 {
     NS_LOG_FUNCTION(this << p);
 
     uint64_t uid = p->GetUid();
-    if (auto it = map.find(uid); it == map.end())
-    {
-        NS_ABORT_MSG("Packet with UID=" << uid << " is not in map");
-        return;
-    }
+    NS_ABORT_MSG_IF(map.find(uid) == map.end(), "Packet with UID=" << uid << " is not in map");
 
     auto& info = map[uid];
     info.m_L2RxTime = Simulator::Now();
 }
 
-void 
+void
 EnvMacTracer::HandleAckedMpdu(InFlightPacketMap& map, Ptr<const WifiMpdu> item)
 {
     NS_LOG_FUNCTION(this << item);
 
     uint64_t uid = item->GetPacket()->GetUid();
-    if (auto it = map.find(uid); it == map.end())
-    {
-        NS_ABORT_MSG("Packet with UID=" << uid << " is not in map");
-        return;
-    }
+    NS_ABORT_MSG_IF(map.find(uid) == map.end(), "Packet with UID=" << uid << " is not in map");
 
     auto& info = map[uid];
     info.m_acked = true;
 }
 
-void 
+void
 EnvMacTracer::HandleCwUpdate(uint32_t nodeId, uint32_t cw, uint8_t linkId, AcIndex ac)
 {
     NS_LOG_FUNCTION(this << nodeId << cw << linkId << ac);

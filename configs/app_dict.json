@@ -9,7 +9,7 @@
         {
             "name": "test",
             "payload_interval": 0.1,
-            "payload_size": 1200,
+            "payload_size": 8000,
             "fragment_size": 1500
         },
         {
