@@ -57,11 +57,11 @@ class EnvMonitor : public Singleton<EnvMonitor>
      * 
      * \param resultDir the directory of the results
      */
-    void SaveResultsToCsv(std::string resultDir);
+    void WriteResultsToCsv(std::string resultDir);
     /**
      * Save the in-flight packet map to a CSV file.
      */
-    void SaveInFlightPacketMapToCsv(std::string resultDir);
+    void WriteInFlightPacketMapToCsv(std::string resultDir);
 
   private:
     /**

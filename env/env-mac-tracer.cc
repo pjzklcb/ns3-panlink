@@ -107,7 +107,7 @@ EnvMacTracer::HandleNewBackoff(uint32_t nodeId, uint32_t backoff, uint8_t linkId
 }
 
 void 
-EnvMacTracer::SaveCwToCsv(std::string resultDir)
+EnvMacTracer::WriteCwToCsv(std::string resultDir)
 {
     std::ofstream os(resultDir + "/cw.csv");
     os << "node_id,ac,cw\n";
@@ -124,7 +124,7 @@ EnvMacTracer::SaveCwToCsv(std::string resultDir)
 }
 
 void
-EnvMacTracer::SaveBackoffToCsv(std::string resultDir)
+EnvMacTracer::WriteBackoffToCsv(std::string resultDir)
 {
     std::ofstream os(resultDir + "/backoff.csv");
     os << "node_id,ac,backoff\n";

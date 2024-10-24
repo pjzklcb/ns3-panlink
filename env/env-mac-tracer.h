@@ -91,13 +91,13 @@ class EnvMacTracer : public Object
      *
      * \param resultDir the directory path
      */
-    void SaveCwToCsv(std::string resultDir);
+    void WriteCwToCsv(std::string resultDir);
     /**
      * Save the backoff to CSV file.
      *
      * \param resultDir the directory path
      */
-    void SaveBackoffToCsv(std::string resultDir);
+    void WriteBackoffToCsv(std::string resultDir);
 
   private:
     typedef std::map<AcIndex, std::vector<std::pair<Time, uint32_t>>> EdcaQueueMap;

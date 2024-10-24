@@ -308,15 +308,15 @@ EnvMonitor::NotifyPhyTxEnd(std::string context, Ptr<const Packet> p)
 }
 
 void
-EnvMonitor::SaveResultsToCsv(std::string resultDir)
+EnvMonitor::WriteResultsToCsv(std::string resultDir)
 {
-    SaveInFlightPacketMapToCsv(resultDir);
-    m_macTracer->SaveCwToCsv(resultDir);
-    m_macTracer->SaveBackoffToCsv(resultDir);
+    WriteInFlightPacketMapToCsv(resultDir);
+    m_macTracer->WriteCwToCsv(resultDir);
+    m_macTracer->WriteBackoffToCsv(resultDir);
 }
 
 void
-EnvMonitor::SaveInFlightPacketMapToCsv(std::string resultDir)
+EnvMonitor::WriteInFlightPacketMapToCsv(std::string resultDir)
 {
     for (const auto& [uid, packet] : m_packetMap)
     {
@@ -325,7 +325,7 @@ EnvMonitor::SaveInFlightPacketMapToCsv(std::string resultDir)
         // Create a new file for this node if it doesn't exist
         if (m_nodeFiles.find(nodeId) == m_nodeFiles.end())
         {
-            std::string fileName = resultDir + "/node" + std::to_string(nodeId) + "-packet.csv";
+            std::string fileName = resultDir + "/node" + std::to_string(nodeId) + "_packet.csv";
             m_nodeFiles[nodeId].open(fileName);
 
             // Write header line

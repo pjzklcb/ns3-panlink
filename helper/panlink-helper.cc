@@ -74,6 +74,11 @@ PanlinkHelper::InitEnvAgentManager(std::vector<PanlinkNodeInfo> panlinkInfo)
 
     for (auto node : panlinkInfo)
     {
+        if (node.m_type == "AP" or node.m_type == "STA")
+        {
+            std::cout << "Node-" << node.m_id << "is " << node.m_type << std::endl;
+            continue;
+        }
         agentManager->RegisterEnvAgents(NodeList::GetNode(node.m_id), node.m_agents);
     }
 }
