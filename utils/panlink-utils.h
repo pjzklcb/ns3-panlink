@@ -57,29 +57,10 @@ struct PanlinkNodeInfo
 };
 
 /**
- * The information of a BSS specified in the configuration file.
- */
-// struct BssInfo
-// {
-//     uint32_t m_bssIdx;
-//     std::string m_ssid;
-//     std::string m_bssIp;
-//     std::vector<PanlinkNodeInfo> m_nodes;
-// };
-
-// typedef std::map<uint32_t /* bss ID */, BssInfo> BssMap;
-
-/**
  * \param filename the name of the JSON file
  * \return Panlink nodes configured in the JSON
  */
 std::vector<PanlinkNodeInfo> ReadNodesFromJson(std::string filename);
-
-// /**
-//  * \param filename the name of the JSON file
-//  * \return BssMap contains the BssInfo
-//  */
-// BssMap ReadBssMapFromJson(std::string filename);
 
 } // namespace ns3
 
