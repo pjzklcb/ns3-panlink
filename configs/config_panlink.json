@@ -2,22 +2,37 @@
     "nodes": [
         {
             "id": 0,
-            "type": "PO",
+            "type": "AP",
             "position": {
-                "x": 0.0,
+                "x": 5.0,
                 "y": 0.0,
                 "z": 1.5
             },
             "channel": 42,
             "bandwidth": 80,
-            "applications": [],
+            "applications": [
+                {
+                    "name": "ping",
+                    "dst": 1,
+                    "qos": "BE",
+                    "start_time": 0.5,
+                    "end_time": 0.8
+                },
+                {
+                    "name": "mobile_gaming_frame_sync_dl",
+                    "dst": 1,
+                    "qos": "BE",
+                    "start_time": 1.0,
+                    "end_time": 100.0
+                }
+            ],
             "agents": []
         },
         {
             "id": 1,
             "type": "PC",
             "position": {
-                "x": 5.0,
+                "x": 0.0,
                 "y": 0.0,
                 "z": 1.5
             },
@@ -32,7 +47,7 @@
                     "end_time": 0.8
                 },
                 {
-                    "name": "test",
+                    "name": "mobile_gaming_frame_sync_ul",
                     "dst": 0,
                     "qos": "BE",
                     "start_time": 1.0,

@@ -64,6 +64,8 @@ IntfDeployer::ReadIntfConfigFile(std::string filename)
     {
         NS_LOG_ERROR("Missing key in interference config file.");
     }
+
+    std::cout << "Successfully read interference config file" << std::endl;
 }
 
 void
@@ -92,13 +94,10 @@ IntfDeployer::DeployInterference(WifiHelper& wifiHelper,
     {
         /* Parse config */
         auto nStaList = apList[i]["sta_list_len"].GetInt();
-        std::map<uint32_t, rapidjson::Value> nodeList;
         std::map<uint32_t, int> staIndexMap; // the mapping from sta_idx to idx in nodeList
-        nodeList[0] = apList[i];
         for (int j = 0; j < nStaList; j++)
         {
             rapidjson::Value& sta = apList[i]["sta_list"][j];
-            nodeList[sta["sta_idx"].GetInt()] = sta;
             staIndexMap[sta["sta_idx"].GetInt()] = j + 1;
         }
 
@@ -112,7 +111,7 @@ IntfDeployer::DeployInterference(WifiHelper& wifiHelper,
         Ssid ssid = Ssid("intf-" + nodes.Get(0)->GetId());
         for (int j = 0; j < 1 + nStaList; j++)
         {
-            auto& node = nodeList[j];
+            auto& node = (j == 0) ? apList[i] : apList[i]["sta_list"][j - 1];
             uint32_t channel = node["channel"].GetInt();
             uint32_t bandwidth = node["bandwidth"].GetInt();
             std::string channelStr("{" + std::to_string(channel) + ", " +
@@ -154,11 +153,8 @@ IntfDeployer::DeployInterference(WifiHelper& wifiHelper,
                 for (int k = 0; k < node["application_list_len"].GetInt(); k++)
                 {
                     auto& app = node["application_list"][k];
-                    uint32_t dst = nodes.Get(0)->GetId(); // AP node ID
-                    if (j == 0)
-                    {
-                        dst = nodes.Get(staIndexMap[app["dst"].GetInt()])->GetId();
-                    }
+                    auto dst = (j != 0) ? nodes.Get(0)->GetId() // AP node ID
+                                        : nodes.Get(staIndexMap[app["dst"].GetInt()])->GetId();
 
                     srcAppMap[nodes.Get(j)->GetId()].emplace_back(
                         SrcApp{app["name"].GetString(),
@@ -169,6 +165,13 @@ IntfDeployer::DeployInterference(WifiHelper& wifiHelper,
                                app["end_time"].GetDouble()});
                 }
             }
+
+            std::cout << "Node ID: " << nodes.Get(j)->GetId()
+                      << ", Node type: " << (j == 0 ? "AP" : "STA") << ", Position: ("
+                      << node["position"]["x"].GetDouble() << ", "
+                      << node["position"]["y"].GetDouble() << ", "
+                      << node["position"]["z"].GetDouble() << ")" << ", Channel: " << channel
+                      << ", Bandwidth" << bandwidth << std::endl;
         }
 
         /* Install mobility */
@@ -177,8 +180,8 @@ IntfDeployer::DeployInterference(WifiHelper& wifiHelper,
 
         /* Internet stack*/
         inetHelper.Install(nodes);
-        std::string base = "10.144." + std::to_string(i) + ".0";
-        ipv4Helper.SetBase(base.data(), "255.255.255.0");
+        std::string prefix = "10.144." + std::to_string(i) + ".0";
+        ipv4Helper.SetBase(prefix.data(), "255.255.255.0");
         interfaces = ipv4Helper.Assign(devices);
 
         m_nodes.Add(nodes);
@@ -227,6 +230,12 @@ IntfDeployer::DeployInterference(WifiHelper& wifiHelper,
         positionAlloc->Add(Vector(probe["position"]["x"].GetDouble(),
                                   probe["position"]["y"].GetDouble(),
                                   probe["position"]["z"].GetDouble()));
+
+        std::cout << "Node ID: " << nodes.Get(i)->GetId() << ", Node type: PROBER, Position: ("
+                  << probe["position"]["x"].GetDouble() << ", "
+                  << probe["position"]["y"].GetDouble() << ", "
+                  << probe["position"]["z"].GetDouble() << ")" << ", Channel: " << channel
+                  << ", Bandwidth" << bandwidth << std::endl;
     }
 
     /* Install mobility */
@@ -237,8 +246,9 @@ IntfDeployer::DeployInterference(WifiHelper& wifiHelper,
     inetHelper.Install(nodes);
     for (int i = 0; i < nProbeList; i++)
     {
-        std::string base = "10.1." + std::to_string(i / 255) + "." + std::to_string(i % 255);
-        ipv4Helper.SetBase(base.data(), "255.255.255.0");
+        std::string prefix = "10.1." + std::to_string((i + 1) / 255 + 1) + ".0";
+        std::string base = "0.0.0." + std::to_string((i + 1) % 255);
+        ipv4Helper.SetBase(prefix.data(), "255.255.255.0", base.data());
         interfaces.Add(ipv4Helper.Assign(devices.Get(i)));
     }
 

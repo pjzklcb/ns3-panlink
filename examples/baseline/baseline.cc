@@ -293,7 +293,6 @@ main(int argc, char* argv[])
     g_devices.Add(panlinkDevices);
     g_interfaces.Add(panlinkInterfaces);
 
-    std::cout << "Panlink nodes deployed." << std::endl;
     //==================================================================//
     //                       Deploy Interference                        ||
     //==================================================================//
@@ -314,20 +313,19 @@ main(int argc, char* argv[])
         g_nodes.Add(intfDeployer.GetNodes());
         g_devices.Add(intfDeployer.GetDevices());
         g_interfaces.Add(intfDeployer.GetInterfaces());
-
-        std::cout << "Interference deployed." << std::endl;
     }
 
     //==================================================================//
     //                         Other Processes                          ||
     //==================================================================//
-    Simulator::Schedule(Seconds(0), &Ipv4GlobalRoutingHelper::PopulateRoutingTables);
+    // Simulator::Schedule(Seconds(0), &Ipv4GlobalRoutingHelper::PopulateRoutingTables);
 
     int64_t streamNumber = 150;
     streamNumber += g_wifiHelper.AssignStreams(g_devices, streamNumber);
     streamNumber += g_inetHelper.AssignStreams(g_nodes, streamNumber);
 
     /* Install applications */
+    std::cout << "Installing applications..." << std::endl;
     AppInstaller::Get()->InstallApplications(g_nodes, g_interfaces, g_srcAppMap);
 
     /* Create result dir */
@@ -350,6 +348,7 @@ main(int argc, char* argv[])
     //==================================================================//
     //                         Install Agents                           ||
     //==================================================================//
+    std::cout << "Installing agents..." << std::endl;
     PanlinkHelper panlinkHelper(timestamp);
     panlinkHelper.InitEnvMonitor(g_nodes, g_devices, g_interfaces, g_srcAppMap);
     panlinkHelper.InitEnvAgentManager(g_panlinkInfo);
@@ -376,7 +375,7 @@ main(int argc, char* argv[])
     }
 
     Simulator::Destroy();
-    std::cout << "ns-3 simulation done." << std::endl;
+    std::cout << "ns-3 simulation done" << std::endl;
 
     return 0;
 }
