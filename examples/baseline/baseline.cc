@@ -270,16 +270,12 @@ main(int argc, char* argv[])
         positionAlloc->Add(Vector(node.m_xPosition, node.m_yPosition, node.m_zPosition));
 
         /* Record applications */
-        for (auto& app : node.m_applications)
+        if (node.m_applications.size() != 0)
         {
-            auto it = g_srcAppMap.find(node.m_id);
-            if (it == g_srcAppMap.end())
+            g_srcAppMap[node.m_id] = std::vector<SrcApp>();
+            for (auto& app : node.m_applications)
             {
-                g_srcAppMap[node.m_id] = std::vector<SrcApp>{app};
-            }
-            else
-            {
-                g_srcAppMap[node.m_id].push_back(app);
+                g_srcAppMap[node.m_id].emplace_back(app);
             }
         }
     }
@@ -304,7 +300,21 @@ main(int argc, char* argv[])
     if (enableIntf)
     {
         std::cout << "Deploying interference..." << std::endl;
+
         IntfDeployer intfDeployer;
+        intfDeployer.ReadIntfConfigFile(intfConfig);
+        intfDeployer.DeployInterference(g_wifiHelper,
+                                        g_macHelper,
+                                        g_phyHelper,
+                                        g_inetHelper,
+                                        g_ipv4Helper,
+                                        g_mobilityHelper,
+                                        g_srcAppMap);
+
+        g_nodes.Add(intfDeployer.GetNodes());
+        g_devices.Add(intfDeployer.GetDevices());
+        g_interfaces.Add(intfDeployer.GetInterfaces());
+
         std::cout << "Interference deployed." << std::endl;
     }
 
@@ -362,7 +372,7 @@ main(int argc, char* argv[])
         std::filesystem::create_directory(savePath);
 
         std::cout << "Saving results to " << savePath << std::endl;
-        EnvMonitor::Get()->SaveResultsToCsv(savePath);
+        EnvMonitor::Get()->WriteResultsToCsv(savePath);
     }
 
     Simulator::Destroy();
