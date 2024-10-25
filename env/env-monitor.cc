@@ -148,9 +148,9 @@ EnvMonitor::ConnectEdcaQueueTrace()
             mac->GetTxopQueue(ac)->TraceConnect("Enqueue",
                                                 name,
                                                 MakeCallback(&EnvMonitor::NotifyEdcaEnqueue, this));
-            mac->GetTxopQueue(ac)->TraceConnectWithoutContext(
-                "Dequeue",
-                MakeCallback(&EnvMonitor::NotifyEdcaDequeue, this));
+            mac->GetTxopQueue(ac)->TraceConnect("Dequeue",
+                                                name,
+                                                MakeCallback(&EnvMonitor::NotifyEdcaDequeue, this));
             mac->GetTxopQueue(ac)->TraceConnectWithoutContext(
                 "Expired",
                 MakeCallback(&EnvMonitor::NotifyEdcaExpired, this));
@@ -254,9 +254,10 @@ EnvMonitor::NotifyEdcaEnqueue(std::string ac, Ptr<const WifiMpdu> item)
 }
 
 void
-EnvMonitor::NotifyEdcaDequeue(Ptr<const WifiMpdu> item)
+EnvMonitor::NotifyEdcaDequeue(std::string ac, Ptr<const WifiMpdu> item)
 {
-    m_macTracer->HandleEdcaDequeue(m_packetMap, item);
+    auto nodeId = MacAddressToNodeId(m_macAddressMap, item->GetHeader().GetAddr2());
+    m_macTracer->HandleEdcaDequeue(m_packetMap, nodeId, item, StringToAcIndex(ac));
 }
 
 void

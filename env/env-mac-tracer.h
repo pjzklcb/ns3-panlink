@@ -40,9 +40,14 @@ class EnvMacTracer : public Object
      * Handle the mpdu dequeue traceback.
      *
      * \param map the in-flight packet map
-     * \param item the dequeued packet
+     * \param nodeId the node ID
+     * \param item the enqueued packet
+     * \param ac the AC
      */
-    void HandleEdcaDequeue(InFlightPacketMap& map, Ptr<const WifiMpdu> item);
+    void HandleEdcaDequeue(InFlightPacketMap& map,
+                           uint32_t nodeId,
+                           Ptr<const WifiMpdu> item,
+                           AcIndex ac);
     /**
      * Handle the mpdu expired traceback.
      *

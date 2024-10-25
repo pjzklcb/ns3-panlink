@@ -38,12 +38,24 @@ EnvMacTracer::HandleEdcaEnqueue(InFlightPacketMap& map,
 }
 
 void
-EnvMacTracer::HandleEdcaDequeue(InFlightPacketMap& map, Ptr<const WifiMpdu> item)
+EnvMacTracer::HandleEdcaDequeue(InFlightPacketMap& map,
+                                uint32_t nodeId,
+                                Ptr<const WifiMpdu> item,
+                                AcIndex ac)
 {
     NS_LOG_FUNCTION(this << item);
 
     uint64_t uid = item->GetPacket()->GetUid();
-    NS_ABORT_MSG_IF(map.find(uid) == map.end(), "Packet with UID=" << uid << " is not in map");
+    if (map.find(uid) == map.end())
+    {
+        // some mgt packets like probe request are not enqueued
+        NS_LOG_DEBUG("Packet with UID=" << uid << " dequeued without enqueuing");
+        map[uid] = InFlightPacketInfo{.m_nodeId = nodeId,
+                                      .m_packetSize = item->GetPacketSize(),
+                                      .m_srcAddress = item->GetHeader().GetAddr1(),
+                                      .m_dstAddress = item->GetHeader().GetAddr2(),
+                                      .m_ac = ac};
+    }
 
     auto& info = map[uid];
     info.m_dequeued = true;
@@ -106,7 +118,7 @@ EnvMacTracer::HandleNewBackoff(uint32_t nodeId, uint32_t backoff, uint8_t linkId
     acIt->second.emplace_back(Simulator::Now(), backoff);
 }
 
-void 
+void
 EnvMacTracer::WriteCwToCsv(std::string resultDir)
 {
     std::ofstream os(resultDir + "/cw.csv");

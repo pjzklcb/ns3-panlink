@@ -150,7 +150,7 @@ class EnvMonitor : public Singleton<EnvMonitor>
     /**
      * Notify that a packet has been dequeued from an EDCA queue.
      */
-    void NotifyEdcaDequeue(Ptr<const WifiMpdu> item);
+    void NotifyEdcaDequeue(std::string ac, Ptr<const WifiMpdu> item);
     /**
      * Notify that a packet has been expired.
      */
