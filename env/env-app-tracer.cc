@@ -62,7 +62,7 @@ EnvAppTracer::HandleBurstTx(BurstMap& burstMap,
     auto [nodeIt, nodeInserted] = burstMap.try_emplace(nodeId);
     auto [portIt, portInserted] = nodeIt->second.try_emplace(dstPort);
     auto [seqIt, inserted] = portIt->second.try_emplace(seqN);
-    NS_ABORT_MSG_IF(!inserted,
+    NS_ABORT_MSG_IF(!inserted && seqIt->second.size() > 0,
                     "Node-" << nodeId << ", port=" << dstPort << ": Burst with seqN=" << seqN
                             << " already exists");
 }
@@ -112,7 +112,7 @@ EnvAppTracer::HandleFragmentTx(InFlightPacketMap& map,
                                           .m_fragSeq = header.GetFragSeq(),
                                           .m_appTxTime = Simulator::Now()};
 
-    // Create an entry in the node packet map
+    // Create an entry in the burst map
     uint64_t seqN = header.GetSeq();
     burstMap[nodeId][dstPort][seqN].emplace_back(uid);
 }
