@@ -75,7 +75,8 @@ IntfDeployer::DeployInterference(WifiHelper& wifiHelper,
                                  InternetStackHelper& inetHelper,
                                  Ipv4AddressHelper& ipv4Helper,
                                  MobilityHelper& mobilityHelper,
-                                 SrcAppMap& srcAppMap)
+                                 SrcAppMap& srcAppMap,
+                                 TopologyRecorder& recorder)
 {
     NS_LOG_FUNCTION(this);
 
@@ -166,6 +167,11 @@ IntfDeployer::DeployInterference(WifiHelper& wifiHelper,
                 }
             }
 
+            recorder.Add(nodes.Get(0)->GetId(),
+                         nodes.Get(j)->GetId(),
+                         (j == 0) ? "AP" : "STA",
+                         node["position"]["x"].GetDouble(),
+                         node["position"]["y"].GetDouble());
             std::cout << "Node ID: " << nodes.Get(j)->GetId()
                       << ", Node type: " << (j == 0 ? "AP" : "STA") << ", Position: ("
                       << node["position"]["x"].GetDouble() << ", "
@@ -231,6 +237,11 @@ IntfDeployer::DeployInterference(WifiHelper& wifiHelper,
                                   probe["position"]["y"].GetDouble(),
                                   probe["position"]["z"].GetDouble()));
 
+        recorder.Add(nodes.Get(i)->GetId(),
+                     nodes.Get(i)->GetId(),
+                     "PROBE",
+                     probe["position"]["x"].GetDouble(),
+                     probe["position"]["y"].GetDouble());
         std::cout << "Node ID: " << nodes.Get(i)->GetId() << ", Node type: PROBER, Position: ("
                   << probe["position"]["x"].GetDouble() << ", "
                   << probe["position"]["y"].GetDouble() << ", "

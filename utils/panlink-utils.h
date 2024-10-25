@@ -9,8 +9,8 @@
 #ifndef PANLINK_UTILS_H
 #define PANLINK_UTILS_H
 
-#include "ns3/wifi-module.h"
 #include "ns3/env-utils.h"
+#include "ns3/wifi-module.h"
 
 namespace ns3
 {
@@ -61,6 +61,29 @@ struct PanlinkNodeInfo
  * \return Panlink nodes configured in the JSON
  */
 std::vector<PanlinkNodeInfo> ReadNodesFromJson(std::string filename);
+
+class TopologyRecorder
+{
+  public:
+    TopologyRecorder();
+    ~TopologyRecorder();
+
+    void Add(uint32_t bssid, uint32_t nodeId, std::string type, double x, double y);
+
+    void WriteToJson(std::string filename);
+
+  private:
+    struct NodeInfo
+    {
+        uint32_t m_bssid;
+        uint32_t m_nodeId;
+        std::string m_type;
+        double m_x;
+        double m_y;
+    };
+
+    std::vector<NodeInfo> m_nodes;
+};
 
 } // namespace ns3
 

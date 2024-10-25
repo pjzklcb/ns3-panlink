@@ -108,6 +108,7 @@ main(int argc, char* argv[])
     NetDeviceContainer g_devices;
     Ipv4InterfaceContainer g_interfaces;
     SrcAppMap g_srcAppMap;
+    TopologyRecorder g_recorder;
 
     g_mobilityHelper.SetMobilityModel("ns3::ConstantPositionMobilityModel");
 
@@ -268,6 +269,11 @@ main(int argc, char* argv[])
 
         /* Config position */
         positionAlloc->Add(Vector(node.m_xPosition, node.m_yPosition, node.m_zPosition));
+        g_recorder.Add(panlinkNodes.Get(0)->GetId(), // TODO: may not be AP
+                       panlinkNodes.Get(i)->GetId(),
+                       node.m_type,
+                       node.m_xPosition,
+                       node.m_yPosition);
 
         /* Record applications */
         if (node.m_applications.size() != 0)
@@ -308,7 +314,8 @@ main(int argc, char* argv[])
                                         g_inetHelper,
                                         g_ipv4Helper,
                                         g_mobilityHelper,
-                                        g_srcAppMap);
+                                        g_srcAppMap,
+                                        g_recorder);
 
         g_nodes.Add(intfDeployer.GetNodes());
         g_devices.Add(intfDeployer.GetDevices());
@@ -337,6 +344,7 @@ main(int argc, char* argv[])
         {
             fs::create_directory(resultDir);
         }
+        g_recorder.WriteToJson(resultDir + "topology.json");
     }
 
     /* Create pcap file */

@@ -11,6 +11,8 @@
 #include <fstream>
 #include <iostream>
 #include <rapidjson/document.h>
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>
 
 namespace ns3
 {
@@ -80,13 +82,13 @@ ReadNodesFromJson(std::string filename)
                 std::string agentType = agent["type"].GetString();
                 double period = agent["period"].GetDouble();
                 AgentType type;
-                if (agentType == "CCA" || 
-                    agentType == "cca_sensitivity" || agentType == "cca-sensitivity" ||
-                    agentType == "CCA-Sensitivity" || agentType == "CCA_Sensitivity")
+                if (agentType == "CCA" || agentType == "cca_sensitivity" ||
+                    agentType == "cca-sensitivity" || agentType == "CCA-Sensitivity" ||
+                    agentType == "CCA_Sensitivity")
                 {
                     type = RL_CCA_SENSITIVITY;
                 }
-                else if (agentType == "channel_access" || agentType == "Channel-Access"||
+                else if (agentType == "channel_access" || agentType == "Channel-Access" ||
                          agentType == "channel access" || agentType == "Channel Access")
                 {
                     type = RL_CHANNEL_ACCESS;
@@ -101,15 +103,64 @@ ReadNodesFromJson(std::string filename)
                 nodeInfo.m_agents.push_back({type, Seconds(period)});
             }
             std::cout << "Node ID: " << nodeInfo.m_id << ", Node type: " << nodeInfo.m_type
-                      << ", Position: (" << nodeInfo.m_xPosition << ", "
-                      << nodeInfo.m_yPosition << ", " << nodeInfo.m_zPosition
-                      << "), Channel: " << nodeInfo.m_channel
+                      << ", Position: (" << nodeInfo.m_xPosition << ", " << nodeInfo.m_yPosition
+                      << ", " << nodeInfo.m_zPosition << "), Channel: " << nodeInfo.m_channel
                       << ", Bandwidth: " << nodeInfo.m_bandwidth << std::endl;
             nodes.push_back(nodeInfo);
         }
     }
 
     return nodes;
+}
+
+// ============================================
+// TopologyRecorder
+// ============================================
+TopologyRecorder::TopologyRecorder()
+{
+}
+
+TopologyRecorder::~TopologyRecorder()
+{
+}
+
+void
+TopologyRecorder::Add(uint32_t bssid, uint32_t nodeId, std::string type, double x, double y)
+{
+    NodeInfo nodeInfo = {bssid, nodeId, type, x, y};
+    m_nodes.push_back(nodeInfo);
+}
+
+void
+TopologyRecorder::WriteToJson(std::string filename)
+{
+    rapidjson::Document doc;
+    doc.SetObject();
+
+    rapidjson::Value nodes;
+    nodes.SetArray();
+
+    auto& allocator = doc.GetAllocator();
+    for (auto& node : m_nodes)
+    {
+        rapidjson::Value nodeInfo;
+        nodeInfo.SetObject();
+        nodeInfo.AddMember("bssid", node.m_bssid, allocator);
+        nodeInfo.AddMember("nodeId", node.m_nodeId, allocator);
+        nodeInfo.AddMember("type", rapidjson::Value(node.m_type.c_str(), allocator), allocator);
+        nodeInfo.AddMember("loc_x", node.m_x, allocator);
+        nodeInfo.AddMember("loc_y", node.m_y, allocator);
+        nodes.PushBack(nodeInfo, allocator);
+    }
+
+    doc.AddMember("nodes", nodes, allocator);
+
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    doc.Accept(writer);
+
+    std::ofstream file(filename);
+    file << buffer.GetString();
 }
 
 } // namespace ns3

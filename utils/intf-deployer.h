@@ -45,7 +45,8 @@ class IntfDeployer
                             InternetStackHelper& inetHelper,
                             Ipv4AddressHelper& ipv4Helper,
                             MobilityHelper& mobilityHelper,
-                            SrcAppMap& srcAppMap);
+                            SrcAppMap& srcAppMap,
+                            TopologyRecorder& recorder);
 
     /**
      * Get the deployed nodes
