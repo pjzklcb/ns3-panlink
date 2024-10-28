@@ -218,7 +218,9 @@ IntfDeployer::DeployInterference(WifiHelper& wifiHelper,
                                            "DataMode",
                                            StringValue("HeMcs9"),
                                            "ControlMode",
-                                           StringValue("HeMcs0"));
+                                           StringValue("HeMcs0"),
+                                           "RtsCtsTxDurationThresh",
+                                           TimeValue(MilliSeconds(1.0)));
         macHelper.SetType("ns3::StaWifiMac",
                           "Ssid",
                           SsidValue(), // Wildcard SSID

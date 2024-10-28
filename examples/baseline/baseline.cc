@@ -123,11 +123,11 @@ main(int argc, char* argv[])
     //                      Configure Wi-Fi Stack                       ||
     //==================================================================//
 
-    if (useRts)
-    {
-        Config::SetDefault("ns3::WifiRemoteStationManager::RtsCtsThreshold", StringValue("0"));
-        Config::SetDefault("ns3::WifiDefaultProtectionManager::EnableMuRts", BooleanValue(true));
-    }
+    // if (useRts)
+    // {
+    //     Config::SetDefault("ns3::WifiRemoteStationManager::RtsCtsThreshold", StringValue("0"));
+    //     Config::SetDefault("ns3::WifiDefaultProtectionManager::EnableMuRts", BooleanValue(true));
+    // }
 
     if (dlAckSeqType == "ACK-SU-FORMAT")
     {
@@ -232,7 +232,9 @@ main(int argc, char* argv[])
                                              "DataMode",
                                              StringValue("HeMcs9"),
                                              "ControlMode",
-                                             StringValue("HeMcs0"));
+                                             StringValue("HeMcs0"),
+                                             "RtsCtsTxDurationThresh",
+                                             TimeValue(MilliSeconds(1.0)));
 
         if (node.m_type == "PO")
         {

@@ -11,6 +11,31 @@ import os
 import csv
 import json
 
+class InFlightPacketInfo:
+    def __init__(self, uid, size, tx_counter, tx_power, phy_tx_time,
+                 port=0, burst_seq=0, frag_seq=0, ac="AC BE", 
+                 is_data=False, is_burst=False, burst_rx=False, expired=False, acked=False, 
+                 app_tx_time=0, enqueue_time=0, l2_rx_time=0, app_rx_time=0):
+        self.uid = uid
+        self.size = size
+        self.tx_counter = tx_counter
+        self.tx_power = tx_power
+        self.port = port
+        self.burst_seq = burst_seq
+        self.frag_seq = frag_seq
+        self.is_data = is_data
+        self.is_burst = is_burst
+        self.burst_rx = burst_rx
+        self.expired = expired
+        self.acked = acked
+        self.ac = ac
+        self.phy_tx_time = phy_tx_time
+        self.app_tx_time = app_tx_time
+        self.app_rx_time = app_rx_time
+        self.enqueue_time = enqueue_time
+        self.l2_rx_time = l2_rx_time
+
+
 class PlotResults(object):
     def __init__(self, timestamp, target_nodes = None):
         self.result_dir = "contrib/panlink/result-" + timestamp + "/"
@@ -19,19 +44,17 @@ class PlotResults(object):
         if not os.path.exists(self.result_dir + "figures/"):
             os.makedirs(self.result_dir + "figures/")
 
+        with open(self.result_dir+'ns3_settings.json', 'r') as f:
+            self.sim_time = float(json.load(f)["simulationTime"])
+
         self.target_nodes = target_nodes
         self.n_nodes = 0    # number of nodes
-        self.sim_time = 0   # simulation time
         self.bss_map = {}   # {ap_id: {sta_id, ...}}
-        self.src_nodes = set()  # nodes with traffic
-
-        self.timeline = {}  # {node_id: {port: [app_tx_time, ...]}}
+        self.channel_load = {}  # {node_id: {(phy_begin, phy_end), ...}}
         
     def do_plot(self):
         self.plot_position()
         self.read_csv_files()
-        plt.figure()
-        plt.close()
     
     def plot_position(self):
         plt.figure()
@@ -90,19 +113,67 @@ class PlotResults(object):
         
         if "backoff.csv" in csv_files:
             self.read_backoff_from_csv()
+        
+        # read packet map from node*_packet.csv
+        for csv_file in csv_files:
+            if not csv_file.endswith("_packet.csv"):
+                continue
+            node_id = int(csv_file.split("_")[0][4:]) # get index from filename
+            self.read_packet_map_from_csv(csv_file, node_id)
 
     def read_cw_from_csv(self):
+        self.cw_map = {} # {node_id: {"AC BE": [cw, ...], ...}}
         with open(self.result_dir+'csv/cw.csv', 'r') as f:
             reader = csv.reader(f)
             for row in reader:
-                print(row)
+                node_id, ac, cw = int(row[0]), row[1], int(row[2])
+
+                if node_id not in self.cw_map:
+                    self.cw_map[node_id] = {}
+                if ac not in self.cw_map[node_id]:
+                    self.cw_map[node_id][ac] = []
+                self.cw_map[node_id][ac].append(cw)
 
     def read_backoff_from_csv(self):
+        self.backoff_map = {} # {node_id: {"AC BE": [backoff, ...], ...}}
         with open(self.result_dir+'csv/backoff.csv', 'r') as f:
             reader = csv.reader(f)
             for row in reader:
-                print(row)
+                node_id, ac, backoff = int(row[0]), row[1], int(row[2])
+
+                if node_id not in self.backoff_map:
+                    self.backoff_map[node_id] = {}
+                if ac not in self.backoff_map[node_id]:
+                    self.backoff_map[node_id][ac] = []
+                self.backoff_map[node_id][ac].append(backoff)
     
+    def read_packet_map_from_csv(self, csv_file, node_id):
+        self.channel_load[node_id] = {}
+        packet_map = {}   # packet map for node_id {uid: InFlighPacketInfo, ...}
+        with open(self.result_dir+'csv/'+csv_file, 'r') as f:
+            reader = csv.reader(f, delimiter=',')
+            next(reader)    # skip header
+            for row in reader:
+                # parse packet info
+                uid, size, port, burst_seq, frag_seq, tx_counter = [int(x) for x in row[0:6]]
+                tx_power = float(row[6])
+                ac = row[7]
+                is_data, is_burst, burst_rx, expired, acked = [bool(x) for x in row[8:13]]
+                phy_tx_time = [float(x) for x in row[13:15]]
+                app_tx_time, app_rx_time, enqueue_time, l2_rx_time = [float(x) for x in row[15:19]]
+
+                if uid not in packet_map:
+                    phy_tx_time_list = [phy_tx_time]
+                else:
+                    assert phy_tx_time[0] > packet_map[uid].phy_tx_time[-1][0], "phy tx time not increasing"
+                    phy_tx_time_list = packet_map[uid].phy_tx_time.append(phy_tx_time)
+
+                packet_map[uid] = InFlightPacketInfo(
+                    uid, size, tx_counter, tx_power, phy_tx_time_list,
+                    port, burst_seq, frag_seq, ac, 
+                    is_data, is_burst, burst_rx, expired, acked,
+                    app_tx_time, enqueue_time, l2_rx_time, app_rx_time)
+
 
 if __name__ == '__main__':
     timestamp = "1730079312"
