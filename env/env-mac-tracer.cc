@@ -122,14 +122,14 @@ void
 EnvMacTracer::WriteCwToCsv(std::string resultDir)
 {
     std::ofstream os(resultDir + "/cw.csv");
-    os << "node_id,ac,cw\n";
+    os << "node_id,ac,time,cw\n";
     for (auto& [nodeId, acMap] : m_cw)
     {
         for (auto& [ac, cwList] : acMap)
         {
             for (auto& [time, cw] : cwList)
             {
-                os << nodeId << "," << ac << "," << cw << "\n";
+                os << nodeId << "," << ac << "," << time.ToDouble(Time::MS) << "," << cw << "\n";
             }
         }
     }
@@ -139,14 +139,15 @@ void
 EnvMacTracer::WriteBackoffToCsv(std::string resultDir)
 {
     std::ofstream os(resultDir + "/backoff.csv");
-    os << "node_id,ac,backoff\n";
+    os << "node_id,ac,time,backoff\n";
     for (auto& [nodeId, acMap] : m_backoff)
     {
         for (auto& [ac, backoffList] : acMap)
         {
             for (auto& [time, backoff] : backoffList)
             {
-                os << nodeId << "," << ac << "," << backoff << "\n";
+                os << nodeId << "," << ac << "," << time.ToDouble(Time::MS) << "," << backoff
+                   << "\n";
             }
         }
     }

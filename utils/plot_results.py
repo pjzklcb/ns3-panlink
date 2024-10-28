@@ -45,7 +45,7 @@ class PlotResults(object):
             os.makedirs(self.result_dir + "figures/")
 
         with open(self.result_dir+'ns3_settings.json', 'r') as f:
-            self.sim_time = float(json.load(f)["simulationTime"])
+            self.sim_time = float(json.load(f)["simulationTime"]) + 1.0
 
         self.target_nodes = target_nodes
         self.n_nodes = 0    # number of nodes
@@ -114,67 +114,123 @@ class PlotResults(object):
         if "backoff.csv" in csv_files:
             self.read_backoff_from_csv()
         
+        # try:
+        self.plot_cw_backoff()
+        # except:
+        #     print("No CW and backoff data found.")
+
         # read packet map from node*_packet.csv
         for csv_file in csv_files:
             if not csv_file.endswith("_packet.csv"):
                 continue
-            node_id = int(csv_file.split("_")[0][4:]) # get index from filename
+            node_id = int(csv_file.split("_")[1]) # get index from filename
             self.read_packet_map_from_csv(csv_file, node_id)
 
     def read_cw_from_csv(self):
-        self.cw_map = {} # {node_id: {"AC BE": [cw, ...], ...}}
+        self.cw_map = {} # {node_id: {"AC BE": [[time, cw], ...],},}
         with open(self.result_dir+'csv/cw.csv', 'r') as f:
             reader = csv.reader(f)
+            next(reader)    # skip header
             for row in reader:
-                node_id, ac, cw = int(row[0]), row[1], int(row[2])
+                node_id, ac, time, cw = int(row[0]), row[1], float(row[2])*1e-3, int(row[3])
 
                 if node_id not in self.cw_map:
                     self.cw_map[node_id] = {}
                 if ac not in self.cw_map[node_id]:
                     self.cw_map[node_id][ac] = []
-                self.cw_map[node_id][ac].append(cw)
+                self.cw_map[node_id][ac].append([time, cw])
 
     def read_backoff_from_csv(self):
-        self.backoff_map = {} # {node_id: {"AC BE": [backoff, ...], ...}}
+        self.backoff_map = {} # {node_id: {"AC BE": [[time, backoff], ...],},}
         with open(self.result_dir+'csv/backoff.csv', 'r') as f:
             reader = csv.reader(f)
+            next(reader)
             for row in reader:
-                node_id, ac, backoff = int(row[0]), row[1], int(row[2])
+                node_id, ac, time, backoff = int(row[0]), row[1], float(row[2])*1e-3, int(row[3])
+                backoff = 0.1 if backoff == 0 else backoff
 
                 if node_id not in self.backoff_map:
                     self.backoff_map[node_id] = {}
                 if ac not in self.backoff_map[node_id]:
                     self.backoff_map[node_id][ac] = []
-                self.backoff_map[node_id][ac].append(backoff)
+                self.backoff_map[node_id][ac].append([time, backoff])
     
+    def plot_cw_backoff(self):
+        # plot cw and backoff of target nodes
+        node_set = self.target_nodes if self.target_nodes else [k for k in self.cw_map.keys()]
+        for node_id in node_set:
+            if node_id not in self.cw_map or node_id not in self.backoff_map:
+                continue
+
+            fig, axs = plt.subplots(2, 2, figsize=(8, 6))
+            for ac in self.cw_map[node_id]:
+                if ac == "AC BE":
+                    subfig = axs[0, 0]
+                    subfig.set_title("AC BE")
+                elif ac == "AC BK":
+                    subfig = axs[0, 1]
+                    subfig.set_title("AC BK")
+                elif ac == "AC VO":
+                    subfig = axs[1, 0]
+                    subfig.set_title("AC VO")
+                elif ac == "AC VI":
+                    subfig = axs[1, 1]
+                    subfig.set_title("AC VI")
+                else:
+                    continue
+                
+                prev = 0
+                for time, cw in self.cw_map[node_id][ac]:
+                    subfig.plot([prev, time], [cw, cw], "b")
+                    prev = time
+                subfig.plot([prev, self.sim_time], [cw, cw], "b")
+
+                time_list = []
+                backoff_list = []
+                for time, backoff in self.backoff_map[node_id][ac]:
+                    time_list.append(time)
+                    backoff_list.append(backoff)
+                subfig.scatter(time_list, backoff_list, color="r", marker='.', label="backoff")
+                
+                subfig.legend()
+                subfig.set_yscale('log')
+                subfig.set_xlabel("Time (s)")
+                subfig.set_ylabel("CW")
+                subfig.set_ylim([0.1, 1050])
+            
+            fig.tight_layout()
+            fig.savefig(self.result_dir + "figures/node_" + str(node_id) + "_cw_backoff.png")
+            plt.close(fig)
+
     def read_packet_map_from_csv(self, csv_file, node_id):
+        print("Processing packet map for node {}".format(node_id))
         self.channel_load[node_id] = {}
         packet_map = {}   # packet map for node_id {uid: InFlighPacketInfo, ...}
         with open(self.result_dir+'csv/'+csv_file, 'r') as f:
             reader = csv.reader(f, delimiter=',')
-            next(reader)    # skip header
+            next(reader)
             for row in reader:
                 # parse packet info
-                uid, size, port, burst_seq, frag_seq, tx_counter = [int(x) for x in row[0:6]]
-                tx_power = float(row[6])
-                ac = row[7]
-                is_data, is_burst, burst_rx, expired, acked = [bool(x) for x in row[8:13]]
+                uid = int(row[0])
                 phy_tx_time = [float(x) for x in row[13:15]]
-                app_tx_time, app_rx_time, enqueue_time, l2_rx_time = [float(x) for x in row[15:19]]
-
                 if uid not in packet_map:
-                    phy_tx_time_list = [phy_tx_time]
+                    size, port, burst_seq, frag_seq, tx_counter = [int(x) for x in row[1:6]]
+                    tx_power = float(row[6])
+                    ac = row[7]
+                    is_data, is_burst, burst_rx, expired, acked = [bool(x) for x in row[8:13]]
+                    app_tx_time, app_rx_time, enqueue_time, l2_rx_time = [float(x) for x in row[15:19]]
+
+                    packet_map[uid] = InFlightPacketInfo(
+                        uid, size, tx_counter, tx_power, [phy_tx_time],
+                        port, burst_seq, frag_seq, ac, 
+                        is_data, is_burst, burst_rx, expired, acked,
+                        app_tx_time, enqueue_time, l2_rx_time, app_rx_time)
                 else:
                     assert phy_tx_time[0] > packet_map[uid].phy_tx_time[-1][0], "phy tx time not increasing"
-                    phy_tx_time_list = packet_map[uid].phy_tx_time.append(phy_tx_time)
-
-                packet_map[uid] = InFlightPacketInfo(
-                    uid, size, tx_counter, tx_power, phy_tx_time_list,
-                    port, burst_seq, frag_seq, ac, 
-                    is_data, is_burst, burst_rx, expired, acked,
-                    app_tx_time, enqueue_time, l2_rx_time, app_rx_time)
-
+                    packet_map[uid].phy_tx_time.append(phy_tx_time)
+                
+    
 
 if __name__ == '__main__':
-    timestamp = "1730079312"
-    PlotResults(timestamp).do_plot()
+    timestamp = "1730106933"
+    PlotResults(timestamp, target_nodes=[0,1]).do_plot()

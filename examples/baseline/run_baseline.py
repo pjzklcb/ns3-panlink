@@ -25,6 +25,9 @@ import cpp_py_interface as py_binding
 sys.path.append(panlink_dir + '/agent')
 from agent_manager import AgentManager
 
+sys.path.append(panlink_dir + '/utils')
+from plot_results import PlotResults
+
 config_dir = os.path.join(panlink_dir, 'configs')
 
 if __name__ == '__main__':
@@ -114,11 +117,13 @@ if __name__ == '__main__':
         exit(1)
 
     else:
-        pass
+        if args.stats:
+            pass
 
     finally:
         time_cost = int(time.time()) - int(timestamp)
         print("Finally exiting...")
         print("Time cost: {}min {}s, Python time cost: {}s".format(
             time_cost // 60, time_cost % 60, py_time_cost))
+        PlotResults(timestamp, target_nodes=[0, 1]).do_plot()
         del exp
