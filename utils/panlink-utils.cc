@@ -146,7 +146,7 @@ TopologyRecorder::WriteToJson(std::string filename)
         rapidjson::Value nodeInfo;
         nodeInfo.SetObject();
         nodeInfo.AddMember("bssid", node.m_bssid, allocator);
-        nodeInfo.AddMember("nodeId", node.m_nodeId, allocator);
+        nodeInfo.AddMember("id", node.m_nodeId, allocator);
         nodeInfo.AddMember("type", rapidjson::Value(node.m_type.c_str(), allocator), allocator);
         nodeInfo.AddMember("loc_x", node.m_x, allocator);
         nodeInfo.AddMember("loc_y", node.m_y, allocator);
