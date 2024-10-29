@@ -113,6 +113,24 @@ ReadNodesFromJson(std::string filename)
     return nodes;
 }
 
+uint16_t 
+AcIndexToTos(AcIndex ac)
+{
+    switch (ac)
+    {
+    case AC_BE:
+        return 0x70;
+    case AC_BK:
+        return 0x28;
+    case AC_VI:
+        return 0xb8;
+    case AC_VO:
+        return 0xc0;
+    default:
+        return 0;
+    }
+}
+
 // ============================================
 // TopologyRecorder
 // ============================================

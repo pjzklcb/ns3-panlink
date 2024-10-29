@@ -81,6 +81,12 @@ BurstApplication::GetTypeId()
                           TypeIdValue(UdpSocketFactory::GetTypeId()),
                           MakeTypeIdAccessor(&BurstApplication::m_socketTid),
                           MakeTypeIdChecker())
+            .AddAttribute("Tos",
+                          "The Type of Service used to send IPv4 packets. "
+                          "All 8 bits of the TOS byte are set (including ECN bits).",
+                          UintegerValue(0),
+                          MakeUintegerAccessor(&BurstApplication::m_tos),
+                          MakeUintegerChecker<uint8_t>())
             .AddTraceSource("FragmentTx",
                             "A fragment of the burst is sent",
                             MakeTraceSourceAccessor(&BurstApplication::m_txFragmentTrace),
@@ -171,12 +177,16 @@ BurstApplication::StartApplication()
             NS_FATAL_ERROR("Failed to bind socket");
         }
 
+        m_socket->SetConnectCallback(MakeCallback(&BurstApplication::ConnectionSucceeded, this),
+                                     MakeCallback(&BurstApplication::ConnectionFailed, this));
+
+        if (InetSocketAddress::IsMatchingType(m_peer))
+        {
+            m_socket->SetIpTos(m_tos); // Affects only IPv4 sockets.
+        }
         m_socket->Connect(m_peer);
         m_socket->SetAllowBroadcast(true);
         m_socket->ShutdownRecv();
-
-        m_socket->SetConnectCallback(MakeCallback(&BurstApplication::ConnectionSucceeded, this),
-                                     MakeCallback(&BurstApplication::ConnectionFailed, this));
     }
 
     // Ensure no pending event

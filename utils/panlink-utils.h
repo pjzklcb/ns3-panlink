@@ -62,6 +62,18 @@ struct PanlinkNodeInfo
  */
 std::vector<PanlinkNodeInfo> ReadNodesFromJson(std::string filename);
 
+/**
+ * Get the Type of Service of the specified AC Index.
+ * Check qos-utils.h
+ * 
+ * \param ac the AC string {AC_BE:0x70, AC_BK:0x28, AC_VI:0xb8, AC_VO:0xc0}
+ * \return the ToS
+ */
+uint16_t AcIndexToTos(AcIndex ac);
+
+/**
+ * Record the Topology of the simulation.
+ */
 class TopologyRecorder
 {
   public:

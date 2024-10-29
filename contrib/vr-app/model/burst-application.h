@@ -182,6 +182,7 @@ class BurstApplication : public Application
     uint64_t m_totTxBursts;               //!< Total bursts sent
     uint64_t m_totTxFragments;            //!< Total fragments sent
     uint64_t m_totTxBytes;                //!< Total bytes sent
+    uint8_t m_tos;         //!< The packets Type of Service
 
     // Traced Callbacks
     /// Callback for transmitted burst

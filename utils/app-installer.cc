@@ -156,9 +156,11 @@ AppInstaller::DoInstallApplication(Ptr<Node> node, InetSocketAddress dstAddr, Sr
     NS_LOG_FUNCTION(this);
 
     AppInfo appInfo = m_appDict[srcApp.m_name];
+    uint16_t tos = AcIndexToTos(srcApp.m_ac);
 
     BurstHelper burstHelper("ns3::UdpSocketFactory", dstAddr);
     burstHelper.SetAttribute("FragmentSize", UintegerValue(appInfo.m_fragmentSize));
+    burstHelper.SetAttribute("Tos", UintegerValue(tos));
     burstHelper.SetBurstGenerator("ns3::SimpleBurstGenerator",
                                    "PeriodRv",
                                    StringValue(appInfo.m_payloadInterval),
