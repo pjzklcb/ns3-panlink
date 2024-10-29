@@ -112,11 +112,9 @@ class PlotResults(object):
         
         # read MAC csv files
         if "cw.csv" in csv_files:
-            self.read_cw_from_csv()
-        
+            self.read_cw_from_csv()   
         if "backoff.csv" in csv_files:
             self.read_backoff_from_csv()
-        
         try:
             self.plot_cw_backoff()
         except:
@@ -135,9 +133,11 @@ class PlotResults(object):
                 assert csv_file in csv_files, "CSV file {} not found".format(csv_file)
                 bss_packet_map[sta_id] = self.read_packet_map_from_csv(csv_file, sta_id)
 
+            # plot l2 thpt
             tot_thpt = self.plot_bss_l2_thpt(bss_packet_map)
+            # plot delay
             if tot_thpt > 0:
-                self.plot_delay(bss_packet_map)
+                self.process_delay(bss_packet_map)
 
     def read_cw_from_csv(self):
         self.cw_map = {} # {node_id: {"AC BE": [[time, cw], ...],},}
@@ -278,16 +278,20 @@ class PlotResults(object):
         plt.close()
         return sum(tot_thpt)
 
-    def plot_delay(self, bss_packet_map):
+    def process_delay(self, bss_packet_map):
         for node_id, packet_map in bss_packet_map.items():
+            # l2 delay
             l2_delay = {}   # {port: [(tx_time, delay), ...],}#
-            e2e_delay = {}  # {port: {burst_seq:(tx_time, delay), ...},}
             drop_before_enqueue = {}    # {port: [tx_time, ...],}
             expired = {}
             dropped = {}
+            # e2e delay
+            e2e_delay = {}  # {port: {burst_seq:(tx_time, delay), ...},}
+            incomplete = {} # {port: {burst_seq:tx_time, ...},}
             for _, info in packet_map.items():
                 if info.is_burst == False:
                     continue
+                # calculate l2 delay
                 if info.enqueue_time == 0:  # not enqueued
                     if info.port not in drop_before_enqueue:
                         drop_before_enqueue[info.port] = []
@@ -306,37 +310,75 @@ class PlotResults(object):
                         l2_delay[info.port] = []
                     l2_delay[info.port].append((info.app_tx_time, (info.l2_rx_time-info.app_tx_time) * 1e3))
 
-                    if info.burst_rx:   # if burst is received, find the max e2e delay
-                        if info.port not in e2e_delay:
-                            e2e_delay[info.port] = {}
-                        if info.burst_seq not in e2e_delay[info.port]:
-                            e2e_delay[info.port][info.burst_seq] = (info.l2_rx_time-info.app_tx_time) * 1e3
-                        else:
-                            delay = (info.l2_rx_time-info.app_tx_time) * 1e3
-                            e2e_delay[info.port][info.burst_seq] = max(e2e_delay[info.port][info.burst_seq], delay)
-                
-            plt.figure()
-            colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
-            for i, port in enumerate(l2_delay):
-                x = [t for t, _ in l2_delay[port]]
-                y = [d for _, d in l2_delay[port]]
-                plt.plot(x, y, color=colors[i % len(colors)], linestyle=':', linewidth=1, label="Port-{}".format(port))
-            for i, port in enumerate(drop_before_enqueue):
-                plt.scatter(drop_before_enqueue[port], np.zeros(len(drop_before_enqueue[port])), 
-                            c='m', marker='+', alpha=0.5, label="Drop before enqueue" if i==0 else "")
-            for i, port in enumerate(expired):
-                plt.scatter(expired[port], np.zeros(len(expired[port])), 
-                            c='k', marker='^', alpha=0.5, label="Expired" if i==0 else "")
-            for i, port in enumerate(dropped):
-                plt.scatter(dropped[port], np.zeros(len(dropped[port])), 
-                            c='r', marker='x', alpha=0.5, label="Dropped" if i==0 else "")
+                # calculate e2e delay
+                if info.burst_rx:   # if burst is received, find the max e2e delay
+                    if info.port not in e2e_delay:
+                        e2e_delay[info.port] = {}
+                    if info.burst_seq not in e2e_delay[info.port]:
+                        e2e_delay[info.port][info.burst_seq] = (info.app_tx_time, 
+                                                                (info.app_rx_time-info.app_tx_time) * 1e3)
+                    else:
+                        delay = max(e2e_delay[info.port][info.burst_seq][1], 
+                                    (info.app_rx_time-info.app_tx_time) * 1e3)
+                        e2e_delay[info.port][info.burst_seq] = (info.app_tx_time, delay)
+                else:
+                    if info.port not in incomplete:
+                        incomplete[info.port] = {}
+                    incomplete[info.port][info.burst_seq] = info.app_tx_time
+            
+            # plot l2 delay
+            self.plot_l2_delay(node_id, l2_delay, drop_before_enqueue, expired, dropped)
 
-            plt.xlim([0, self.sim_time])
-            plt.xlabel("Time (s)")
-            plt.ylabel("Delay (ms)")
-            plt.legend()
-            plt.savefig(self.result_dir + "figures/node_" + str(node_id) + "_l2_delay.png")
-            plt.close()
+            # plot l2 delay cdf
+
+            # plot e2e delay
+            if len(e2e_delay) != 0:
+                self.plot_e2e_delay(node_id, e2e_delay, incomplete)
+    
+    def plot_l2_delay(self, node_id, l2_delay, drop_before_enqueue, expired, dropped):
+        plt.figure()
+        colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
+        for i, port in enumerate(l2_delay):
+            x = [t for t, _ in l2_delay[port]]
+            y = [d for _, d in l2_delay[port]]
+            plt.plot(x, y, color=colors[i % len(colors)], linestyle=':', linewidth=1, 
+                        label="Port-{}".format(port))
+        for i, port in enumerate(drop_before_enqueue):
+            plt.scatter(drop_before_enqueue[port], np.zeros(len(drop_before_enqueue[port])), 
+                        c='m', marker='+', alpha=0.5, label="Drop before enqueue" if i==0 else "")
+        for i, port in enumerate(expired):
+            plt.scatter(expired[port], np.zeros(len(expired[port])), 
+                        c='k', marker='^', alpha=0.5, label="Expired" if i==0 else "")
+        for i, port in enumerate(dropped):
+            plt.scatter(dropped[port], np.zeros(len(dropped[port])), 
+                        c='r', marker='x', alpha=0.5, label="Dropped" if i==0 else "")
+
+        plt.xlim([0, self.sim_time])
+        plt.xlabel("Time (s)")
+        plt.ylabel("L2 Delay (ms)")
+        plt.legend()
+        plt.savefig(self.result_dir + "figures/node_" + str(node_id) + "_l2_delay.png")
+        plt.close()
+        
+    def plot_e2e_delay(self, node_id, e2e_delay, incomplete):
+        plt.figure()
+        colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
+        for i, port in enumerate(e2e_delay):
+            x = [t for t, _ in e2e_delay[port].values()]
+            y = [d for _, d in e2e_delay[port].values()]
+            plt.plot(x, y, color=colors[i % len(colors)], linestyle=':', linewidth=1, 
+                     label="Port-{}".format(port))
+        
+        for i, port in enumerate(incomplete):
+            plt.scatter(incomplete[port].values(), np.zeros(len(incomplete[port].values())), 
+                        c='r', marker='x', alpha=0.5, label="Incomplete" if i==0 else "")
+            
+        plt.xlim([0, self.sim_time])
+        plt.xlabel("Time (s)")
+        plt.ylabel("E2E Delay (ms)")
+        plt.legend()
+        plt.savefig(self.result_dir + "figures/node_" + str(node_id) + "_e2e_delay.png")
+        plt.close()
 
     def plot_channel_load(self, intervals = [[3.0, 3.5]]):
         events = list(self.channel_load)
