@@ -50,11 +50,12 @@ class PlotResults(object):
         self.target_nodes = target_nodes
         self.n_nodes = 0    # number of nodes
         self.bss_map = {}   # {ap_id: {sta_id, ...}}
-        self.channel_load = {}  # {node_id: {(phy_begin, phy_end), ...}}
-        
+        self.channel_load = set()  # set((phy_start, end, node_id)) avoid AMPDU duplication
+
     def do_plot(self):
         self.plot_position()
-        self.read_csv_files()
+        self.process_csv_files()
+        # self.plot_channel_load([[3.0, 3.5], [0.0, 6.0]])
     
     def plot_position(self):
         plt.figure()
@@ -106,25 +107,35 @@ class PlotResults(object):
         plt.savefig(self.result_dir + "figures/topology.png", bbox_inches='tight', dpi=250)
         plt.close()
 
-    def read_csv_files(self):
+    def process_csv_files(self):
         csv_files = [f for f in os.listdir(self.result_dir+'csv/') if f.endswith('.csv')]
+        
+        # read MAC csv files
         if "cw.csv" in csv_files:
             self.read_cw_from_csv()
         
         if "backoff.csv" in csv_files:
             self.read_backoff_from_csv()
         
-        # try:
-        self.plot_cw_backoff()
-        # except:
-        #     print("No CW and backoff data found.")
+        try:
+            self.plot_cw_backoff()
+        except:
+            print("No CW and backoff data found.")
 
-        # read packet map from node*_packet.csv
-        for csv_file in csv_files:
-            if not csv_file.endswith("_packet.csv"):
-                continue
-            node_id = int(csv_file.split("_")[1]) # get index from filename
-            self.read_packet_map_from_csv(csv_file, node_id)
+        # read node_*_packet.csv based on bss map
+        for ap_id, sta_list in self.bss_map.items():
+            bss_packet_map = {}
+
+            csv_file = "node_" + str(ap_id) + "_packet.csv"
+            assert csv_file in csv_files, "CSV file {} not found".format(csv_file)
+            bss_packet_map[ap_id] = self.read_packet_map_from_csv(csv_file, ap_id)
+            
+            for sta_id in sta_list:
+                csv_file = "node_" + str(sta_id) + "_packet.csv"
+                assert csv_file in csv_files, "CSV file {} not found".format(csv_file)
+                bss_packet_map[sta_id] = self.read_packet_map_from_csv(csv_file, sta_id)
+
+            self.plot_bss_l2_thpt(bss_packet_map)
 
     def read_cw_from_csv(self):
         self.cw_map = {} # {node_id: {"AC BE": [[time, cw], ...],},}
@@ -203,8 +214,7 @@ class PlotResults(object):
             plt.close(fig)
 
     def read_packet_map_from_csv(self, csv_file, node_id):
-        print("Processing packet map for node {}".format(node_id))
-        self.channel_load[node_id] = {}
+        print("Processing packet map for node_{}".format(node_id))
         packet_map = {}   # packet map for node_id {uid: InFlighPacketInfo, ...}
         with open(self.result_dir+'csv/'+csv_file, 'r') as f:
             reader = csv.reader(f, delimiter=',')
@@ -212,13 +222,13 @@ class PlotResults(object):
             for row in reader:
                 # parse packet info
                 uid = int(row[0])
-                phy_tx_time = [float(x) for x in row[13:15]]
+                phy_tx_time = [float(x)*1e-3 for x in row[13:15]]
                 if uid not in packet_map:
                     size, port, burst_seq, frag_seq, tx_counter = [int(x) for x in row[1:6]]
                     tx_power = float(row[6])
                     ac = row[7]
                     is_data, is_burst, burst_rx, expired, acked = [bool(x) for x in row[8:13]]
-                    app_tx_time, app_rx_time, enqueue_time, l2_rx_time = [float(x) for x in row[15:19]]
+                    app_tx_time, app_rx_time, enqueue_time, l2_rx_time = [float(x)*1e-3 for x in row[15:19]]
 
                     packet_map[uid] = InFlightPacketInfo(
                         uid, size, tx_counter, tx_power, [phy_tx_time],
@@ -229,8 +239,99 @@ class PlotResults(object):
                     assert phy_tx_time[0] > packet_map[uid].phy_tx_time[-1][0], "phy tx time not increasing"
                     packet_map[uid].phy_tx_time.append(phy_tx_time)
                 
+                if phy_tx_time[0] != 0:
+                    self.channel_load.add(tuple(phy_tx_time) + (node_id,))
+            
+        return packet_map
     
+    def plot_bss_l2_thpt(self, bss_packet_map):
+        time_slot = 0.001   # in seconds
+        window_size = 500   # number of slots
+        timeline = np.arange(0, self.sim_time, time_slot)
+        tot_thpt = np.zeros(len(timeline))
+        node_thpt = {}
+        for node_id, packet_map in bss_packet_map.items():
+            node_thpt[node_id] = np.zeros(len(timeline))
+            for _, info in packet_map.items():
+                if info.is_burst == False or info.l2_rx_time == 0:
+                    continue
+                left = np.searchsorted(timeline, info.l2_rx_time, side="left")
+                right = np.searchsorted(timeline, info.l2_rx_time + time_slot*window_size, side="right")
+                node_thpt[node_id][left:right] += info.size
+            
+            tot_thpt += node_thpt[node_id]
+        
+        if sum(tot_thpt) == 0:  # no traffic
+            return
+        
+        plt.figure()
+        for node_id, thpt in node_thpt.items():
+            plt.plot(timeline, thpt*8*1e-6 / (time_slot*window_size), linewidth=1, label="Node-{}".format(node_id))
+
+        plt.plot(timeline, tot_thpt*8*1e-6 / (time_slot*window_size), linewidth=1, label="Total")
+        plt.xlabel("Time (s)")
+        plt.ylabel("Throughput (Mbps)")
+        plt.legend()
+        plt.savefig(self.result_dir + "figures/bss_" + str(list(bss_packet_map.keys())[0]) + "_thpt.png")
+        plt.close()
+
+    def plot_channel_load(self, intervals = [[3.0, 3.5]]):
+        events = list(self.channel_load)
+        events.sort(key=lambda x: x[0])  # sort by start time
+
+        for left, right in intervals:
+            idle_time = 0
+            util_time = 0
+            n_collisions = 0
+
+            plt.figure()
+            prev_start, prev_end = -1, left
+            collisions = []
+            for event in events:
+                start, end, _ = event
+                if end < left:
+                    continue
+
+                if prev_start <= start < prev_end:
+                    # if overlapping
+                    collisions.append(event)
+                    prev_end = max(prev_end, end)
+                else:
+                    # handle the previous collision
+                    idle_time += max(min(start, right), left) - min(prev_end, right)
+                    if len(collisions) == 1:
+                        util_time += min(prev_end, right) - max(prev_start, left)
+                        prev_id = collisions[0][2]
+                        plt.plot([max(prev_start, left), min(prev_end, right)], [prev_id, prev_id], 'b', linewidth=2.0)
+                    elif len(collisions) > 1:
+                        n_collisions += 1
+                        plt.plot([max(prev_start, left), max(prev_start, left)], [0, self.n_nodes], 'g', alpha=0.5)
+                        node_set = set()    # check if one node collides with itself
+                        for s, e, id in collisions:
+                            node_set.add(id)
+                            plt.plot([max(s, left), min(e, right)], [id, id], 'm', linewidth=2.0)
+                        assert len(node_set) == len(collisions), "one node collides with itself"
+
+                    prev_start, prev_end = start, end
+                    collisions = [event]
+
+                if start > right:   # assume the first out of interval event does not collide
+                    break
+
+            idle_rate = round(idle_time*100 / (right - left), 2)
+            util_rate = round(util_time*100 / (right - left), 2)
+            plt.plot(left, 0, 'w', label='idle rate = {}%'.format(idle_rate))
+            plt.plot(left, 0, 'w', label='util rate = {}%'.format(util_rate))
+            plt.plot(left, 0, 'w', label='# of collisions = {}'.format(n_collisions))
+            print("Interval [{}, {}]: idle rate = {}%, util rate = {}%, collisions = {}".format(
+                left, right, idle_rate, util_rate, n_collisions))
+            plt.xlabel("Time (s)")
+            plt.ylabel("Node ID")
+            plt.legend(loc='upper right')
+            plt.savefig(self.result_dir + "figures/channel_load_{}_{}.png".format(left, right))
+            plt.close()
+        
 
 if __name__ == '__main__':
-    timestamp = "1730106933"
+    timestamp = "1730119399"
     PlotResults(timestamp, target_nodes=[0,1]).do_plot()
