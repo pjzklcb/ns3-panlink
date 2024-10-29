@@ -160,7 +160,7 @@ class PlotResults(object):
             next(reader)
             for row in reader:
                 node_id, ac, time, backoff = int(row[0]), row[1], float(row[2])*1e-3, int(row[3])
-                backoff = 0.1 if backoff == 0 else backoff
+                backoff = 0.5 if backoff == 0 else backoff  # set to 0.5 to be shown in log scale
 
                 if node_id not in self.backoff_map:
                     self.backoff_map[node_id] = {}
@@ -180,15 +180,19 @@ class PlotResults(object):
                 if ac == "AC BE":
                     subfig = axs[0, 0]
                     subfig.set_title("AC BE")
+                    subfig.set_ylim([0.4, 1100])
                 elif ac == "AC BK":
                     subfig = axs[0, 1]
                     subfig.set_title("AC BK")
+                    subfig.set_ylim([0.4, 1100])
                 elif ac == "AC VO":
                     subfig = axs[1, 0]
                     subfig.set_title("AC VO")
+                    subfig.set_ylim([0.4, 18])
                 elif ac == "AC VI":
                     subfig = axs[1, 1]
                     subfig.set_title("AC VI")
+                    subfig.set_ylim([0.4, 35])
                 else:
                     continue
                 
@@ -206,10 +210,9 @@ class PlotResults(object):
                 subfig.scatter(time_list, backoff_list, color="r", marker='.', label="backoff")
                 
                 subfig.legend()
-                subfig.set_yscale('log')
+                subfig.set_yscale('log', base=2)
                 subfig.set_xlabel("Time (s)")
                 subfig.set_ylabel("CW")
-                subfig.set_ylim([0.1, 1050])
             
             fig.tight_layout()
             fig.savefig(self.result_dir + "figures/node_" + str(node_id) + "_cw_backoff.png")
@@ -476,5 +479,5 @@ class PlotResults(object):
         
 
 if __name__ == '__main__':
-    timestamp = "1730119399"
+    timestamp = "1730200146"
     PlotResults(timestamp, target_nodes=[0,1]).do_plot()
