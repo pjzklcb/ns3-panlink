@@ -211,7 +211,8 @@ EnvMonitor::NotifyBurstRx(std::string context,
                           const Address& to,
                           const SeqTsSizeFragHeader& header)
 {
-    uint32_t nodeId = ContextToNodeId(context);
+    auto ipv4Addr = InetSocketAddress::ConvertFrom(from).GetIpv4();
+    uint32_t nodeId = IpAddressToNodeId(m_ipv4AddressMap, ipv4Addr);
     auto dstPort = InetSocketAddress::ConvertFrom(to).GetPort();
 
     m_appTracer->HandleBurstRx(m_packetMap, m_burstMap, nodeId, dstPort, burst, header);

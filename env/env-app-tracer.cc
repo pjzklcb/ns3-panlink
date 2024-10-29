@@ -75,7 +75,7 @@ EnvAppTracer::HandleBurstRx(InFlightPacketMap& map,
                             Ptr<const Packet> burst,
                             const SeqTsSizeFragHeader& header)
 {
-    NS_LOG_FUNCTION(this << nodeId << dstPort << burst << header);
+    NS_LOG_FUNCTION(this << nodeId << dstPort << header);
 
     uint32_t seqN = header.GetSeq();
 

@@ -8,6 +8,7 @@
 
 #include "env-utils.h"
 
+#include "ns3/ipv4.h"
 #include "ns3/node-list.h"
 #include "ns3/node.h"
 #include "ns3/wifi-mac.h"
@@ -47,6 +48,32 @@ MacAddressToNodeId(std::map<Mac48Address, uint32_t>& map, Mac48Address address)
         }
 
         NS_ABORT_MSG("Mac address " << address << " does not exist.");
+        return 0;
+    }
+    else
+    {
+        return it->second;
+    }
+}
+
+uint32_t 
+IpAddressToNodeId(std::map<Ipv4Address, uint32_t>& map, Ipv4Address address)
+{
+    auto it = map.find(address);
+    if (it == map.end())
+    {
+        for (uint32_t i = 0; i < NodeList::GetNNodes(); i++)
+        {
+            Ptr<Node> node = NodeList::GetNode(i);
+            auto ipv4Addr = node->GetObject<Ipv4>()->GetAddress(1, 0).GetLocal();
+            if (ipv4Addr == address)
+            {
+                map[ipv4Addr] = i;
+                return i;
+            }
+        }
+
+        NS_ABORT_MSG("IP address " << address << " does not exist.");
         return 0;
     }
     else

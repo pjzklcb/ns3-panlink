@@ -213,6 +213,7 @@ class EnvMonitor : public Singleton<EnvMonitor>
     Ptr<EnvPhyTracer> m_phyTracer;
 
     std::map<Mac48Address, uint32_t /* Node ID */> m_macAddressMap;
+    std::map<Ipv4Address, uint32_t /* Node ID */> m_ipv4AddressMap;
 
     InFlightPacketMap m_packetMap;
     BurstMap m_burstMap;

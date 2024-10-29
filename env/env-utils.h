@@ -87,6 +87,15 @@ uint32_t ContextToNodeId(std::string context);
 uint32_t MacAddressToNodeId(std::map<Mac48Address, uint32_t>& map, Mac48Address address);
 
 /**
+ * Get the node ID of the specified IP address
+ *
+ * \param map the address map
+ * \param address the specified IP address
+ * \return the node ID
+ */
+uint32_t IpAddressToNodeId(std::map<Ipv4Address, uint32_t>& map, Ipv4Address address);
+
+/**
  * Get the AC index of the specified string
  *
  * \param ac the string
