@@ -17,7 +17,7 @@
 */
 
 #include <iomanip>
-#include "bursty-app-stats-calculator.h"
+#include "burst-app-stats-calculator.h"
 #include "ns3/string.h"
 #include "ns3/nstime.h"
 #include <ns3/boolean.h>
@@ -31,11 +31,11 @@
 
 using namespace ns3;
 
-NS_LOG_COMPONENT_DEFINE ("BurstyAppStatsCalculator");
+NS_LOG_COMPONENT_DEFINE ("BurstAppStatsCalculator");
 
-NS_OBJECT_ENSURE_REGISTERED (BurstyAppStatsCalculator);
+NS_OBJECT_ENSURE_REGISTERED (BurstAppStatsCalculator);
 
-BurstyAppStatsCalculator::BurstyAppStatsCalculator ()
+BurstAppStatsCalculator::BurstAppStatsCalculator ()
   : m_firstWrite (true),
     m_pendingOutput (false),
     m_aggregatedStats (true)
@@ -43,63 +43,63 @@ BurstyAppStatsCalculator::BurstyAppStatsCalculator ()
   NS_LOG_FUNCTION (this);
 }
 
-BurstyAppStatsCalculator::~BurstyAppStatsCalculator ()
+BurstAppStatsCalculator::~BurstAppStatsCalculator ()
 {
   NS_LOG_FUNCTION (this);
 }
 
 TypeId
-BurstyAppStatsCalculator::GetTypeId (void)
+BurstAppStatsCalculator::GetTypeId (void)
 {
   static TypeId tid =
-      TypeId ("ns3::BurstyAppStatsCalculator")
+      TypeId ("ns3::BurstAppStatsCalculator")
           .SetParent<Object> ()
           .SetGroupName ("Applications")
-          .AddConstructor<BurstyAppStatsCalculator> ()
+          .AddConstructor<BurstAppStatsCalculator> ()
           .AddAttribute ("StartTime", "Start time of the on going epoch.", TimeValue (Seconds (0.)),
-                         MakeTimeAccessor (&BurstyAppStatsCalculator::SetStartTime,
-                                           &BurstyAppStatsCalculator::GetStartTime),
+                         MakeTimeAccessor (&BurstAppStatsCalculator::SetStartTime,
+                                           &BurstAppStatsCalculator::GetStartTime),
                          MakeTimeChecker ())
           .AddAttribute ("EpochDuration", "Epoch duration.", TimeValue (Seconds (0.25)),
-                         MakeTimeAccessor (&BurstyAppStatsCalculator::GetEpoch,
-                                           &BurstyAppStatsCalculator::SetEpoch),
+                         MakeTimeAccessor (&BurstAppStatsCalculator::GetEpoch,
+                                           &BurstAppStatsCalculator::SetEpoch),
                          MakeTimeChecker ())
           .AddAttribute ("OutputFilename",
                          "Name of the file where the downlink results will be saved.",
                          StringValue ("AppStats.txt"),
-                         MakeStringAccessor (&BurstyAppStatsCalculator::SetOutputFilename,
-                                             &BurstyAppStatsCalculator::GetOutputFilename),
+                         MakeStringAccessor (&BurstAppStatsCalculator::SetOutputFilename,
+                                             &BurstAppStatsCalculator::GetOutputFilename),
                          MakeStringChecker ())
           .AddAttribute ("AggregatedStats",
                          "Choice to show the results aggregated of disaggregated. As of now, "
                          "non-aggregated stats are not supported",
                          BooleanValue (true),
-                         MakeBooleanAccessor (&BurstyAppStatsCalculator::m_aggregatedStats),
+                         MakeBooleanAccessor (&BurstAppStatsCalculator::m_aggregatedStats),
                          MakeBooleanChecker ())
           .AddAttribute ("ManualUpdate",
                          "Choice to perform manual statistics update, e.g., triggered by an "
                          "external class.",
                          BooleanValue (false),
-                         MakeBooleanAccessor (&BurstyAppStatsCalculator::GetManualUpdate,
-                                              &BurstyAppStatsCalculator::SetManualUpdate),
+                         MakeBooleanAccessor (&BurstAppStatsCalculator::GetManualUpdate,
+                                              &BurstAppStatsCalculator::SetManualUpdate),
                          MakeBooleanChecker ())
           .AddAttribute ("WriteToFile",
                          "Choice to write stats to file besides computing and exchange them "
                          "with external classes",
                          BooleanValue (false),
-                         MakeBooleanAccessor (&BurstyAppStatsCalculator::m_writeToFile),
+                         MakeBooleanAccessor (&BurstAppStatsCalculator::m_writeToFile),
                          MakeBooleanChecker ());
   return tid;
 }
 
 void
-BurstyAppStatsCalculator::DoDispose ()
+BurstAppStatsCalculator::DoDispose ()
 {
   NS_LOG_FUNCTION (this);
 }
 
 void
-BurstyAppStatsCalculator::SetStartTime (Time t)
+BurstAppStatsCalculator::SetStartTime (Time t)
 {
   m_startTime = t;
   if (m_aggregatedStats)
@@ -109,13 +109,13 @@ BurstyAppStatsCalculator::SetStartTime (Time t)
 }
 
 Time
-BurstyAppStatsCalculator::GetStartTime () const
+BurstAppStatsCalculator::GetStartTime () const
 {
   return m_startTime;
 }
 
 void
-BurstyAppStatsCalculator::SetEpoch (Time e)
+BurstAppStatsCalculator::SetEpoch (Time e)
 {
   m_epochDuration = e;
   if (m_aggregatedStats)
@@ -125,13 +125,13 @@ BurstyAppStatsCalculator::SetEpoch (Time e)
 }
 
 Time
-BurstyAppStatsCalculator::GetEpoch () const
+BurstAppStatsCalculator::GetEpoch () const
 {
   return m_epochDuration;
 }
 
 void
-BurstyAppStatsCalculator::SetManualUpdate (bool u)
+BurstAppStatsCalculator::SetManualUpdate (bool u)
 {
   NS_LOG_FUNCTION (this);
   m_manualUpdate = u;
@@ -143,14 +143,14 @@ BurstyAppStatsCalculator::SetManualUpdate (bool u)
 }
 
 bool
-BurstyAppStatsCalculator::GetManualUpdate () const
+BurstAppStatsCalculator::GetManualUpdate () const
 {
   NS_LOG_FUNCTION (this);
   return m_manualUpdate;
 }
 
 void
-BurstyAppStatsCalculator::TxBurst (uint32_t nodeId, Ptr<const Packet> burst, const Address &from, const Address &to, const SeqTsSizeFragHeader &header)
+BurstAppStatsCalculator::TxBurst (uint32_t nodeId, Ptr<const Packet> burst, const Address &from, const Address &to, const SeqTsSizeFragHeader &header)
 {
   NS_LOG_FUNCTION(this << " TxBurst nodeId=" << nodeId << " burst seq=" << header.GetSeq () << " of " << header.GetSize ()
                                      << " bytes transmitted at " << std::setprecision (9)
@@ -168,7 +168,7 @@ BurstyAppStatsCalculator::TxBurst (uint32_t nodeId, Ptr<const Packet> burst, con
 }
 
 void
-BurstyAppStatsCalculator::RxBurst (uint32_t nodeId, Ptr<const Packet> burst, const Address &from, const Address &to, const SeqTsSizeFragHeader &header)
+BurstAppStatsCalculator::RxBurst (uint32_t nodeId, Ptr<const Packet> burst, const Address &from, const Address &to, const SeqTsSizeFragHeader &header)
 {
   NS_LOG_FUNCTION (this << " RxBurst nodeId=" << nodeId << " burst seq=" << header.GetSeq () << " of " << header.GetSize ()
                                      << " bytes transmitted at " << std::setprecision (9)
@@ -195,7 +195,7 @@ BurstyAppStatsCalculator::RxBurst (uint32_t nodeId, Ptr<const Packet> burst, con
 }
 
 std::map<uint16_t, AppResults>
-BurstyAppStatsCalculator::ReadResults (void)
+BurstAppStatsCalculator::ReadResults (void)
 {
   NS_LOG_FUNCTION (this);
 
@@ -251,7 +251,7 @@ BurstyAppStatsCalculator::ReadResults (void)
 }
 
 void
-BurstyAppStatsCalculator::ShowResults (void)
+BurstAppStatsCalculator::ShowResults (void)
 {
   std::ofstream outFile;
 
@@ -283,7 +283,7 @@ BurstyAppStatsCalculator::ShowResults (void)
 }
 
 void
-BurstyAppStatsCalculator::WriteResults (std::ofstream &outFile)
+BurstAppStatsCalculator::WriteResults (std::ofstream &outFile)
 {
   NS_LOG_FUNCTION (this);
 
@@ -358,7 +358,7 @@ BurstyAppStatsCalculator::WriteResults (std::ofstream &outFile)
 }
 
 void
-BurstyAppStatsCalculator::ResetResults (void)
+BurstAppStatsCalculator::ResetResults (void)
 {
   NS_LOG_FUNCTION (this);
 
@@ -372,32 +372,32 @@ BurstyAppStatsCalculator::ResetResults (void)
 }
 
 void
-BurstyAppStatsCalculator::RescheduleEndEpoch (void)
+BurstAppStatsCalculator::RescheduleEndEpoch (void)
 {
   NS_LOG_FUNCTION (this);
   m_endEpochEvent.Cancel ();
   NS_ASSERT (Simulator::Now ().GetMilliSeconds () == 0); // below event time assumes this
-  m_endEpochEvent = Simulator::Schedule (m_startTime + m_epochDuration, &BurstyAppStatsCalculator::EndEpoch, this);
+  m_endEpochEvent = Simulator::Schedule (m_startTime + m_epochDuration, &BurstAppStatsCalculator::EndEpoch, this);
 }
 
 void
-BurstyAppStatsCalculator::EndEpoch (void)
+BurstAppStatsCalculator::EndEpoch (void)
 {
   NS_LOG_FUNCTION (this);
   ShowResults ();
   ResetResults ();
   m_startTime += m_epochDuration;
-  m_endEpochEvent = Simulator::Schedule (m_epochDuration, &BurstyAppStatsCalculator::EndEpoch, this);
+  m_endEpochEvent = Simulator::Schedule (m_epochDuration, &BurstAppStatsCalculator::EndEpoch, this);
 }
 
 void
-BurstyAppStatsCalculator::SetOutputFilename (std::string filename)
+BurstAppStatsCalculator::SetOutputFilename (std::string filename)
 {
   m_outputFilename = filename;
 }
 
 std::string
-BurstyAppStatsCalculator::GetOutputFilename (void) const
+BurstAppStatsCalculator::GetOutputFilename (void) const
 {
   return m_outputFilename;
 }

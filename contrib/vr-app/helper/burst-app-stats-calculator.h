@@ -15,8 +15,8 @@
  *
  */
 
-#ifndef BURSTY_APP_STATS_CALCULATOR_H_
-#define BURSTY_APP_STATS_CALCULATOR_H_
+#ifndef BURST_APP_STATS_CALCULATOR_H_
+#define BURST_APP_STATS_CALCULATOR_H_
 
 #include "ns3/basic-data-calculators.h"
 #include "ns3/internet-module.h"
@@ -50,23 +50,23 @@ struct AppResults
  * \ingroup application
  *
  */
-class BurstyAppStatsCalculator : public Object
+class BurstAppStatsCalculator : public Object
 {
   public:
     /**
      * Class constructor
      */
-    BurstyAppStatsCalculator();
+    BurstAppStatsCalculator();
 
     /**
      * Class constructor
      */
-    BurstyAppStatsCalculator(std::string protocolType);
+    BurstAppStatsCalculator(std::string protocolType);
 
     /**
      * Class destructor
      */
-    virtual ~BurstyAppStatsCalculator();
+    virtual ~BurstAppStatsCalculator();
 
     // Inherited from ns3::Object
     /**
@@ -218,4 +218,4 @@ class BurstyAppStatsCalculator : public Object
 
 } // namespace ns3
 
-#endif /* BURSTY_APP_STATS_CALCULATOR_H_ */
+#endif /* BURST_APP_STATS_CALCULATOR_H_ */

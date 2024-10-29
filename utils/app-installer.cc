@@ -157,16 +157,16 @@ AppInstaller::DoInstallApplication(Ptr<Node> node, InetSocketAddress dstAddr, Sr
 
     AppInfo appInfo = m_appDict[srcApp.m_name];
 
-    BurstyHelper burstyHelper("ns3::UdpSocketFactory", dstAddr);
-    burstyHelper.SetAttribute("FragmentSize", UintegerValue(appInfo.m_fragmentSize));
-    burstyHelper.SetBurstGenerator("ns3::SimpleBurstGenerator",
+    BurstHelper burstHelper("ns3::UdpSocketFactory", dstAddr);
+    burstHelper.SetAttribute("FragmentSize", UintegerValue(appInfo.m_fragmentSize));
+    burstHelper.SetBurstGenerator("ns3::SimpleBurstGenerator",
                                    "PeriodRv",
                                    StringValue(appInfo.m_payloadInterval),
                                    "BurstSizeRv",
                                    StringValue(appInfo.m_payloadSize));
 
     // m_appHelpers.push_back(client);
-    auto app = burstyHelper.Install(node);
+    auto app = burstHelper.Install(node);
     app.Start(Seconds(srcApp.m_startTime));
     app.Stop(Seconds(srcApp.m_endTime));
 

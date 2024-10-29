@@ -17,7 +17,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
-#include "bursty-helper.h"
+#include "burst-helper.h"
 #include "ns3/inet-socket-address.h"
 #include "ns3/packet-socket-address.h"
 #include "ns3/string.h"
@@ -26,27 +26,27 @@
 #include "ns3/uinteger.h"
 #include "ns3/names.h"
 #include "ns3/random-variable-stream.h"
-#include "ns3/bursty-application.h"
+#include "ns3/burst-application.h"
 #include "ns3/simple-burst-generator.h"
 #include "ns3/vr-burst-generator.h"
 
 namespace ns3 {
 
-BurstyHelper::BurstyHelper (std::string protocol, Address address)
+BurstHelper::BurstHelper (std::string protocol, Address address)
 {
-  m_burstyApplicationFactory.SetTypeId ("ns3::BurstyApplication");
+  m_burstyApplicationFactory.SetTypeId ("ns3::BurstApplication");
   m_burstyApplicationFactory.Set ("Protocol", StringValue (protocol));
   m_burstyApplicationFactory.Set ("Remote", AddressValue (address));
 }
 
 void
-BurstyHelper::SetAttribute (std::string name, const AttributeValue &value)
+BurstHelper::SetAttribute (std::string name, const AttributeValue &value)
 {
   m_burstyApplicationFactory.Set (name, value);
 }
 
 void 
-BurstyHelper::SetBurstGenerator (std::string type,
+BurstHelper::SetBurstGenerator (std::string type,
                                  std::string n1, const AttributeValue &v1,
                                  std::string n2, const AttributeValue &v2,
                                  std::string n3, const AttributeValue &v3,
@@ -60,26 +60,26 @@ BurstyHelper::SetBurstGenerator (std::string type,
 }
 
 void
-BurstyHelper::SetBurstGeneratorAttribute (std::string name, const AttributeValue &value)
+BurstHelper::SetBurstGeneratorAttribute (std::string name, const AttributeValue &value)
 {
   m_burstGeneratorFactory.Set (name, value);
 }
 
 ApplicationContainer
-BurstyHelper::Install (Ptr<Node> node) const
+BurstHelper::Install (Ptr<Node> node) const
 {
   return ApplicationContainer (InstallPriv (node));
 }
 
 ApplicationContainer
-BurstyHelper::Install (std::string nodeName) const
+BurstHelper::Install (std::string nodeName) const
 {
   Ptr<Node> node = Names::Find<Node> (nodeName);
   return ApplicationContainer (InstallPriv (node));
 }
 
 ApplicationContainer
-BurstyHelper::Install (NodeContainer c) const
+BurstHelper::Install (NodeContainer c) const
 {
   ApplicationContainer apps;
   for (NodeContainer::Iterator i = c.Begin (); i != c.End (); ++i)
@@ -91,9 +91,9 @@ BurstyHelper::Install (NodeContainer c) const
 }
 
 Ptr<Application>
-BurstyHelper::InstallPriv (Ptr<Node> node) const
+BurstHelper::InstallPriv (Ptr<Node> node) const
 {
-  Ptr<BurstyApplication> app = m_burstyApplicationFactory.Create<BurstyApplication> ();
+  Ptr<BurstApplication> app = m_burstyApplicationFactory.Create<BurstApplication> ();
   Ptr<BurstGenerator> generator = m_burstGeneratorFactory.Create<BurstGenerator> ();
 
   app->SetAttribute ("BurstGenerator", PointerValue (generator));
@@ -103,7 +103,7 @@ BurstyHelper::InstallPriv (Ptr<Node> node) const
 }
 
 int64_t
-BurstyHelper::AssignStreams (NodeContainer c, int64_t stream)
+BurstHelper::AssignStreams (NodeContainer c, int64_t stream)
 {
   int64_t currentStream = stream;
   Ptr<Node> node;
@@ -112,7 +112,7 @@ BurstyHelper::AssignStreams (NodeContainer c, int64_t stream)
       node = (*i);
       for (uint32_t j = 0; j < node->GetNApplications (); j++)
         {
-          Ptr<BurstyApplication> app = DynamicCast<BurstyApplication> (node->GetApplication (j));
+          Ptr<BurstApplication> app = DynamicCast<BurstApplication> (node->GetApplication (j));
           if (app)
             {
               Ptr<SimpleBurstGenerator> simpleGenerator =

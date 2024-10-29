@@ -17,7 +17,7 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-#include "bursty-application.h"
+#include "burst-application.h"
 
 #include "ns3/address.h"
 #include "ns3/boolean.h"
@@ -42,57 +42,57 @@
 namespace ns3
 {
 
-NS_LOG_COMPONENT_DEFINE("BurstyApplication");
+NS_LOG_COMPONENT_DEFINE("BurstApplication");
 
-NS_OBJECT_ENSURE_REGISTERED(BurstyApplication);
+NS_OBJECT_ENSURE_REGISTERED(BurstApplication);
 
 TypeId
-BurstyApplication::GetTypeId(void)
+BurstApplication::GetTypeId(void)
 {
     static TypeId tid =
-        TypeId("ns3::BurstyApplication")
+        TypeId("ns3::BurstApplication")
             .SetParent<Application>()
             .SetGroupName("Applications")
-            .AddConstructor<BurstyApplication>()
+            .AddConstructor<BurstApplication>()
             .AddAttribute("FragmentSize",
                           "The size of packets sent in a burst including SeqTsSizeFragHeader",
                           UintegerValue(1200),
-                          MakeUintegerAccessor(&BurstyApplication::m_fragSize),
+                          MakeUintegerAccessor(&BurstApplication::m_fragSize),
                           MakeUintegerChecker<uint32_t>(1))
             .AddAttribute("Remote",
                           "The address of the destination",
                           AddressValue(),
-                          MakeAddressAccessor(&BurstyApplication::m_peer),
+                          MakeAddressAccessor(&BurstApplication::m_peer),
                           MakeAddressChecker())
             .AddAttribute("Local",
                           "The Address on which to bind the socket. If not set, it is generated "
                           "automatically.",
                           AddressValue(),
-                          MakeAddressAccessor(&BurstyApplication::m_local),
+                          MakeAddressAccessor(&BurstApplication::m_local),
                           MakeAddressChecker())
             .AddAttribute("BurstGenerator",
                           "The BurstGenerator used by this application",
                           PointerValue(0),
-                          MakePointerAccessor(&BurstyApplication::m_burstGenerator),
+                          MakePointerAccessor(&BurstApplication::m_burstGenerator),
                           MakePointerChecker<BurstGenerator>())
             .AddAttribute("Protocol",
                           "The type of protocol to use. This should be "
                           "a subclass of ns3::SocketFactory",
                           TypeIdValue(UdpSocketFactory::GetTypeId()),
-                          MakeTypeIdAccessor(&BurstyApplication::m_socketTid),
+                          MakeTypeIdAccessor(&BurstApplication::m_socketTid),
                           MakeTypeIdChecker())
             .AddTraceSource("FragmentTx",
                             "A fragment of the burst is sent",
-                            MakeTraceSourceAccessor(&BurstyApplication::m_txFragmentTrace),
+                            MakeTraceSourceAccessor(&BurstApplication::m_txFragmentTrace),
                             "ns3::BurstSink::SeqTsSizeFragCallback")
             .AddTraceSource("BurstTx",
                             "A burst of packet is created and sent",
-                            MakeTraceSourceAccessor(&BurstyApplication::m_txBurstTrace),
+                            MakeTraceSourceAccessor(&BurstApplication::m_txBurstTrace),
                             "ns3::BurstSink::SeqTsSizeFragCallback");
     return tid;
 }
 
-BurstyApplication::BurstyApplication()
+BurstApplication::BurstApplication()
     : m_socket(0),
       m_connected(false),
       m_totTxBursts(0),
@@ -102,26 +102,26 @@ BurstyApplication::BurstyApplication()
     NS_LOG_FUNCTION(this);
 }
 
-BurstyApplication::~BurstyApplication()
+BurstApplication::~BurstApplication()
 {
     NS_LOG_FUNCTION(this);
 }
 
 Ptr<Socket>
-BurstyApplication::GetSocket(void) const
+BurstApplication::GetSocket(void) const
 {
     NS_LOG_FUNCTION(this);
     return m_socket;
 }
 
 Ptr<BurstGenerator>
-BurstyApplication::GetBurstGenerator(void) const
+BurstApplication::GetBurstGenerator(void) const
 {
     return m_burstGenerator;
 }
 
 void
-BurstyApplication::DoDispose(void)
+BurstApplication::DoDispose(void)
 {
     NS_LOG_FUNCTION(this);
 
@@ -134,7 +134,7 @@ BurstyApplication::DoDispose(void)
 }
 
 void
-BurstyApplication::StartApplication()
+BurstApplication::StartApplication()
 {
     NS_LOG_FUNCTION(this);
 
@@ -175,8 +175,8 @@ BurstyApplication::StartApplication()
         m_socket->SetAllowBroadcast(true);
         m_socket->ShutdownRecv();
 
-        m_socket->SetConnectCallback(MakeCallback(&BurstyApplication::ConnectionSucceeded, this),
-                                     MakeCallback(&BurstyApplication::ConnectionFailed, this));
+        m_socket->SetConnectCallback(MakeCallback(&BurstApplication::ConnectionSucceeded, this),
+                                     MakeCallback(&BurstApplication::ConnectionFailed, this));
     }
 
     // Ensure no pending event
@@ -185,7 +185,7 @@ BurstyApplication::StartApplication()
 }
 
 void
-BurstyApplication::StopApplication()
+BurstApplication::StopApplication()
 {
     NS_LOG_FUNCTION(this);
 
@@ -196,12 +196,12 @@ BurstyApplication::StopApplication()
     }
     else
     {
-        NS_LOG_WARN("BurstyApplication found null socket to close in StopApplication");
+        NS_LOG_WARN("BurstApplication found null socket to close in StopApplication");
     }
 }
 
 void
-BurstyApplication::CancelEvents()
+BurstApplication::CancelEvents()
 {
     NS_LOG_FUNCTION(this);
 
@@ -210,7 +210,7 @@ BurstyApplication::CancelEvents()
 }
 
 void
-BurstyApplication::SendBurst()
+BurstApplication::SendBurst()
 {
     NS_LOG_FUNCTION(this);
     NS_ASSERT(m_nextBurstEvent.IsExpired());
@@ -240,11 +240,11 @@ BurstyApplication::SendBurst()
 
     // schedule next burst
     NS_LOG_DEBUG("Next burst scheduled in " << period.As(Time::S));
-    m_nextBurstEvent = Simulator::Schedule(period, &BurstyApplication::SendBurst, this);
+    m_nextBurstEvent = Simulator::Schedule(period, &BurstApplication::SendBurst, this);
 }
 
 void
-BurstyApplication::SendFragmentedBurst(uint32_t burstSize)
+BurstApplication::SendFragmentedBurst(uint32_t burstSize)
 {
     NS_LOG_FUNCTION(this << burstSize);
 
@@ -348,7 +348,7 @@ BurstyApplication::SendFragmentedBurst(uint32_t burstSize)
 }
 
 void
-BurstyApplication::SendFragment(Ptr<Packet> fragment,
+BurstApplication::SendFragment(Ptr<Packet> fragment,
                                 uint64_t burstSize,
                                 uint16_t totFrags,
                                 uint16_t fragmentSeq)
@@ -405,33 +405,33 @@ BurstyApplication::SendFragment(Ptr<Packet> fragment,
 }
 
 void
-BurstyApplication::ConnectionSucceeded(Ptr<Socket> socket)
+BurstApplication::ConnectionSucceeded(Ptr<Socket> socket)
 {
     NS_LOG_FUNCTION(this << socket);
     m_connected = true;
 }
 
 void
-BurstyApplication::ConnectionFailed(Ptr<Socket> socket)
+BurstApplication::ConnectionFailed(Ptr<Socket> socket)
 {
     NS_LOG_FUNCTION(this << socket);
     NS_FATAL_ERROR("Can't connect");
 }
 
 uint64_t
-BurstyApplication::GetTotalTxBursts(void) const
+BurstApplication::GetTotalTxBursts(void) const
 {
     return m_totTxBursts;
 }
 
 uint64_t
-BurstyApplication::GetTotalTxFragments(void) const
+BurstApplication::GetTotalTxFragments(void) const
 {
     return m_totTxFragments;
 }
 
 uint64_t
-BurstyApplication::GetTotalTxBytes(void) const
+BurstApplication::GetTotalTxBytes(void) const
 {
     return m_totTxBytes;
 }

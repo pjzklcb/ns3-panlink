@@ -17,8 +17,8 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-#ifndef BURSTY_APPLICATION_H
-#define BURSTY_APPLICATION_H
+#ifndef BURST_APPLICATION_H
+#define BURST_APPLICATION_H
 
 #include "ns3/address.h"
 #include "ns3/application.h"
@@ -37,7 +37,7 @@ class BurstGenerator;
 
 /**
  * \ingroup applications 
- * \defgroup bursty BurstyApplication
+ * \defgroup bursty BurstApplication
  *
  * This traffic generator supports large packets to be sent into smaller
  * packet (fragment) bursts.
@@ -77,7 +77,7 @@ class BurstGenerator;
  * queried to the generator.
  * 
  */
-class BurstyApplication : public Application
+class BurstApplication : public Application
 {
 public:
   /**
@@ -86,9 +86,9 @@ public:
    */
   static TypeId GetTypeId (void);
 
-  BurstyApplication ();
+  BurstApplication ();
 
-  virtual ~BurstyApplication ();
+  virtual ~BurstApplication ();
 
   /**
    * \brief Return a pointer to associated socket.
@@ -191,4 +191,4 @@ private:
 
 } // namespace ns3
 
-#endif /* BURSTY_APPLICATION_H */
+#endif /* BURST_APPLICATION_H */

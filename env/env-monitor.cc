@@ -89,7 +89,7 @@ EnvMonitor::ConnectAppTrace()
         // }
 
         std::string prefix = "/NodeList/" + std::to_string(srcNodeId) +
-                             "/ApplicationList/*/$ns3::BurstyApplication/";
+                             "/ApplicationList/*/$ns3::BurstApplication/";
         Config::Connect(prefix + "BurstTx", MakeCallback(&EnvMonitor::NotifyBurstTx, this));
         Config::Connect(prefix + "FragmentTx", MakeCallback(&EnvMonitor::NotifyFragmentTx, this));
     }
