@@ -329,11 +329,12 @@ class PlotResults(object):
             # plot l2 delay
             self.plot_l2_delay(node_id, l2_delay, drop_before_enqueue, expired, dropped)
 
-            # plot l2 delay cdf
+            # plot l2 delay cdf of tartgeted nodes
+            if self.target_nodes is None or node_id in self.target_nodes:
+                self.plot_l2_delay_cdf(node_id, l2_delay, dropped)
 
             # plot e2e delay
-            if len(e2e_delay) != 0:
-                self.plot_e2e_delay(node_id, e2e_delay, incomplete)
+            self.plot_e2e_delay(node_id, e2e_delay, incomplete)
     
     def plot_l2_delay(self, node_id, l2_delay, drop_before_enqueue, expired, dropped):
         plt.figure()
@@ -359,8 +360,45 @@ class PlotResults(object):
         plt.legend()
         plt.savefig(self.result_dir + "figures/node_" + str(node_id) + "_l2_delay.png")
         plt.close()
+
+    def plot_l2_delay_cdf(self, node_id, l2_delay, dropped):
+        tail_latency = 30 # ms
+        delay_list = []
+        n_drops = 0
+        for port, delay in l2_delay.items():
+            if len(delay) < 10: # ignore app with too few successful packets
+                continue
+            delay_list += [d for _, d in delay]
+            if port in dropped:
+                n_drops += len(dropped[port])
+        
+        if len(delay_list) == 0:
+            return
+        
+        plt.figure()
+        x = np.sort(delay_list)
+        y = np.arange(1, len(x)+1) / len(x)
+        plt.plot(x, y, linewidth=1, label="L2 Delay")
+        plt.plot(0, 0, 'w', label='mean = {:.2f}'.format(np.mean(delay_list)))
+        plt.plot(0, 0, 'w', label='std = {:.2f}'.format(np.std(delay_list)))
+
+        drop_rate = n_drops / (n_drops + len(delay_list))
+        prob_tail_latency = np.sum(np.array(delay_list) > tail_latency) / len(delay_list)
+        plt.plot(0, 0, 'w', label='drop rate = {:.2f}%'.format(drop_rate*100))
+        plt.plot(0, 0, 'w', label='$P_{tail}$'+' = {:.2f}%'.format(prob_tail_latency*100))
+        plt.axhline(1-prob_tail_latency, color='r', linestyle=':', linewidth=1)
+        plt.axvline(tail_latency, color='r', linestyle=':', linewidth=1)
+
+        plt.xlabel("L2 Delay (ms)")
+        plt.ylabel("CDF")
+        plt.legend()
+        plt.savefig(self.result_dir + "figures/node_" + str(node_id) + "_l2_delay_cdf.png")
+        plt.close()
         
     def plot_e2e_delay(self, node_id, e2e_delay, incomplete):
+        if len(e2e_delay) == 0:
+            return
+        
         plt.figure()
         colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
         for i, port in enumerate(e2e_delay):
