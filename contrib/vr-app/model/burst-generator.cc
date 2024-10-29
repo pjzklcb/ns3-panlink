@@ -18,38 +18,31 @@
  *
  */
 
-#include <ns3/log.h>
 #include "burst-generator.h"
 
-namespace ns3 {
+#include <ns3/log.h>
 
-NS_LOG_COMPONENT_DEFINE ("BurstGenerator");
+namespace ns3
+{
 
-NS_OBJECT_ENSURE_REGISTERED (BurstGenerator);
+NS_LOG_COMPONENT_DEFINE("BurstGenerator");
 
-BurstGenerator::BurstGenerator ()
+NS_OBJECT_ENSURE_REGISTERED(BurstGenerator);
+
+BurstGenerator::BurstGenerator()
 {
 }
 
-BurstGenerator::~BurstGenerator ()
+BurstGenerator::~BurstGenerator()
 {
 }
 
 TypeId
-BurstGenerator::GetTypeId ()
+BurstGenerator::GetTypeId()
 {
-  static TypeId tid = TypeId ("ns3::BurstGenerator")
-    .SetParent<Object> ()
-    .SetGroupName("Applications")
-  ;
-  return tid;
-}
-
-void
-BurstGenerator::DoDispose ()
-{
-  // chain up
-  Object::DoDispose ();
+    static TypeId tid =
+        TypeId("ns3::BurstGenerator").SetParent<Object>().SetGroupName("Applications");
+    return tid;
 }
 
 } // namespace ns3

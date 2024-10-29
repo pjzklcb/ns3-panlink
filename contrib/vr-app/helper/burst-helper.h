@@ -20,134 +20,84 @@
 #ifndef BURST_HELPER_H
 #define BURST_HELPER_H
 
-#include <stdint.h>
-#include <string>
-#include "ns3/object-factory.h"
 #include "ns3/address.h"
+#include "ns3/application-container.h"
+#include "ns3/application-helper.h"
 #include "ns3/attribute.h"
+#include "ns3/burst-application.h"
 #include "ns3/net-device.h"
 #include "ns3/node-container.h"
-#include "ns3/application-container.h"
-#include "ns3/burst-application.h"
+#include "ns3/object-factory.h"
 
-namespace ns3 {
+#include <stdint.h>
+#include <string>
+
+namespace ns3
+{
 
 class DataRate;
 
 /**
  * \ingroup bursty
- * \brief A helper to make it easier to instantiate an ns3::BurstApplication 
+ * \brief A helper to make it easier to instantiate an ns3::BurstApplication
  * on a set of nodes.
  */
-class BurstHelper
+class BurstHelper : public ApplicationHelper
 {
-public:
-  /**
-   * Create an BurstHelper to make it easier to work with BurstApplications
-   *
-   * \param protocol the name of the protocol to use to send traffic
-   *        by the applications. This string identifies the socket
-   *        factory type used to create sockets for the applications.
-   *        A typical value would be ns3::UdpSocketFactory.
-   * \param address the address of the remote node to send traffic
-   *        to.
-   */
-  BurstHelper (std::string protocol, Address address);
+  public:
+    /**
+     * Create an BurstHelper to make it easier to work with BurstApplications
+     *
+     * \param protocol the name of the protocol to use to send traffic
+     *        by the applications. This string identifies the socket
+     *        factory type used to create sockets for the applications.
+     *        A typical value would be ns3::UdpSocketFactory.
+     * \param address the address of the remote node to send traffic
+     *        to.
+     */
+    BurstHelper(const std::string protocol, const Address address);
 
-  /**
-   * Helper function used to set the underlying application attributes.
-   *
-   * \param name the name of the application attribute to set
-   * \param value the value of the application attribute to set
-   */
-  void SetAttribute (std::string name, const AttributeValue &value);
+    /**
+     * Each BurstApplication must have a BurstGenerator.
+     * This method allows one to set the type of the BurstGenerator that is automatically
+     * created when the application is created and attached to a node.
+     *
+     * \param type the type of BurstGenerator
+     * \param n1 the name of the attribute to set on the BurstGenerator
+     * \param v1 the value of the attribute to set on the BurstGenerator
+     * \param n2 the name of the attribute to set on the BurstGenerator
+     * \param v2 the value of the attribute to set on the BurstGenerator
+     * \param n3 the name of the attribute to set on the BurstGenerator
+     * \param v3 the value of the attribute to set on the BurstGenerator
+     * \param n4 the name of the attribute to set on the BurstGenerator
+     * \param v4 the value of the attribute to set on the BurstGenerator
+     *
+     * Set the type of BurstGenerator to create and associated to each
+     * BurstApplication created through BurstHelper::Install.
+     */
+    void SetBurstGenerator(std::string type,
+                           std::string n1 = "",
+                           const AttributeValue& v1 = EmptyAttributeValue(),
+                           std::string n2 = "",
+                           const AttributeValue& v2 = EmptyAttributeValue(),
+                           std::string n3 = "",
+                           const AttributeValue& v3 = EmptyAttributeValue(),
+                           std::string n4 = "",
+                           const AttributeValue& v4 = EmptyAttributeValue());
 
-  /**
-   * Each BurstApplication must have a BurstGenerator.
-   * This method allows one to set the type of the BurstGenerator that is automatically
-   * created when the application is created and attached to a node.
-   *
-   * \param type the type of BurstGenerator
-   * \param n1 the name of the attribute to set on the BurstGenerator
-   * \param v1 the value of the attribute to set on the BurstGenerator
-   * \param n2 the name of the attribute to set on the BurstGenerator
-   * \param v2 the value of the attribute to set on the BurstGenerator
-   * \param n3 the name of the attribute to set on the BurstGenerator
-   * \param v3 the value of the attribute to set on the BurstGenerator
-   * \param n4 the name of the attribute to set on the BurstGenerator
-   * \param v4 the value of the attribute to set on the BurstGenerator
-   *
-   * Set the type of BurstGenerator to create and associated to each
-   * BurstApplication created through BurstHelper::Install.
-   */
-  void SetBurstGenerator (std::string type,
-                   std::string n1 = "", const AttributeValue &v1 = EmptyAttributeValue (),
-                   std::string n2 = "", const AttributeValue &v2 = EmptyAttributeValue (),
-                   std::string n3 = "", const AttributeValue &v3 = EmptyAttributeValue (),
-                   std::string n4 = "", const AttributeValue &v4 = EmptyAttributeValue ());
+    /**
+     * \param n1 the name of the attribute to set
+     * \param v1 the value of the attribute to set
+     *
+     * Set these attributes on each ns3::BurstGenerator created
+     * by BurstHelper::Install
+     */
+    void SetBurstGeneratorAttribute(std::string n1, const AttributeValue& v1);
 
-  /**
-   * \param n1 the name of the attribute to set
-   * \param v1 the value of the attribute to set
-   *
-   * Set these attributes on each ns3::BurstGenerator created
-   * by BurstHelper::Install
-   */
-  void SetBurstGeneratorAttribute (std::string n1, const AttributeValue &v1);
+  private:
+    Ptr<Application> DoInstall(Ptr<Node> node) override;
 
-  /**
-   * Install an ns3::BurstApplication on each node of the input container
-   * configured with all the attributes set with SetAttribute.
-   *
-   * \param c NodeContainer of the set of nodes on which an BurstApplication 
-   * will be installed.
-   * \returns Container of Ptr to the applications installed.
-   */
-  ApplicationContainer Install (NodeContainer c) const;
-
-  /**
-   * Install an ns3::BurstApplication on the node configured with all the 
-   * attributes set with SetAttribute.
-   *
-   * \param node The node on which an BurstApplication will be installed.
-   * \returns Container of Ptr to the applications installed.
-   */
-  ApplicationContainer Install (Ptr<Node> node) const;
-
-  /**
-   * Install an ns3::BurstApplication on the node configured with all the 
-   * attributes set with SetAttribute.
-   *
-   * \param nodeName The node on which an BurstApplication will be installed.
-   * \returns Container of Ptr to the applications installed.
-   */
-  ApplicationContainer Install (std::string nodeName) const;
-
-  /**
-   * Assign a fixed random variable stream number to the random variables
-   * used by this model.  Return the number of streams (possibly zero) that
-   * have been assigned.  The Install() method should have previously been
-   * called by the user.
-   *
-   * \param stream first stream index to use
-   * \param c NodeContainer of the set of nodes for which the BurstApplication
-   *          should be modified to use a fixed stream
-   * \return the number of stream indices assigned by this helper
-   */
-  int64_t AssignStreams (NodeContainer c, int64_t stream);
-
-private:
-  /**
-   * Install an ns3::BurstApplication on the node configured with all the 
-   * attributes set with SetAttribute.
-   *
-   * \param node The node on which an BurstApplication will be installed.
-   * \returns Ptr to the application installed.
-   */
-  Ptr<Application> InstallPriv (Ptr<Node> node) const;
-
-  ObjectFactory m_burstyApplicationFactory; //!< BurstApplication factory
-  ObjectFactory m_burstGeneratorFactory; //!< BurstGenerator factory
+    ObjectFactory m_burstGeneratorFactory; //!< BurstGenerator factory
 };
 
 } // namespace ns3

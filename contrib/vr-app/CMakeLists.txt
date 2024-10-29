@@ -35,7 +35,7 @@ build_lib(
                  helper/burst-sink-helper.h
                  helper/burst-app-stats-calculator.h
     LIBRARIES_TO_LINK ${libcore}
-                        ${libapplications}
-                        ${libpoint-to-point}
-                        ${libinternet}
+                      ${libapplications}
+                      ${libpoint-to-point}
+                      ${libinternet}
 )

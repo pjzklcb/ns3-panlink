@@ -47,7 +47,7 @@ NS_LOG_COMPONENT_DEFINE("BurstApplication");
 NS_OBJECT_ENSURE_REGISTERED(BurstApplication);
 
 TypeId
-BurstApplication::GetTypeId(void)
+BurstApplication::GetTypeId()
 {
     static TypeId tid =
         TypeId("ns3::BurstApplication")
@@ -93,7 +93,7 @@ BurstApplication::GetTypeId(void)
 }
 
 BurstApplication::BurstApplication()
-    : m_socket(0),
+    : m_socket(nullptr),
       m_connected(false),
       m_totTxBursts(0),
       m_totTxFragments(0),
@@ -108,20 +108,20 @@ BurstApplication::~BurstApplication()
 }
 
 Ptr<Socket>
-BurstApplication::GetSocket(void) const
+BurstApplication::GetSocket() const
 {
     NS_LOG_FUNCTION(this);
     return m_socket;
 }
 
 Ptr<BurstGenerator>
-BurstApplication::GetBurstGenerator(void) const
+BurstApplication::GetBurstGenerator() const
 {
     return m_burstGenerator;
 }
 
 void
-BurstApplication::DoDispose(void)
+BurstApplication::DoDispose()
 {
     NS_LOG_FUNCTION(this);
 
@@ -349,9 +349,9 @@ BurstApplication::SendFragmentedBurst(uint32_t burstSize)
 
 void
 BurstApplication::SendFragment(Ptr<Packet> fragment,
-                                uint64_t burstSize,
-                                uint16_t totFrags,
-                                uint16_t fragmentSeq)
+                               uint64_t burstSize,
+                               uint16_t totFrags,
+                               uint16_t fragmentSeq)
 {
     NS_LOG_FUNCTION(this << fragment << burstSize << totFrags << fragmentSeq);
 

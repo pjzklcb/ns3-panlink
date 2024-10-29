@@ -165,7 +165,7 @@ AppInstaller::DoInstallApplication(Ptr<Node> node, InetSocketAddress dstAddr, Sr
                                    "BurstSizeRv",
                                    StringValue(appInfo.m_payloadSize));
 
-    // m_appHelpers.push_back(client);
+    m_appHelpers.push_back(burstHelper);
     auto app = burstHelper.Install(node);
     app.Start(Seconds(srcApp.m_startTime));
     app.Stop(Seconds(srcApp.m_endTime));
@@ -187,8 +187,7 @@ AppInstaller::InstallSinkApplications(NodeContainer nodes)
         sinkApp.Start(Seconds(0.0));
         sinkApp.Stop(Simulator::GetMaximumSimulationTime());
 
-        // m_appHelpers.push_back(sink);
-
+        m_appHelpers.push_back(sink);
         apps.Add(sinkApp);
     }
 
