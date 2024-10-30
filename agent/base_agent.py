@@ -44,17 +44,11 @@ class BaseAgent():
     def set_action(self, msg_interface):
         pass
 
-    def choose_action(self, msg_interface):
+    def choose_action(self):
         pass
 
-    def learn(self):
-        pass
-    
-    def store_transition(self, state, action, reward, next_state):
+    def save_model(self, save_dir):
         pass
 
-    def save_model(self):
-        pass
-
-    def plot_results(self):
+    def plot_results(self, save_dir):
         pass
