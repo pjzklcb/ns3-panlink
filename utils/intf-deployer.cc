@@ -70,10 +70,8 @@ IntfDeployer::ReadIntfConfigFile(std::string filename)
 
 void
 IntfDeployer::DeployInterference(WifiHelper& wifiHelper,
-                                 WifiMacHelper& macHelper,
                                  SpectrumWifiPhyHelper& phyHelper,
                                  InternetStackHelper& inetHelper,
-                                 Ipv4AddressHelper& ipv4Helper,
                                  MobilityHelper& mobilityHelper,
                                  SrcAppMap& srcAppMap,
                                  TopologyRecorder& recorder)
@@ -87,6 +85,9 @@ IntfDeployer::DeployInterference(WifiHelper& wifiHelper,
     NS_ABORT_MSG_IF(nApList != static_cast<int>(apList.Size()) ||
                         nProbeList != static_cast<int>(probeList.Size()),
                     "Invalid interference config file");
+
+    WifiMacHelper macHelper;
+    Ipv4AddressHelper ipv4Helper;
 
     // ====================================
     // Deploy AP and associated STAs

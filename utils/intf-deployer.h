@@ -40,10 +40,8 @@ class IntfDeployer
      * Deploy the interference environment based on the config file.
      */
     void DeployInterference(WifiHelper& wifiHelper,
-                            WifiMacHelper& macHelper,
                             SpectrumWifiPhyHelper& phyHelper,
                             InternetStackHelper& inetHelper,
-                            Ipv4AddressHelper& ipv4Helper,
                             MobilityHelper& mobilityHelper,
                             SrcAppMap& srcAppMap,
                             TopologyRecorder& recorder);

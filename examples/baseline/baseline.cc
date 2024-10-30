@@ -14,6 +14,7 @@
 #include "ns3/multi-model-spectrum-channel.h"
 #include "ns3/network-module.h"
 #include "ns3/panlink-helper.h"
+#include "ns3/panlink-mac-helper.h"
 #include "ns3/panlink-utils.h"
 #include "ns3/wifi-module.h"
 
@@ -99,7 +100,7 @@ main(int argc, char* argv[])
     }
 
     WifiHelper g_wifiHelper;
-    WifiMacHelper g_macHelper;
+    PanlinkMacHelper g_macHelper;
     SpectrumWifiPhyHelper g_phyHelper;
     InternetStackHelper g_inetHelper;
     Ipv4AddressHelper g_ipv4Helper;
@@ -244,10 +245,12 @@ main(int argc, char* argv[])
                                 SsidValue(ssid),
                                 "EnableBeaconJitter",
                                 BooleanValue(true));
+            g_macHelper.SetFrameExchangeManager("ns3::PanlinkFrameExchangeManager");
         }
         else if (node.m_type == "PC")
         {
             g_macHelper.SetType("ns3::StaWifiMac", "Ssid", SsidValue(ssid));
+            g_macHelper.SetFrameExchangeManager("ns3::HeFrameExchangeManager");
         }
         else if (node.m_type == "AP")
         {
@@ -256,10 +259,12 @@ main(int argc, char* argv[])
                                 SsidValue(ssid),
                                 "EnableBeaconJitter",
                                 BooleanValue(true));
+            g_macHelper.SetFrameExchangeManager("ns3::HeFrameExchangeManager");
         }
         else if (node.m_type == "STA")
         {
             g_macHelper.SetType("ns3::StaWifiMac", "Ssid", SsidValue(ssid));
+            g_macHelper.SetFrameExchangeManager("ns3::HeFrameExchangeManager");
         }
         else
         {
@@ -312,10 +317,8 @@ main(int argc, char* argv[])
         IntfDeployer intfDeployer;
         intfDeployer.ReadIntfConfigFile(intfConfig);
         intfDeployer.DeployInterference(g_wifiHelper,
-                                        g_macHelper,
                                         g_phyHelper,
                                         g_inetHelper,
-                                        g_ipv4Helper,
                                         g_mobilityHelper,
                                         g_srcAppMap,
                                         g_recorder);
@@ -329,6 +332,7 @@ main(int argc, char* argv[])
     //                         Other Processes                          ||
     //==================================================================//
     // Simulator::Schedule(Seconds(0), &Ipv4GlobalRoutingHelper::PopulateRoutingTables);
+
     /* Install applications */
     std::cout << "Installing applications..." << std::endl;
     g_appInstaller.InstallApplications(g_nodes, g_interfaces, g_srcAppMap);

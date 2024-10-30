@@ -30,6 +30,7 @@ set(source_files
     env/env-utils.cc
     helper/panlink-helper.cc
     model/panlink-sta-wifi-mac.cc
+    model/panlink-frame-exchange-manager.cc
     utils/app-installer.cc
     utils/intf-deployer.cc
     utils/panlink-utils.cc
@@ -46,7 +47,9 @@ set(header_files
     env/env-utils.h
     env/obs-act-list.h
     helper/panlink-helper.h
+    helper/panlink-mac-helper.h
     model/panlink-sta-wifi-mac.h
+    model/panlink-frame-exchange-manager.h
     utils/app-installer.h
     utils/intf-deployer.h
     utils/panlink-utils.h
