@@ -45,4 +45,11 @@ BurstGenerator::GetTypeId()
     return tid;
 }
 
+int64_t 
+BurstGenerator::AssignStreams(int64_t stream)
+{
+    NS_LOG_FUNCTION(this << stream);
+    return 0;
+}
+
 } // namespace ns3

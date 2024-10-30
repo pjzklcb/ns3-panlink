@@ -12,10 +12,10 @@
 #include "panlink-utils.h"
 
 #include "ns3/applications-module.h"
-#include "ns3/singleton.h"
 #include "ns3/vr-app-module.h"
 
 #include <rapidjson/document.h>
+
 namespace ns3
 {
 
@@ -38,9 +38,16 @@ typedef std::pair<uint32_t /* dst node id */, uint16_t /* port */> SinkApp;
  * The application installer. Sink applications will be installed automatically based on
  * the source applications.
  */
-class AppInstaller : public Singleton<AppInstaller>
+class AppInstaller
 {
   public:
+    /**
+     * Create a AppInstaller in an empty state: app dict must be set before calling
+     * ns3::AppInstaller::InstallApplications
+     */
+    AppInstaller();
+    ~AppInstaller();
+
     /**
      * Read application dictionary from JSON file.
      *
@@ -100,6 +107,7 @@ class AppInstaller : public Singleton<AppInstaller>
     AppDict m_appDict;                           //!< application dictionary
     std::set<SinkApp> m_sinkAppList;             //!< list of sink applications
     std::vector<ApplicationHelper> m_appHelpers; //!< list of application helpers
+    Ptr<UniformRandomVariable> m_jitter;         //!< jitter
 };
 
 } // namespace ns3

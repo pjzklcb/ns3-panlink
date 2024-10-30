@@ -108,6 +108,7 @@ main(int argc, char* argv[])
     NetDeviceContainer g_devices;
     Ipv4InterfaceContainer g_interfaces;
     SrcAppMap g_srcAppMap;
+    AppInstaller g_appInstaller;
     TopologyRecorder g_recorder;
 
     g_mobilityHelper.SetMobilityModel("ns3::ConstantPositionMobilityModel");
@@ -117,7 +118,7 @@ main(int argc, char* argv[])
     //==================================================================//
     std::cout << "Reading configuration files..." << std::endl;
     std::vector<PanlinkNodeInfo> g_panlinkInfo = ReadNodesFromJson(panlinkConfig);
-    AppInstaller::Get()->ReadAppDictFromJson(appConfig);
+    g_appInstaller.ReadAppDictFromJson(appConfig);
 
     //==================================================================//
     //                      Configure Wi-Fi Stack                       ||
@@ -328,14 +329,15 @@ main(int argc, char* argv[])
     //                         Other Processes                          ||
     //==================================================================//
     // Simulator::Schedule(Seconds(0), &Ipv4GlobalRoutingHelper::PopulateRoutingTables);
+    /* Install applications */
+    std::cout << "Installing applications..." << std::endl;
+    g_appInstaller.InstallApplications(g_nodes, g_interfaces, g_srcAppMap);
 
     int64_t streamNumber = 150;
     streamNumber += g_wifiHelper.AssignStreams(g_devices, streamNumber);
     streamNumber += g_inetHelper.AssignStreams(g_nodes, streamNumber);
-
-    /* Install applications */
-    std::cout << "Installing applications..." << std::endl;
-    AppInstaller::Get()->InstallApplications(g_nodes, g_interfaces, g_srcAppMap);
+    streamNumber += g_mobilityHelper.AssignStreams(g_nodes, streamNumber);
+    streamNumber += g_appInstaller.AssignStreams(g_nodes, streamNumber);
 
     /* Create result dir */
     std::string resultDir = "contrib/panlink/result-" + timestamp + "/";

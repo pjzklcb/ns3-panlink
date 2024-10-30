@@ -139,6 +139,14 @@ BurstApplication::DoDispose()
     Application::DoDispose();
 }
 
+int64_t 
+BurstApplication::AssignStreams(int64_t stream)
+{
+    NS_LOG_FUNCTION(this << stream);
+
+    return m_burstGenerator->AssignStreams(stream);
+}
+
 void
 BurstApplication::StartApplication()
 {

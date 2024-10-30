@@ -1,18 +1,7 @@
 /*
  * Copyright (c) 2024
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * SPDX-License-Identifier: GPL-2.0-only
  *
  * Authors: Pan Jinzhe <pjzklcb@gmail.com>
  */
@@ -23,6 +12,18 @@ namespace ns3
 {
 
 NS_LOG_COMPONENT_DEFINE("AppInstaller");
+
+AppInstaller::AppInstaller()
+{
+    NS_LOG_FUNCTION(this);
+
+    m_jitter = CreateObject<UniformRandomVariable>();
+}
+
+AppInstaller::~AppInstaller()
+{
+    NS_LOG_FUNCTION(this);
+}
 
 void
 AppInstaller::ReadAppDictFromJson(std::string filename)
@@ -169,7 +170,9 @@ AppInstaller::DoInstallApplication(Ptr<Node> node, InetSocketAddress dstAddr, Sr
 
     m_appHelpers.push_back(burstHelper);
     auto app = burstHelper.Install(node);
-    app.Start(Seconds(srcApp.m_startTime));
+    // Add jitter to avoid bursting at the same time
+    auto jitter = m_jitter->GetValue(-0.05, 0.05);
+    app.Start(Seconds(srcApp.m_startTime + jitter));
     app.Stop(Seconds(srcApp.m_endTime));
 
     return app;
@@ -201,6 +204,7 @@ AppInstaller::AssignStreams(NodeContainer nodes, int64_t stream)
 {
     NS_LOG_FUNCTION(this);
 
+    m_jitter->SetStream(stream++);
     for (auto helper : m_appHelpers)
     {
         stream += helper.AssignStreams(nodes, stream);

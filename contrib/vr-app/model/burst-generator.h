@@ -75,6 +75,15 @@ class BurstGenerator : public Object
      * \return true if a new burst can be generated
      */
     virtual bool HasNextBurst() = 0;
+
+    /**
+     * \brief Assign a fixed random variable stream number to the random variables
+     * used by this model.
+     *
+     * \param stream first stream index to use
+     * \return the number of stream indices assigned by this model
+     */
+    virtual int64_t AssignStreams(int64_t stream);
 };
 
 } // namespace ns3
