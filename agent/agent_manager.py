@@ -4,7 +4,6 @@
 #
 # Author: Pan Jinzhe <pjzklcb@gmail.com>
 
-
 import json
 from base_agent import AgentType, BaseAgent
 
