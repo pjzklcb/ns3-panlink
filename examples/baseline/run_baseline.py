@@ -15,18 +15,12 @@ import traceback
 
 ns3_dir = os.path.abspath(os.path.dirname(os.path.abspath(__file__)) + '/../../../..')
 panlink_dir = os.path.join(ns3_dir, 'contrib/panlink')
-
-sys.path.append(panlink_dir + '/contrib/ai/python_utils')
-from ns3ai_utils import Experiment
-
 sys.path.append(panlink_dir + '/env')
 import cpp_py_interface as py_binding
 
-sys.path.append(panlink_dir + '/agent')
-from agent_manager import AgentManager
-
-sys.path.append(panlink_dir + '/utils')
-from plot_results import PlotResults
+from contrib.ai.python_utils.ns3ai_utils import Experiment
+from agent.agent_manager import AgentManager
+from utils.plot_results import PlotResults
 
 config_dir = os.path.join(panlink_dir, 'configs')
 
