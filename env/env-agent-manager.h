@@ -9,25 +9,32 @@
 #ifndef ENV_AGENT_MANAGER_H
 #define ENV_AGENT_MANAGER_H
 
-#include "env-agent.h"
 #include "cca-env-agent.h"
+#include "env-agent.h"
 
+#include "ns3/panlink-utils.h"
 #include "ns3/ptr.h"
 #include "ns3/singleton.h"
-#include "ns3/panlink-utils.h"
 
 namespace ns3
 {
 
 /**
  * \ingroup panlink
+ * \brief Class to manage environment agents of each node.
+ *
+ * This class is responsible for creating and managing environment agents for
+ * each node. Environment agents are created based on the configurations
+ * provided by the user and are bound to the node. The user can ask the
+ * manager to schedule an information exchange for all registered agents or
+ * for the specified agent.
  */
 class EnvAgentManager : public Singleton<EnvAgentManager>
 {
   public:
     /**
      * Register EnvAgents with the specified node.
-     * 
+     *
      * \param node the bound node
      * \param agentList the list of agents
      */
@@ -50,7 +57,7 @@ class EnvAgentManager : public Singleton<EnvAgentManager>
     void ScheduleInitInfoExchange();
     /**
      * Schedule an information exchange for the specified agent.
-     * 
+     *
      * \param nodeId the node ID
      * \param type the type of the agent
      * \param period the info exchange period of the agent
@@ -60,7 +67,7 @@ class EnvAgentManager : public Singleton<EnvAgentManager>
   private:
     /**
      * Create EnvAgent with given type and bound it to the specified node.
-     * 
+     *
      * \param node the bound node
      * \param agentInfo the configuration of the agent
      * \param memoryId the memory ID assigned to the node
@@ -69,16 +76,17 @@ class EnvAgentManager : public Singleton<EnvAgentManager>
 
     /**
      * Execute information exchange for the specified agent.
-     * 
+     *
      * \param nodeId the node ID
      * \param type the type of the agent
      * \param obs the obs from the environment
      */
     void DoEnvInfoExchange(uint32_t nodeId, AgentType type, void* obs);
-    
+
     std::map<uint32_t /* Node ID */, uint32_t /* memory ID */> m_memoryMap;
     std::map<uint32_t /* Node ID */, std::map<AgentType, Ptr<EnvAgent>>> m_agentMap;
 };
+
 
 } // namespace ns3
 

@@ -38,9 +38,9 @@ PYBIND11_MODULE(cpp_py_interface, m)
         .def_readwrite("agentType", &Obs::agentType)
         .def_readwrite("counter", &Obs::counter)
         .def_readwrite("simTime", &Obs::simTime)
-        .def_readwrite("mcs", &Obs::mcs)
-        .def_readwrite("holDelay", &Obs::holDelay)
-        .def_readwrite("throughput", &Obs::throughput);
+        .def_readwrite("apRssi", &Obs::apRssi)
+        .def_readwrite("bssRssi", &Obs::bssRssi)
+        .def_readwrite("obssRssi", &Obs::obssRssi);
 
     py::class_<Act>(m, "PyActStruct")
         .def(py::init<>())
