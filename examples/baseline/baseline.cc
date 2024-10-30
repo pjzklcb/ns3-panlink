@@ -94,8 +94,8 @@ main(int argc, char* argv[])
     if (verbose)
     {
         LogComponentEnableAll(LOG_PREFIX_ALL);
-        LogComponentEnable("EnvAgent", LOG_LEVEL_ALL);
-        LogComponentEnable("EnvAgentManager", LOG_LEVEL_ALL);
+        LogComponentEnable("AppInstaller", LOG_LEVEL_ALL);
+        LogComponentEnable("BurstApplication", LOG_LEVEL_ALL);
     }
 
     WifiHelper g_wifiHelper;
@@ -352,7 +352,9 @@ main(int argc, char* argv[])
     /* Create pcap file */
     if (pcap)
     {
-        g_phyHelper.EnablePcap(resultDir + g_panlinkInfo[0].m_type, panlinkDevices.Get(0));
+        // g_phyHelper.EnablePcap(resultDir + g_panlinkInfo[0].m_type, panlinkDevices.Get(0));
+        g_phyHelper.EnablePcap(resultDir + g_panlinkInfo[1].m_type, panlinkDevices.Get(1));
+        // g_phyHelper.EnablePcap(resultDir + "node-", g_devices.Get(3));
     }
 
     //==================================================================//

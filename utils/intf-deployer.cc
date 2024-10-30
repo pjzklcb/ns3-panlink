@@ -109,7 +109,7 @@ IntfDeployer::DeployInterference(WifiHelper& wifiHelper,
 
         /* Create Nodes */
         nodes.Create(1 + nStaList);
-        Ssid ssid = Ssid("intf-" + nodes.Get(0)->GetId());
+        Ssid ssid = Ssid("intf-" + std::to_string(nodes.Get(0)->GetId()));
         for (int j = 0; j < 1 + nStaList; j++)
         {
             auto& node = (j == 0) ? apList[i] : apList[i]["sta_list"][j - 1];
@@ -123,7 +123,9 @@ IntfDeployer::DeployInterference(WifiHelper& wifiHelper,
                                                "DataMode",
                                                StringValue("HeMcs9"),
                                                "ControlMode",
-                                               StringValue("HeMcs0"));
+                                               StringValue("HeMcs0"),
+                                               "RtsCtsTxDurationThresh",
+                                               TimeValue(MilliSeconds(1.0)));
 
             if (j == 0)
             {
@@ -177,7 +179,7 @@ IntfDeployer::DeployInterference(WifiHelper& wifiHelper,
                       << node["position"]["x"].GetDouble() << ", "
                       << node["position"]["y"].GetDouble() << ", "
                       << node["position"]["z"].GetDouble() << ")" << ", Channel: " << channel
-                      << ", Bandwidth" << bandwidth << std::endl;
+                      << ", Bandwidth: " << bandwidth << std::endl;
         }
 
         /* Install mobility */

@@ -340,6 +340,9 @@ class PlotResults(object):
             self.plot_e2e_delay(node_id, e2e_delay, incomplete)
     
     def plot_l2_delay(self, node_id, l2_delay, drop_before_enqueue, expired, dropped):
+        if len(l2_delay) == 0:
+            return
+        
         plt.figure()
         colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
         for i, port in enumerate(l2_delay):
@@ -479,5 +482,5 @@ class PlotResults(object):
         
 
 if __name__ == '__main__':
-    timestamp = "1730200146"
+    timestamp = "1730253349"
     PlotResults(timestamp, target_nodes=[0,1]).do_plot()
