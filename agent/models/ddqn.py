@@ -42,8 +42,8 @@ class ReplayMemory(object):
     def __init__(self, capacity):
         self.memory = deque([], maxlen=capacity)
 
-    def push(self, state, action, reward, next_state):
-        self.memory.append((state, action, reward, next_state))
+    def push(self, transition):
+        self.memory.append(transition)
 
     def sample(self, batch_size):
         return random.sample(self.memory, batch_size)
@@ -80,7 +80,7 @@ class DQN:
             return random.randrange(self.action_size)
     
     def store_transition(self, state, action, reward, next_state):
-        self.memory.push(state, action, reward, next_state)
+        self.memory.push((state, action, reward, next_state))
 
     def learn(self):
         if len(self.memory) < BATCH_SIZE:

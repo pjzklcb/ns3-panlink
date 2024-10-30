@@ -82,9 +82,9 @@ ReadNodesFromJson(std::string filename)
                 std::string agentType = agent["type"].GetString();
                 double period = agent["period"].GetDouble();
                 AgentType type;
-                if (agentType == "CCA" || agentType == "cca_sensitivity" ||
-                    agentType == "cca-sensitivity" || agentType == "CCA-Sensitivity" ||
-                    agentType == "CCA_Sensitivity")
+                if (agentType == "CCA" || agentType == "cca" || agentType == "cca_sensitivity" ||
+                    agentType == "CCA_Sensitivity" || agentType == "cca-sensitivity" ||
+                    agentType == "CCA-Sensitivity")
                 {
                     type = RL_CCA_SENSITIVITY;
                 }
@@ -113,7 +113,7 @@ ReadNodesFromJson(std::string filename)
     return nodes;
 }
 
-uint16_t 
+uint16_t
 AcIndexToTos(AcIndex ac)
 {
     switch (ac)

@@ -21,9 +21,9 @@ struct Obs
     uint32_t counter;
     double simTime;
 
-    uint32_t mcs;
-    double holDelay;
-    double throughput;
+    double apRssi;
+    double bssRssi;
+    double obssRssi;
 };
 
 struct Act
