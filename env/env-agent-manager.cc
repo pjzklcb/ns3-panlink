@@ -8,6 +8,7 @@
 
 #include "env-agent-manager.h"
 
+#include "ns3/env-agent-helper.h"
 #include "ns3/node-list.h"
 #include "ns3/simulator.h"
 
@@ -16,8 +17,8 @@ namespace ns3
 
 NS_LOG_COMPONENT_DEFINE("EnvAgentManager");
 
-void 
-EnvAgentManager::RegisterEnvAgents(Ptr<Node> node, std::vector<AgentInfo> agentList)
+void
+EnvAgentManager::Install(Ptr<Node> node, std::vector<AgentInfo> agentList)
 {
     NS_LOG_FUNCTION(this << node);
 
@@ -36,35 +37,44 @@ EnvAgentManager::RegisterEnvAgents(Ptr<Node> node, std::vector<AgentInfo> agentL
     }
 
     // create EnvAgent
+    EnvAgentHelper helper;
     for (auto agentInfo : agentList)
     {
         auto type = agentInfo.m_type;
-        uint32_t memoryId = m_memoryMap[node->GetId()];
-        m_agentMap[node->GetId()][type] = CreateEnvAgent(node, agentInfo, memoryId);
-        std::cout << "Node-" << node->GetId() << " installs an agent with type=" << type << std::endl;
+        helper.SetType(helper.GetAgentName(type),
+                       "MemoryId",
+                       UintegerValue(m_memoryMap[node->GetId()]),
+                       "Period",
+                       TimeValue(agentInfo.m_period));
+        m_agentMap[node->GetId()][type] = helper.Create(node);
+        std::cout << "Node-" << node->GetId() << " installs an agent with type=" << type
+                  << std::endl;
     }
 }
 
-bool 
+bool
 EnvAgentManager::IsEmpty()
 {
     NS_LOG_FUNCTION(this);
     return m_memoryMap.size() == 0;
 }
 
-void 
-EnvAgentManager::RegisterDummyAgent()
+void
+EnvAgentManager::InstallDummyAgent()
 {
     NS_LOG_FUNCTION(this);
 
+    EnvAgentHelper helper;
+    helper.SetType("ns3::EnvAgent", "MemoryId", UintegerValue(0), "Period", TimeValue(Seconds(1)));
+    auto dummyAgent = helper.Create(NodeList::GetNode(0));
+
     m_agentMap[0] = std::map<AgentType, Ptr<EnvAgent>>();
-    auto dummyAgent = CreateEnvAgent(NodeList::GetNode(0), AgentInfo(AgentType::NO_RL, Seconds(1)), 0);
     m_agentMap[0][AgentType::NO_RL] = dummyAgent;
 
     std::cout << "Dummy agent installed." << std::endl;
 }
 
-void 
+void
 EnvAgentManager::ScheduleInitInfoExchange()
 {
     NS_LOG_FUNCTION(this);
@@ -80,55 +90,33 @@ EnvAgentManager::ScheduleInitInfoExchange()
             }
 
             // Schedule an information exchange
-            Simulator::Schedule(period, &EnvAgentManager::ScheduleInfoExchange, this, nodeId, type, period);
+            Simulator::Schedule(period,
+                                &EnvAgentManager::ScheduleInfoExchange,
+                                this,
+                                nodeId,
+                                type,
+                                period);
         }
     }
 }
 
-void 
+void
 EnvAgentManager::ScheduleInfoExchange(uint32_t nodeId, AgentType type, Time period)
 {
     NS_LOG_FUNCTION(this << nodeId << type << period);
-    
+
     DoEnvInfoExchange(nodeId, type, nullptr);
 
     // Periodically trigger information exchange
     Simulator::Schedule(period, &EnvAgentManager::ScheduleInfoExchange, this, nodeId, type, period);
 }
 
-Ptr<EnvAgent>
-EnvAgentManager::CreateEnvAgent(Ptr<Node> node, AgentInfo agentInfo, uint32_t memoryId)
-{
-    NS_LOG_FUNCTION(this << node << memoryId);
-    
-    Ptr<EnvAgent> agent;
-    switch (agentInfo.m_type)
-    {
-    case AgentType::NO_RL:
-        agent = CreateObject<EnvAgent>(node, memoryId);
-        break;
-        
-    case AgentType::RL_CCA_SENSITIVITY:
-        agent = CreateObject<CcaEnvAgent>(node, memoryId);
-        break;
-    
-    default:
-        NS_LOG_DEBUG("Unrecognized agent type");
-        break;
-    }
-    
-    agent->SetAgentType(agentInfo.m_type);
-    agent->SetPeriod(agentInfo.m_period);
-    
-    return agent;
-}
-
-void 
+void
 EnvAgentManager::DoEnvInfoExchange(uint32_t nodeId, AgentType type, void* obs)
 {
     NS_LOG_FUNCTION(this << nodeId << type);
 
-    Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface = 
+    Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface =
         Ns3AiMsgInterface::Get()->GetInterface<Obs, Act>();
 
     auto it = m_agentMap[nodeId].find(type);
@@ -149,4 +137,4 @@ EnvAgentManager::DoEnvInfoExchange(uint32_t nodeId, AgentType type, void* obs)
     msgInterface->CppRecvEnd();
 }
 
-}
+} // namespace ns3

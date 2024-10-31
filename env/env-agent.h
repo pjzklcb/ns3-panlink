@@ -64,6 +64,12 @@ class EnvAgent : public Object
      */
     void SetNode(Ptr<Node> node);
     /**
+     * Set the memory ID of the bound node.
+     *
+     * \param memoryId the memory ID
+     */
+    void SetMemoryId(uint32_t memoryId);
+    /**
      * Set the info exchange period of the node (0 for trigger-based).
      *
      * \param period the info exchange period
@@ -78,6 +84,10 @@ class EnvAgent : public Object
      * Get the bound node.
      */
     Ptr<Node> GetNode() const;
+    /**
+     * Get the memory ID of the bound node.
+     */
+    uint32_t GetMemoryId() const;
     /**
      * Get the info exchange period of the node.
      */

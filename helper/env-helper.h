@@ -6,8 +6,8 @@
  * Authors: Pan Jinzhe <pjzklcb@gmail.com>
  */
 
-#ifndef PANLINK_HELPER_H
-#define PANLINK_HELPER_H
+#ifndef ENV_HELPER_H
+#define ENV_HELPER_H
 
 #include "ns3/env-agent-manager.h"
 #include "ns3/env-monitor.h"
@@ -64,4 +64,4 @@ class EnvHelper
 
 } // namespace ns3
 
-#endif /* PANLINK_HELPER_H */
+#endif /* ENV_HELPER_H */

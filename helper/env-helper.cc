@@ -79,7 +79,7 @@ EnvHelper::InitEnvAgentManager(std::vector<PanlinkNodeInfo> panlinkInfo)
             std::cout << "Node-" << node.m_id << " is " << node.m_type << std::endl;
             continue;
         }
-        agentManager->RegisterEnvAgents(NodeList::GetNode(node.m_id), node.m_agents);
+        agentManager->Install(NodeList::GetNode(node.m_id), node.m_agents);
     }
 }
 
@@ -92,7 +92,7 @@ EnvHelper::ScheduleInitInfoExchange(Time startTime)
     // Register dummy agent if there is no agent
     if (agentManager->IsEmpty())
     {
-        agentManager->RegisterDummyAgent();
+        agentManager->InstallDummyAgent();
     }
 
     // Schedule an initial information exchange

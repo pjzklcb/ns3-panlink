@@ -9,6 +9,7 @@
 #include "env-agent.h"
 
 #include "ns3/enum.h"
+#include "ns3/uinteger.h"
 #include "ns3/simulator.h"
 
 namespace ns3
@@ -26,6 +27,13 @@ EnvAgent::GetTypeId()
             .SetParent<Object>()
             .SetGroupName("Panlink")
             .AddConstructor<EnvAgent>()
+            .AddAttribute("MemoryId",
+                          "The memory ID of this env agent.",
+                          TypeId::ATTR_GET |
+                              TypeId::ATTR_CONSTRUCT, // prevent setting after construction
+                          UintegerValue(0),
+                          MakeUintegerAccessor(&EnvAgent::GetMemoryId, &EnvAgent::SetMemoryId),
+                          MakeUintegerChecker<uint32_t>())
             .AddAttribute("AgentType",
                           "The type of this env agent.",
                           EnumValue<AgentType>(NO_RL),
@@ -83,6 +91,13 @@ EnvAgent::SetNode(Ptr<Node> node)
     m_node = node;
 }
 
+void 
+EnvAgent::SetMemoryId(uint32_t memoryId)
+{
+    NS_LOG_FUNCTION(this << memoryId);
+    m_memoryId = memoryId;
+}
+
 void
 EnvAgent::SetPeriod(Time period)
 {
@@ -102,6 +117,12 @@ EnvAgent::GetNode() const
     return m_node;
 }
 
+uint32_t
+EnvAgent::GetMemoryId() const
+{
+    return m_memoryId;
+}
+
 Time
 EnvAgent::GetPeriod() const
 {
@@ -113,7 +134,7 @@ EnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, void* obs)
 {
     NS_LOG_FUNCTION(this);
 
-    NS_ABORT_MSG_IF(m_node, "Env agent must bind to a node");
+    NS_ABORT_MSG_IF(m_node == nullptr, "Env agent must bind to a node");
 
     m_counter += 1;
     Time now = Simulator::Now();

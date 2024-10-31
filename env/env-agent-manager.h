@@ -33,12 +33,12 @@ class EnvAgentManager : public Singleton<EnvAgentManager>
 {
   public:
     /**
-     * Register EnvAgents with the specified node.
+     * Install EnvAgents with the specified node.
      *
      * \param node the bound node
      * \param agentList the list of agents
      */
-    void RegisterEnvAgents(Ptr<Node> node, std::vector<AgentInfo> agentList);
+    void Install(Ptr<Node> node, std::vector<AgentInfo> agentList);
 
     /**
      * Check if there is no agent installed.
@@ -46,9 +46,9 @@ class EnvAgentManager : public Singleton<EnvAgentManager>
     bool IsEmpty();
 
     /**
-     * Register a dummy agent.
+     * Install a dummy agent.
      */
-    void RegisterDummyAgent();
+    void InstallDummyAgent();
 
     /**
      * Schedule an information exchange for all registered agents that do info
@@ -65,15 +65,6 @@ class EnvAgentManager : public Singleton<EnvAgentManager>
     void ScheduleInfoExchange(uint32_t nodeId, AgentType type, Time period);
 
   private:
-    /**
-     * Create EnvAgent with given type and bound it to the specified node.
-     *
-     * \param node the bound node
-     * \param agentInfo the configuration of the agent
-     * \param memoryId the memory ID assigned to the node
-     */
-    Ptr<EnvAgent> CreateEnvAgent(Ptr<Node> node, AgentInfo agentInfo, uint32_t memoryId);
-
     /**
      * Execute information exchange for the specified agent.
      *
