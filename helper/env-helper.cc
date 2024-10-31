@@ -6,7 +6,7 @@
  * Authors: Pan Jinzhe <pjzklcb@gmail.com>
  */
 
-#include "panlink-helper.h"
+#include "env-helper.h"
 
 #include "ns3/log.h"
 #include "ns3/node-list.h"
@@ -16,19 +16,19 @@
 namespace ns3
 {
 
-NS_LOG_COMPONENT_DEFINE("PanlinkHelper");
+NS_LOG_COMPONENT_DEFINE("EnvHelper");
 
-PanlinkHelper::PanlinkHelper()
-    : PanlinkHelper("My")
+EnvHelper::EnvHelper()
+    : EnvHelper("My")
 {
     NS_LOG_FUNCTION(this);
 }
 
-PanlinkHelper::~PanlinkHelper()
+EnvHelper::~EnvHelper()
 {
 }
 
-PanlinkHelper::PanlinkHelper(std::string timestamp)
+EnvHelper::EnvHelper(std::string timestamp)
     : m_timestamp(timestamp)
 {
     NS_LOG_FUNCTION(this);
@@ -46,7 +46,7 @@ PanlinkHelper::PanlinkHelper(std::string timestamp)
 }
 
 void
-PanlinkHelper::InitEnvMonitor(const NodeContainer& nodes,
+EnvHelper::InitEnvMonitor(const NodeContainer& nodes,
                               const NetDeviceContainer& devices,
                               const Ipv4InterfaceContainer& ipv4Interfaces,
                               const SrcAppMap& srcApps)
@@ -65,7 +65,7 @@ PanlinkHelper::InitEnvMonitor(const NodeContainer& nodes,
 }
 
 void
-PanlinkHelper::InitEnvAgentManager(std::vector<PanlinkNodeInfo> panlinkInfo)
+EnvHelper::InitEnvAgentManager(std::vector<PanlinkNodeInfo> panlinkInfo)
 {
     NS_LOG_FUNCTION(this);
 
@@ -84,7 +84,7 @@ PanlinkHelper::InitEnvAgentManager(std::vector<PanlinkNodeInfo> panlinkInfo)
 }
 
 void
-PanlinkHelper::ScheduleInitInfoExchange(Time startTime)
+EnvHelper::ScheduleInitInfoExchange(Time startTime)
 {
     NS_LOG_FUNCTION(this);
 

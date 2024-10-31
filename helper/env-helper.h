@@ -23,13 +23,13 @@ namespace ns3
  * \ingroup panlink
  */
 
-class PanlinkHelper
+class EnvHelper
 {
   public:
-    PanlinkHelper();
-    virtual ~PanlinkHelper();
+    EnvHelper();
+    virtual ~EnvHelper();
 
-    PanlinkHelper(std::string timestamp);
+    EnvHelper(std::string timestamp);
 
     /**
      * Initialize the environment monitor.

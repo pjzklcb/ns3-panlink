@@ -13,7 +13,7 @@
 #include "ns3/mobility-module.h"
 #include "ns3/multi-model-spectrum-channel.h"
 #include "ns3/network-module.h"
-#include "ns3/panlink-helper.h"
+#include "ns3/env-helper.h"
 #include "ns3/panlink-mac-helper.h"
 #include "ns3/panlink-utils.h"
 #include "ns3/wifi-module.h"
@@ -367,7 +367,7 @@ main(int argc, char* argv[])
     //                         Install Agents                           ||
     //==================================================================//
     std::cout << "Installing agents..." << std::endl;
-    PanlinkHelper panlinkHelper(timestamp);
+    EnvHelper panlinkHelper(timestamp);
     panlinkHelper.InitEnvMonitor(g_nodes, g_devices, g_interfaces, g_srcAppMap);
     panlinkHelper.InitEnvAgentManager(g_panlinkInfo);
     panlinkHelper.ScheduleInitInfoExchange(Seconds(0.1));

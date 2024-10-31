@@ -28,7 +28,7 @@ set(source_files
     env/cca-env-agent.cc
     env/env-agent-manager.cc
     env/env-utils.cc
-    helper/panlink-helper.cc
+    helper/env-helper.cc
     model/panlink-sta-wifi-mac.cc
     model/panlink-frame-exchange-manager.cc
     utils/app-installer.cc
@@ -46,7 +46,7 @@ set(header_files
     env/env-agent-manager.h
     env/env-utils.h
     env/obs-act-list.h
-    helper/panlink-helper.h
+    helper/env-helper.h
     helper/panlink-mac-helper.h
     model/panlink-sta-wifi-mac.h
     model/panlink-frame-exchange-manager.h
