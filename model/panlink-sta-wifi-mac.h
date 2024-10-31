@@ -9,11 +9,14 @@
 #ifndef PANLINK_STA_WIFI_MAC_H
 #define PANLINK_STA_WIFI_MAC_H
 
-#include "ns3/sta-wifi-mac.h"
+#include "mac-sensing-middle.h"
 
+#include "ns3/sta-wifi-mac.h"
 
 namespace ns3
 {
+
+class FrameExchangeManager;
 
 /**
  * \ingroup panlink
@@ -31,9 +34,12 @@ class PanlinkStaWifiMac : public StaWifiMac
     ~PanlinkStaWifiMac() override;
 
   protected:
+    void DoDispose() override;
 
   private:
+    void DoCompleteConfig() override;
 
+    Ptr<MacSensingMiddle> m_sensingMiddle;
 };
 
 } // namespace ns3

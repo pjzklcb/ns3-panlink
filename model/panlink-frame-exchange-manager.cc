@@ -44,15 +44,36 @@ PanlinkFrameExchangeManager::SetWifiPhy(const Ptr<WifiPhy> phy)
     m_phy->SetReceiveOkCallback(MakeCallback(&PanlinkFrameExchangeManager::Sensing, this));
 }
 
+void 
+PanlinkFrameExchangeManager::SetMacSensingMiddle(const Ptr<MacSensingMiddle> sensingMiddle)
+{
+    NS_LOG_FUNCTION(this << sensingMiddle);
+    m_sensingMiddle = sensingMiddle;
+}
+
 void
 PanlinkFrameExchangeManager::Sensing(Ptr<const WifiPsdu> psdu,
                                      RxSignalInfo rxSignalInfo,
                                      const WifiTxVector& txVector,
                                      const std::vector<bool>& perMpduStatus)
 {
-    NS_LOG_FUNCTION(
-        this << psdu << rxSignalInfo << txVector << perMpduStatus.size()
-             << std::all_of(perMpduStatus.begin(), perMpduStatus.end(), [](bool v) { return v; }));
+    NS_LOG_FUNCTION(this << psdu << rxSignalInfo << txVector << perMpduStatus.size());
+
+    // Ignore ACK and CTS that does not contain TA, and RTS whose duration does not reflect the
+    // channel occupancy of itself
+    if (psdu->GetNMpdus() == 1)
+    {
+        auto& hdr = psdu->GetHeader(0);
+        if (hdr.IsAck() || hdr.IsCts() || hdr.IsRts())
+            return;
+    }
+
+    // Get frame's sender, RSSI and duration
+    Mac48Address sender = psdu->GetAddr2();
+    double rssi = rxSignalInfo.rssi;
+    Time duration = psdu->GetDuration();
+
+    m_sensingMiddle->Sensing(sender, rssi, duration);
 }
 
 } // namespace ns3
