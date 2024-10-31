@@ -6,12 +6,12 @@
  * Authors: Pan Jinzhe <pjzklcb@gmail.com>
  */
 
-#ifndef MAC_SENSING_MIDDLE_H
-#define MAC_SENSING_MIDDLE_H
+#ifndef SENSING_MAC_H
+#define SENSING_MAC_H
 
-#include "ns3/simple-ref-count.h"
 #include "ns3/mac48-address.h"
 #include "ns3/nstime.h"
+#include "ns3/object.h"
 
 namespace ns3
 {
@@ -19,20 +19,24 @@ namespace ns3
 /**
  * \ingroup panlink
  */
-class MacSensingMiddle : public SimpleRefCount<MacSensingMiddle>
+class SensingMac : public Object
 {
   public:
-    MacSensingMiddle();
-    ~MacSensingMiddle();
+    /**
+     * \brief Get the type ID.
+     * \return the object TypeId
+     */
+    static TypeId GetTypeId();
+
+    SensingMac();
+    ~SensingMac();
 
     void Sensing(Mac48Address sender, double rssi, Time duration);
 
   protected:
-
   private:
-
 };
 
 } // namespace ns3
 
-#endif /* MAC_SENSING_MIDDLE_H */
+#endif /* SENSING_MAC_H */

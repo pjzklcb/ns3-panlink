@@ -33,7 +33,7 @@ PanlinkStaWifiMac::PanlinkStaWifiMac()
 {
     NS_LOG_FUNCTION(this);
 
-    m_sensingMiddle = Create<MacSensingMiddle>();
+    m_sensingMac = CreateObject<SensingMac>();
 }
 
 PanlinkStaWifiMac::~PanlinkStaWifiMac()
@@ -41,25 +41,27 @@ PanlinkStaWifiMac::~PanlinkStaWifiMac()
     NS_LOG_FUNCTION(this);
 }
 
-void
-PanlinkStaWifiMac::DoDispose()
+PanlinkStaWifiMac::PanStaLinkEntity::~PanStaLinkEntity()
 {
-    NS_LOG_FUNCTION(this);
-    m_sensingMiddle = nullptr;
-
-    StaWifiMac::DoDispose();
+    NS_LOG_FUNCTION_NOARGS();
 }
 
-void
-PanlinkStaWifiMac::DoCompleteConfig()
+std::unique_ptr<WifiMac::LinkEntity>
+PanlinkStaWifiMac::CreateLinkEntity() const
 {
-    NS_LOG_FUNCTION(this);
+    return std::make_unique<PanStaLinkEntity>();
+}
 
-    for (auto& [id, link] : GetLinks())
-    {
-        auto panlinkFeManager = DynamicCast<PanlinkFrameExchangeManager>(link->feManager);
-        panlinkFeManager->SetMacSensingMiddle(m_sensingMiddle);
-    }
+PanlinkStaWifiMac::PanStaLinkEntity&
+PanlinkStaWifiMac::GetLink(uint8_t linkId) const
+{
+    return static_cast<PanStaLinkEntity&>(WifiMac::GetLink(linkId));
+}
+
+PanlinkStaWifiMac::PanStaLinkEntity&
+PanlinkStaWifiMac::GetPanStaLink(const std::unique_ptr<WifiMac::LinkEntity>& link) const
+{
+    return static_cast<PanStaLinkEntity&>(*link);
 }
 
 } // namespace ns3

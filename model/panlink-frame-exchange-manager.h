@@ -9,7 +9,7 @@
 #ifndef PANLINK_FRAME_EXCHANGE_MANAGER_H
 #define PANLINK_FRAME_EXCHANGE_MANAGER_H
 
-#include "mac-sensing-middle.h"
+#include "sensing-mac.h"
 
 #include "ns3/he-frame-exchange-manager.h"
 
@@ -36,9 +36,9 @@ class PanlinkFrameExchangeManager : public HeFrameExchangeManager
     /**
      * Set sensing MAC.
      * 
-     * \param sensingMiddle sensing MAC
+     * \param sensingMac sensing MAC
      */
-    virtual void SetMacSensingMiddle(const Ptr<MacSensingMiddle> sensingMiddle);
+    virtual void SetSensingMac(const Ptr<SensingMac> sensingMac);
 
   protected:
     void Sensing(Ptr<const WifiPsdu> psdu,
@@ -47,7 +47,7 @@ class PanlinkFrameExchangeManager : public HeFrameExchangeManager
                  const std::vector<bool>& perMpduStatus);
 
   private:
-    Ptr<MacSensingMiddle> m_sensingMiddle;
+    Ptr<SensingMac> m_sensingMac;
 };
 
 } // namespace ns3

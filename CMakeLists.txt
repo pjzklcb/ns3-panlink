@@ -30,10 +30,10 @@ set(source_files
     env/env-utils.cc
     helper/env-helper.cc
     helper/env-agent-helper.cc
-    model/mac-sensing-middle.cc
     model/panlink-ap-wifi-mac.cc
     model/panlink-frame-exchange-manager.cc
     model/panlink-sta-wifi-mac.cc
+    model/sensing-mac.cc
     utils/app-installer.cc
     utils/intf-deployer.cc
     utils/panlink-utils.cc
@@ -52,10 +52,10 @@ set(header_files
     helper/env-helper.h
     helper/env-agent-helper.h
     helper/panlink-mac-helper.h
-    model/mac-sensing-middle.h
     model/panlink-ap-wifi-mac.h
     model/panlink-frame-exchange-manager.h
     model/panlink-sta-wifi-mac.h
+    model/sensing-mac.h
     utils/app-installer.h
     utils/intf-deployer.h
     utils/panlink-utils.h
