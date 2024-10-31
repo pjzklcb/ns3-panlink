@@ -20,7 +20,8 @@ Note: Make sure you have Git installed on your system before running these comma
 
 To use PANLink, follow these steps:
 
-1. **Run the simulation**: `python contrib/panlink/examples/baseline/run_baseline.py --show_log`
-2. **View the results**: Check the output files in the folder `result-<timestamp>/`, which will be generated automatically after the simulation is complete.
+1. **Replace ns-3 files**: Some ns-3 files are modified to support PANLink. Please see `wifi/README.rst`
+2. **Run the simulation**: `python contrib/panlink/examples/baseline/run_baseline.py --show_log`
+3. **View the results**: Check the output files in the folder `result-<timestamp>/`, which will be generated automatically after the simulation is complete.
 
 Note: The `<timestamp>` in the folder name will be replaced with the actual timestamp of the simulation run.
