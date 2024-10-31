@@ -30,8 +30,13 @@ namespace ns3
 class EnvAgent : public Object
 {
   public:
-    // Delete default constructor
-    EnvAgent() = delete;
+    /**
+     * \brief Get the type ID.
+     * \return the object TypeId
+     */
+    static TypeId GetTypeId();
+
+    EnvAgent();
     ~EnvAgent() override;
 
     /**
@@ -52,6 +57,12 @@ class EnvAgent : public Object
      * \param type the type of this env agent
      */
     void SetAgentType(AgentType type);
+    /**
+     * Set the bound node.
+     *
+     * \param node the bound node
+     */
+    void SetNode(Ptr<Node> node);
     /**
      * Set the info exchange period of the node (0 for trigger-based).
      *

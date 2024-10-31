@@ -22,8 +22,13 @@ namespace ns3
 class CcaEnvAgent : public EnvAgent
 {
   public:
-    // Delete default constructor
-    CcaEnvAgent() = delete;
+    /**
+     * \brief Get the type ID.
+     * \return the object TypeId
+     */
+    static TypeId GetTypeId();
+    
+    CcaEnvAgent();
     ~CcaEnvAgent() override;
 
     CcaEnvAgent(Ptr<Node> node, uint32_t memoryId);
