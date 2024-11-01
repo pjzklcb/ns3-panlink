@@ -35,6 +35,13 @@ SensingMac::~SensingMac()
     NS_LOG_FUNCTION(this);
 }
 
+void
+SensingMac::DoDispose()
+{
+    NS_LOG_FUNCTION(this);
+    m_mac = nullptr;
+}
+
 void 
 SensingMac::SetLinkId(uint8_t linkId)
 {
@@ -47,12 +54,33 @@ SensingMac::SetWifiMac(const Ptr<WifiMac> mac)
 {
     NS_LOG_FUNCTION(this << mac);
     m_mac = mac;
+
+    m_mac->TraceConnectWithoutContext("MacTx", MakeCallback(&SensingMac::MacTx, this));
+    m_mac->TraceConnectWithoutContext("MacRx", MakeCallback(&SensingMac::MacRx, this));
 }
 
 void
-SensingMac::Sensing(Mac48Address sender, double rssi, Time duration)
+SensingMac::MacTx(Ptr<const Packet> packet)
+{
+    NS_LOG_FUNCTION(this << packet);
+}
+
+void
+SensingMac::MacRx(Ptr<const Packet> packet)
+{
+    NS_LOG_FUNCTION(this << packet);
+}
+
+void
+SensingMac::FrameExchangeSensing(Mac48Address sender, double rssi, Time duration)
 {
     NS_LOG_FUNCTION(this << sender << rssi << duration);
+}
+
+void 
+SensingMac::WifiMacSensing(Ptr<const WifiMpdu> mpdu, uint8_t linkId)
+{
+    NS_LOG_FUNCTION(this << mpdu << linkId);
 }
 
 } // namespace ns3

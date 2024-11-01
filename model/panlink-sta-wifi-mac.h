@@ -76,6 +76,15 @@ class PanlinkStaWifiMac : public StaWifiMac
      */
     PanStaLinkEntity& GetPanStaLink(const std::unique_ptr<WifiMac::LinkEntity>& link) const;
 
+    /**
+     * Handles all the management and data frames received by the StaWifiMac::Receive callback on
+     * the given link. Only these frames are forwarded up from MacRxMiddle.
+     *
+     * \param mpdu the MPDU that has been received.
+     * \param linkId the ID of the given link
+     */
+    virtual void Sensing(Ptr<const WifiMpdu> mpdu, uint8_t linkId);
+
   private:
     std::unique_ptr<LinkEntity> CreateLinkEntity() const override;
 

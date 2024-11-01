@@ -36,6 +36,15 @@ PanlinkFrameExchangeManager::~PanlinkFrameExchangeManager()
 }
 
 void
+PanlinkFrameExchangeManager::DoDispose()
+{
+    NS_LOG_FUNCTION(this);
+    m_sensingMac = nullptr;
+
+    FrameExchangeManager::DoDispose();
+}
+
+void
 PanlinkFrameExchangeManager::SetWifiPhy(const Ptr<WifiPhy> phy)
 {
     NS_LOG_FUNCTION(this << phy);
@@ -73,7 +82,7 @@ PanlinkFrameExchangeManager::Sensing(Ptr<const WifiPsdu> psdu,
     double rssi = rxSignalInfo.rssi;
     Time duration = psdu->GetDuration();
 
-    m_sensingMac->Sensing(sender, rssi, duration);
+    m_sensingMac->FrameExchangeSensing(sender, rssi, duration);
 }
 
 } // namespace ns3

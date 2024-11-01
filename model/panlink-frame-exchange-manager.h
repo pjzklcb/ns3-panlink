@@ -35,12 +35,24 @@ class PanlinkFrameExchangeManager : public HeFrameExchangeManager
 
     /**
      * Set sensing MAC.
-     * 
+     *
      * \param sensingMac sensing MAC
      */
     virtual void SetSensingMac(const Ptr<SensingMac> sensingMac);
 
   protected:
+    void DoDispose() override;
+
+    /**
+     * Handles all the psdus received by the FrameExchangeManager::Receive callback, including
+     * those that are filtered by FrameExchangeManager::Receive due to being non-broadcast or not
+     * intended for the current MAC.
+     *
+     * \param psdu the received PSDU
+     * \param rxSignalInfo the info on the received signal (\see RxSignalInfo)
+     * \param txVector TxVector of the received PSDU
+     * \param perMpduStatus per MPDU reception status
+     */
     void Sensing(Ptr<const WifiPsdu> psdu,
                  RxSignalInfo rxSignalInfo,
                  const WifiTxVector& txVector,

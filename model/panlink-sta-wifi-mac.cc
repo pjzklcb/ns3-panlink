@@ -34,6 +34,8 @@ PanlinkStaWifiMac::PanlinkStaWifiMac()
     NS_LOG_FUNCTION(this);
 
     m_sensingMac = CreateObject<SensingMac>();
+
+    m_rxMiddle->SetForwardCallback(MakeCallback(&PanlinkStaWifiMac::Sensing, this));
 }
 
 PanlinkStaWifiMac::~PanlinkStaWifiMac()
@@ -52,7 +54,6 @@ PanlinkStaWifiMac::SetSensingMacs(const std::vector<Ptr<SensingMac>>& sensingMac
         staLink.sensingMac = *sensingIt++;
         staLink.sensingMac->SetWifiMac(this);
         staLink.sensingMac->SetLinkId(id);
-        // connect callbacks
     }
 }
 
@@ -83,6 +84,13 @@ PanlinkStaWifiMac::PanStaLinkEntity&
 PanlinkStaWifiMac::GetPanStaLink(const std::unique_ptr<WifiMac::LinkEntity>& link) const
 {
     return static_cast<PanStaLinkEntity&>(*link);
+}
+
+void 
+PanlinkStaWifiMac::Sensing(Ptr<const WifiMpdu> mpdu, uint8_t linkId)
+{
+    NS_LOG_FUNCTION(this << *mpdu << linkId);
+    m_sensingMac->WifiMacSensing(mpdu, linkId);
 }
 
 } // namespace ns3

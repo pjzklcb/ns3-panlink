@@ -12,6 +12,7 @@
 #include "ns3/mac48-address.h"
 #include "ns3/nstime.h"
 #include "ns3/object.h"
+#include "ns3/packet.h"
 #include "ns3/wifi-mac.h"
 
 namespace ns3
@@ -45,14 +46,39 @@ class SensingMac : public Object
      */
     virtual void SetWifiMac(const Ptr<WifiMac> mac);
 
-    
+    /**
+     * Handles frames comes from FrameExchangeManager::Sensing.
+     * 
+     * \param sender the MAC address of the sender
+     * \param rssi the RSSI of the frame
+     * \param duration the duration of the frame
+     */
+    void FrameExchangeSensing(Mac48Address sender, double rssi, Time duration);
 
     /**
-     * Collect frame information.
+     * Handles frames comes from PanlinkWifiMac::Sensing.
+     * 
      */
-    void Sensing(Mac48Address sender, double rssi, Time duration);
+    void WifiMacSensing(Ptr<const WifiMpdu> mpdu, uint8_t linkId);
 
   protected:
+    void DoDispose() override;
+
+    /**
+     * Trace the packet that has been received by the WifiNetDevice and is about to be enqueued.
+     *
+     * \param packet the packet to be enqueued.
+     */
+    void MacTx(Ptr<const Packet> packet);
+
+    /**
+     * Trace the packet that has been received by the MAC and is about to be forwarded up to the
+     * WifiNetDevice.
+     *
+     * \param packet the packet to be forwarded up.
+     */
+    void MacRx(Ptr<const Packet> packet);
+
   private:
     Ptr<WifiMac> m_mac;
     uint8_t m_linkId;
