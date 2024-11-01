@@ -38,7 +38,10 @@ PanlinkMacHelper::Create(Ptr<WifiNetDevice> device, WifiStandard standard) const
         sensingMacs.emplace_back(sem);
 
         auto fem = mac->GetFrameExchangeManager(linkId);
-        DynamicCast<PanlinkFrameExchangeManager>(fem)->SetSensingMac(sem);
+        if (auto panlinkFem = DynamicCast<PanlinkFrameExchangeManager>(fem))
+        {
+            panlinkFem->SetSensingMac(sem);
+        }
     }
 
     // if (auto apMac = DynamicCast<PanlinkApWifiMac>(mac))
