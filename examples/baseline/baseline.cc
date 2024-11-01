@@ -367,10 +367,10 @@ main(int argc, char* argv[])
     //                         Install Agents                           ||
     //==================================================================//
     std::cout << "Installing agents..." << std::endl;
-    EnvHelper panlinkHelper(timestamp);
-    panlinkHelper.InitEnvMonitor(g_nodes, g_devices, g_interfaces, g_srcAppMap);
-    panlinkHelper.InitEnvAgentManager(g_panlinkInfo);
-    panlinkHelper.ScheduleInitInfoExchange(Seconds(0.1));
+    EnvHelper envHelper(timestamp);
+    envHelper.InitEnvMonitor(g_nodes, g_devices, g_interfaces, g_srcAppMap);
+    envHelper.InitEnvAgentManager(g_panlinkInfo);
+    envHelper.ScheduleInitInfoExchange(Seconds(0.1));
 
     //==================================================================//
     //                         Run Simulation                           ||
@@ -385,11 +385,8 @@ main(int argc, char* argv[])
 
     if (stats)
     {
-        std::string savePath = resultDir + "csv/";
-        std::filesystem::create_directory(savePath);
-
-        std::cout << "Saving results to " << savePath << std::endl;
-        EnvMonitor::Get()->WriteResultsToCsv(savePath);
+        std::cout << "Saving results to " << resultDir << std::endl;
+        envHelper.SaveResults(resultDir);
     }
 
     Simulator::Destroy();

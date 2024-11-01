@@ -477,7 +477,8 @@ class PlotResults(object):
             plt.xlabel("Time (s)")
             plt.ylabel("Node ID")
             plt.legend(loc='upper right')
-            plt.savefig(self.result_dir + "figures/channel_load_{}_{}.png".format(left, right))
+            plt.savefig(self.result_dir + "figures/channel_load_{}_{}.png".format(left, right), 
+                        bbox_inches='tight', dpi=250)
             plt.close()
         
 

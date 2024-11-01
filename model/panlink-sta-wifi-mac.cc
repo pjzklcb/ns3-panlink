@@ -54,11 +54,12 @@ PanlinkStaWifiMac::SetSensingMacs(const std::vector<Ptr<SensingMac>>& sensingMac
         sensingMac->SetLinkId(id);
         // connect callbacks
         link->feManager->SetAckedMpduCallback(MakeCallback(&SensingMac::AckedMpdu, sensingMac));
-        for (const auto& [ac, _] : wifiAcList)
-        {
-            GetQosTxop(ac)->GetBaManager()->SetTxOkCallback(
-                MakeCallback(&SensingMac::AckedMpdu, sensingMac));
-        }
+    }
+    auto sensingMac = GetLink(SINGLE_LINK_OP_ID).sensingMac;
+    for (const auto& [ac, _] : wifiAcList)
+    {
+        GetQosTxop(ac)->GetBaManager()->SetTxOkCallback(
+            MakeCallback(&SensingMac::AckedMpdu, sensingMac));
     }
 }
 

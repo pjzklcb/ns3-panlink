@@ -6,8 +6,8 @@
  * Authors: Pan Jinzhe <pjzklcb@gmail.com>
  */
 
-#ifndef PACKET_INFO_H
-#define PACKET_INFO_H
+#ifndef ENV_UTILS_H
+#define ENV_UTILS_H
 
 #include "ns3/mac48-address.h"
 #include "ns3/nstime.h"
@@ -121,4 +121,4 @@ AcIndex ContextToAcIndex(std::string context);
 
 } // namespace ns3
 
-#endif /* PACKET_INFO_H */
+#endif /* ENV_UTILS_H */

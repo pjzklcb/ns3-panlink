@@ -58,6 +58,13 @@ class EnvHelper
      */
     void ScheduleInitInfoExchange(Time startTime);
 
+    /**
+     * Save the simulation results to the given directory.
+     * 
+     * \param resultDir the directory
+     */
+    void SaveResults(std::string resultDir);
+
   private:
     std::string m_timestamp;
 };

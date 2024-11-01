@@ -10,7 +10,6 @@
 
 #include "ns3/config.h"
 #include "ns3/ipv4-address.h"
-#include "ns3/panlink-utils.h"
 
 namespace ns3
 {

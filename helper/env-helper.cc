@@ -13,6 +13,8 @@
 #include "ns3/ns3-ai-msg-interface.h"
 #include "ns3/simulator.h"
 
+#include <filesystem>
+
 namespace ns3
 {
 
@@ -47,9 +49,9 @@ EnvHelper::EnvHelper(std::string timestamp)
 
 void
 EnvHelper::InitEnvMonitor(const NodeContainer& nodes,
-                              const NetDeviceContainer& devices,
-                              const Ipv4InterfaceContainer& ipv4Interfaces,
-                              const SrcAppMap& srcApps)
+                          const NetDeviceContainer& devices,
+                          const Ipv4InterfaceContainer& ipv4Interfaces,
+                          const SrcAppMap& srcApps)
 {
     NS_LOG_FUNCTION(this);
 
@@ -97,6 +99,14 @@ EnvHelper::ScheduleInitInfoExchange(Time startTime)
 
     // Schedule an initial information exchange
     Simulator::Schedule(startTime, &EnvAgentManager::ScheduleInitInfoExchange, agentManager);
+}
+
+void
+EnvHelper::SaveResults(std::string resultDir)
+{
+    std::filesystem::create_directory(resultDir + "csv/");
+
+    EnvMonitor::Get()->WriteResultsToCsv(resultDir + "csv/");
 }
 
 } // namespace ns3
