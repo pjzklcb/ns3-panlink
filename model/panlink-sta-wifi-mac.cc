@@ -33,8 +33,6 @@ PanlinkStaWifiMac::PanlinkStaWifiMac()
 {
     NS_LOG_FUNCTION(this);
 
-    m_sensingMac = CreateObject<SensingMac>();
-
     m_rxMiddle->SetForwardCallback(MakeCallback(&PanlinkStaWifiMac::Sensing, this));
 }
 
@@ -90,7 +88,7 @@ void
 PanlinkStaWifiMac::Sensing(Ptr<const WifiMpdu> mpdu, uint8_t linkId)
 {
     NS_LOG_FUNCTION(this << *mpdu << linkId);
-    m_sensingMac->WifiMacSensing(mpdu, linkId);
+    GetSensingMac(linkId)->WifiMacSensing(mpdu, linkId);
 }
 
 } // namespace ns3

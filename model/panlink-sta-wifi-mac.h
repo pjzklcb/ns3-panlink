@@ -87,8 +87,6 @@ class PanlinkStaWifiMac : public StaWifiMac
 
   private:
     std::unique_ptr<LinkEntity> CreateLinkEntity() const override;
-
-    Ptr<SensingMac> m_sensingMac;
 };
 
 } // namespace ns3
