@@ -61,6 +61,8 @@ class SensingMac : public Object
      */
     void WifiMacSensing(Ptr<const WifiMpdu> mpdu, uint8_t linkId);
 
+    void AckedMpdu(Ptr<const WifiMpdu> mpdu);
+
   protected:
     void DoDispose() override;
 

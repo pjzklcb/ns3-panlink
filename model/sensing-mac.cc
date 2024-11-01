@@ -83,4 +83,8 @@ SensingMac::WifiMacSensing(Ptr<const WifiMpdu> mpdu, uint8_t linkId)
     NS_LOG_FUNCTION(this << mpdu << linkId);
 }
 
+void 
+SensingMac::AckedMpdu(Ptr<const WifiMpdu> mpdu)
+{}
+
 } // namespace ns3
