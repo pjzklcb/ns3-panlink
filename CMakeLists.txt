@@ -30,6 +30,7 @@ set(source_files
     env/env-utils.cc
     helper/env-helper.cc
     helper/env-agent-helper.cc
+    helper/panlink-mac-helper.cc
     model/panlink-ap-wifi-mac.cc
     model/panlink-frame-exchange-manager.cc
     model/panlink-sta-wifi-mac.cc

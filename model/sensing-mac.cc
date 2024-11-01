@@ -35,6 +35,20 @@ SensingMac::~SensingMac()
     NS_LOG_FUNCTION(this);
 }
 
+void 
+SensingMac::SetLinkId(uint8_t linkId)
+{
+    NS_LOG_FUNCTION(this << linkId);
+    m_linkId = linkId;
+}
+
+void
+SensingMac::SetWifiMac(const Ptr<WifiMac> mac)
+{
+    NS_LOG_FUNCTION(this << mac);
+    m_mac = mac;
+}
+
 void
 SensingMac::Sensing(Mac48Address sender, double rssi, Time duration)
 {

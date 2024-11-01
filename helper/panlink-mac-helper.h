@@ -29,6 +29,11 @@ namespace ns3
 class PanlinkMacHelper : public WifiMacHelper
 {
   public:
+    PanlinkMacHelper();
+    ~PanlinkMacHelper() override;
+
+    Ptr<WifiMac> Create(Ptr<WifiNetDevice> device, WifiStandard standard) const override;
+
     /**
      * Helper function used to set the Frame Exchange Manager object.
      *
@@ -37,6 +42,9 @@ class PanlinkMacHelper : public WifiMacHelper
      */
     template <typename... Args>
     void SetFrameExchangeManager(std::string type, Args&&... args);
+
+  protected:
+    ObjectFactory m_sensingMac; ///< sensing MAC object factory
 };
 
 } // namespace ns3

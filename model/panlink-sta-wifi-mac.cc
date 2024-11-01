@@ -41,6 +41,27 @@ PanlinkStaWifiMac::~PanlinkStaWifiMac()
     NS_LOG_FUNCTION(this);
 }
 
+void
+PanlinkStaWifiMac::SetSensingMacs(const std::vector<Ptr<SensingMac>>& sensingMacs)
+{
+    NS_LOG_FUNCTION(this);
+
+    for (auto sensingIt = sensingMacs.cbegin(); auto& [id, link] : GetLinks())
+    {
+        auto& staLink = GetPanStaLink(link);
+        staLink.sensingMac = *sensingIt++;
+        staLink.sensingMac->SetWifiMac(this);
+        staLink.sensingMac->SetLinkId(id);
+        // connect callbacks
+    }
+}
+
+Ptr<SensingMac> 
+PanlinkStaWifiMac::GetSensingMac(uint8_t linkId) const
+{
+    return GetLink(linkId).sensingMac;
+}
+
 PanlinkStaWifiMac::PanStaLinkEntity::~PanStaLinkEntity()
 {
     NS_LOG_FUNCTION_NOARGS();

@@ -33,6 +33,19 @@ class PanlinkStaWifiMac : public StaWifiMac
     PanlinkStaWifiMac();
     ~PanlinkStaWifiMac() override;
 
+    /**
+     * \param sensingMacs the sensing MACs attached to this MAC.
+     */
+    void SetSensingMacs(const std::vector<Ptr<SensingMac>>& sensingMacs);
+
+    /**
+     * Get the Sensing MAC associated with the given link
+     *
+     * \param linkId the ID of the given link
+     * \return the Sensing MAC
+     */
+    Ptr<SensingMac> GetSensingMac(uint8_t linkId = SINGLE_LINK_OP_ID) const;
+
   protected:
     /**
      * Structure holding information specific to a single link. Here, the meaning of
