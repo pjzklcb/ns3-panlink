@@ -59,9 +59,14 @@ class SensingMac : public Object
     /**
      * Handles frames comes from PanlinkWifiMac::Sensing.
      * 
+     * \param mpdu the MPDU
+     * \param linkId the ID of the link
      */
     void WifiMacSensing(Ptr<const WifiMpdu> mpdu, uint8_t linkId);
 
+    /**
+     * Handles frames comes from WifiMac::m_ackedMpduCallback.
+     */
     void AckedMpdu(Ptr<const WifiMpdu> mpdu);
 
   protected:

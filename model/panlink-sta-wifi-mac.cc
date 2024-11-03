@@ -11,6 +11,7 @@
 #include "panlink-frame-exchange-manager.h"
 
 #include "ns3/eht-frame-exchange-manager.h"
+#include "ns3/wifi-mac-queue.h"
 
 namespace ns3
 {
@@ -48,6 +49,7 @@ PanlinkStaWifiMac::SetSensingMac(const Ptr<SensingMac> sensingMac)
 
     m_sensingMac = sensingMac;
     // connect callbacks
+    TraceConnectWithoutContext("AckedMpdu", MakeCallback(&SensingMac::AckedMpdu, m_sensingMac));
 }
 
 Ptr<SensingMac>
