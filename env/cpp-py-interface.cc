@@ -32,15 +32,36 @@ PYBIND11_MAKE_OPAQUE(ns3::Ns3AiMsgInterfaceImpl<Obs, Act>::Py2CppMsgVector);
 
 PYBIND11_MODULE(cpp_py_interface, m)
 {
+    py::class_<std::array<double, 4>>(m, "QosArray")
+        .def(py::init<>())
+        .def("size", &std::array<double, 4>::size)
+        .def("__len__", [](const std::array<double, 4>& arr) { return arr.size(); })
+        .def("__getitem__", [](const std::array<double, 4>& arr, uint32_t i) {
+            if (i >= arr.size())
+            {
+                std::cerr << "Invalid index " << i << " for std::array, whose size is "
+                          << arr.size() << std::endl;
+                exit(1);
+            }
+            return arr.at(i);
+        });
+
     py::class_<Obs>(m, "PyEnvStruct")
         .def(py::init<>())
         .def_readwrite("nodeId", &Obs::nodeId)
         .def_readwrite("agentType", &Obs::agentType)
         .def_readwrite("counter", &Obs::counter)
         .def_readwrite("simTime", &Obs::simTime)
+        .def_readwrite("thpt", &Obs::thpt)
+        .def_readwrite("thptReq", &Obs::thptReq)
+        .def_readwrite("delay", &Obs::delay)
+        .def_readwrite("delayReq", &Obs::delayReq)
         .def_readwrite("apRssi", &Obs::apRssi)
+        .def_readwrite("apTxPower", &Obs::apTxPower)
         .def_readwrite("bssRssi", &Obs::bssRssi)
-        .def_readwrite("obssRssi", &Obs::obssRssi);
+        .def_readwrite("bssTxPower", &Obs::bssTxPower)
+        .def_readwrite("obssRssi", &Obs::obssRssi)
+        .def_readwrite("obssTxPower", &Obs::obssTxPower);
 
     py::class_<Act>(m, "PyActStruct")
         .def(py::init<>())
