@@ -34,17 +34,17 @@ class SensingMac : public Object
     ~SensingMac();
 
     /**
-     * Set the ID of the link this Frame Exchange Manager is associated with.
-     *
-     * \param linkId the ID of the link this Frame Exchange Manager is associated with
-     */
-    virtual void SetLinkId(uint8_t linkId);
-    /**
      * Set the MAC layer to use.
      *
      * \param mac the MAC layer to use
      */
     virtual void SetWifiMac(const Ptr<WifiMac> mac);
+    /**
+     * Set the maximum duration of the data stored.
+     * 
+     * \param duration the duration after which the data is considered stale
+     */
+    void SetDuration(Time duration);
 
     /**
      * Handles frames comes from FrameExchangeManager::Sensing.
@@ -52,8 +52,9 @@ class SensingMac : public Object
      * \param sender the MAC address of the sender
      * \param rssi the RSSI of the frame
      * \param duration the duration of the frame
+     * \param linkId the ID of the link
      */
-    void FrameExchangeSensing(Mac48Address sender, double rssi, Time duration);
+    void FrameExchangeSensing(Mac48Address sender, double rssi, Time duration, uint8_t linkId);
 
     /**
      * Handles frames comes from PanlinkWifiMac::Sensing.
@@ -83,7 +84,7 @@ class SensingMac : public Object
 
   private:
     Ptr<WifiMac> m_mac;
-    uint8_t m_linkId;
+    Time m_duration;
 };
 
 } // namespace ns3

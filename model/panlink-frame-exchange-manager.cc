@@ -82,7 +82,7 @@ PanlinkFrameExchangeManager::Sensing(Ptr<const WifiPsdu> psdu,
     double rssi = rxSignalInfo.rssi;
     Time duration = psdu->GetDuration();
 
-    m_sensingMac->FrameExchangeSensing(sender, rssi, duration);
+    m_sensingMac->FrameExchangeSensing(sender, rssi, duration, m_linkId);
 }
 
 } // namespace ns3

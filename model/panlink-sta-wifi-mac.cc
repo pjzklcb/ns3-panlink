@@ -42,31 +42,18 @@ PanlinkStaWifiMac::~PanlinkStaWifiMac()
 }
 
 void
-PanlinkStaWifiMac::SetSensingMacs(const std::vector<Ptr<SensingMac>>& sensingMacs)
+PanlinkStaWifiMac::SetSensingMac(const Ptr<SensingMac> sensingMac)
 {
     NS_LOG_FUNCTION(this);
 
-    for (auto sensingIt = sensingMacs.cbegin(); auto& [id, link] : GetLinks())
-    {
-        auto sensingMac = GetPanStaLink(link).sensingMac;
-        sensingMac = *sensingIt++;
-        sensingMac->SetWifiMac(this);
-        sensingMac->SetLinkId(id);
-        // connect callbacks
-        link->feManager->SetAckedMpduCallback(MakeCallback(&SensingMac::AckedMpdu, sensingMac));
-    }
-    auto sensingMac = GetLink(SINGLE_LINK_OP_ID).sensingMac;
-    for (const auto& [ac, _] : wifiAcList)
-    {
-        GetQosTxop(ac)->GetBaManager()->SetTxOkCallback(
-            MakeCallback(&SensingMac::AckedMpdu, sensingMac));
-    }
+    m_sensingMac = sensingMac;
+    // connect callbacks
 }
 
 Ptr<SensingMac>
-PanlinkStaWifiMac::GetSensingMac(uint8_t linkId) const
+PanlinkStaWifiMac::GetSensingMac() const
 {
-    return GetLink(linkId).sensingMac;
+    return m_sensingMac;
 }
 
 PanlinkStaWifiMac::PanStaLinkEntity::~PanStaLinkEntity()
@@ -96,7 +83,7 @@ void
 PanlinkStaWifiMac::Sensing(Ptr<const WifiMpdu> mpdu, uint8_t linkId)
 {
     NS_LOG_FUNCTION(this << *mpdu << linkId);
-    GetSensingMac(linkId)->WifiMacSensing(mpdu, linkId);
+    m_sensingMac->WifiMacSensing(mpdu, linkId);
 }
 
 } // namespace ns3

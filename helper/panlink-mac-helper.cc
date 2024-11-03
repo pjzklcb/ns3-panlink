@@ -30,27 +30,23 @@ PanlinkMacHelper::Create(Ptr<WifiNetDevice> device, WifiStandard standard) const
 {
     auto mac = WifiMacHelper::Create(device, standard);
 
-    std::vector<Ptr<SensingMac>> sensingMacs;
-    auto sensingMac = m_sensingMac;
+    auto sensingMac = m_sensingMac.Create<SensingMac>();
     for (uint8_t linkId = 0; linkId < mac->GetNLinks(); ++linkId)
     {
-        auto sem = sensingMac.Create<SensingMac>();
-        sensingMacs.emplace_back(sem);
-
         auto fem = mac->GetFrameExchangeManager(linkId);
         if (auto panlinkFem = DynamicCast<PanlinkFrameExchangeManager>(fem))
         {
-            panlinkFem->SetSensingMac(sem);
+            panlinkFem->SetSensingMac(sensingMac);
         }
     }
 
     // if (auto apMac = DynamicCast<PanlinkApWifiMac>(mac))
     // {
-    //   apMac->SetSensingMacs(sensingMacs);
+    //   apMac->SetSensingMac(sensingMac);
     // }
     if (auto staMac = DynamicCast<PanlinkStaWifiMac>(mac))
     {
-        staMac->SetSensingMacs(sensingMacs);
+        staMac->SetSensingMac(sensingMac);
     }
 
     return mac;

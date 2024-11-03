@@ -21,7 +21,12 @@ SensingMac::GetTypeId()
     static TypeId tid = TypeId("ns3::SensingMac")
                             .SetParent<Object>()
                             .SetGroupName("Panlink")
-                            .AddConstructor<SensingMac>();
+                            .AddConstructor<SensingMac>()
+                            .AddAttribute("MaxDuration",
+                                          "The maximum duration of the data stored.",
+                                          TimeValue(Seconds(0.05)),
+                                          MakeTimeAccessor(&SensingMac::SetDuration),
+                                          MakeTimeChecker());
     return tid;
 }
 
@@ -42,21 +47,18 @@ SensingMac::DoDispose()
     m_mac = nullptr;
 }
 
-void 
-SensingMac::SetLinkId(uint8_t linkId)
-{
-    NS_LOG_FUNCTION(this << linkId);
-    m_linkId = linkId;
-}
-
 void
 SensingMac::SetWifiMac(const Ptr<WifiMac> mac)
 {
     NS_LOG_FUNCTION(this << mac);
     m_mac = mac;
+}
 
-    m_mac->TraceConnectWithoutContext("MacTx", MakeCallback(&SensingMac::MacTx, this));
-    m_mac->TraceConnectWithoutContext("MacRx", MakeCallback(&SensingMac::MacRx, this));
+void
+SensingMac::SetDuration(Time duration)
+{
+    NS_LOG_FUNCTION(this << duration);
+    m_duration = duration;
 }
 
 void
@@ -72,19 +74,20 @@ SensingMac::MacRx(Ptr<const Packet> packet)
 }
 
 void
-SensingMac::FrameExchangeSensing(Mac48Address sender, double rssi, Time duration)
+SensingMac::FrameExchangeSensing(Mac48Address sender, double rssi, Time duration, uint8_t linkId)
 {
     NS_LOG_FUNCTION(this << sender << rssi << duration);
 }
 
-void 
+void
 SensingMac::WifiMacSensing(Ptr<const WifiMpdu> mpdu, uint8_t linkId)
 {
     NS_LOG_FUNCTION(this << mpdu << linkId);
 }
 
-void 
+void
 SensingMac::AckedMpdu(Ptr<const WifiMpdu> mpdu)
-{}
+{
+}
 
 } // namespace ns3

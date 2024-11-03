@@ -34,17 +34,18 @@ class PanlinkStaWifiMac : public StaWifiMac
     ~PanlinkStaWifiMac() override;
 
     /**
-     * \param sensingMacs the sensing MACs attached to this MAC.
+     * Set the sensing MAC attached to this MAC.
+     * 
+     * \param sensingMac the sensing MAC object
      */
-    void SetSensingMacs(const std::vector<Ptr<SensingMac>>& sensingMacs);
+    void SetSensingMac(const Ptr<SensingMac> sensingMac);
 
     /**
-     * Get the Sensing MAC associated with the given link
+     * Get the sensing MAC object attached to this MAC
      *
-     * \param linkId the ID of the given link
-     * \return the Sensing MAC
+     * \return the sensing MAC object
      */
-    Ptr<SensingMac> GetSensingMac(uint8_t linkId = SINGLE_LINK_OP_ID) const;
+    Ptr<SensingMac> GetSensingMac() const;
 
   protected:
     /**
@@ -56,8 +57,6 @@ class PanlinkStaWifiMac : public StaWifiMac
     {
         /// Destructor (a virtual method is needed to make this struct polymorphic)
         ~PanStaLinkEntity() override;
-
-        Ptr<SensingMac> sensingMac; // sensing MAC object
     };
 
     /**
@@ -87,6 +86,8 @@ class PanlinkStaWifiMac : public StaWifiMac
 
   private:
     std::unique_ptr<LinkEntity> CreateLinkEntity() const override;
+
+    Ptr<SensingMac> m_sensingMac; ///< sensing MAC object
 };
 
 } // namespace ns3
