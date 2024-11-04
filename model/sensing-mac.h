@@ -69,15 +69,16 @@ class SensingMac : public Object
      */
     void AckedMpdu(Ptr<const WifiMpdu> mpdu);
 
+    /**
+     * Trace the packet that has been enqueued to the given AC MAC queue.
+     *
+     * \param ac the AC of the MacQueue
+     * \param item the enqueued MPDU
+     */
+    void NotifyEdcaEnqueue(std::string ac, Ptr<const WifiMpdu> item);
+
   protected:
     void DoDispose() override;
-
-    /**
-     * Trace the packet that has been received by the WifiNetDevice and is about to be enqueued.
-     *
-     * \param packet the packet to be enqueued.
-     */
-    void MacTx(Ptr<const Packet> packet);
 
     /**
      * Trace the packet that has been received by the MAC and is about to be forwarded up to the

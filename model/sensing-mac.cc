@@ -62,9 +62,9 @@ SensingMac::SetDuration(Time duration)
 }
 
 void
-SensingMac::MacTx(Ptr<const Packet> packet)
+SensingMac::NotifyEdcaEnqueue(std::string ac, Ptr<const WifiMpdu> item)
 {
-    NS_LOG_FUNCTION(this << packet);
+    NS_LOG_FUNCTION(this << ac << item);
 }
 
 void
