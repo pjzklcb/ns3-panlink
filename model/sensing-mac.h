@@ -41,14 +41,14 @@ class SensingMac : public Object
     virtual void SetWifiMac(const Ptr<WifiMac> mac);
     /**
      * Set the maximum duration of the data stored.
-     * 
+     *
      * \param duration the duration after which the data is considered stale
      */
     void SetDuration(Time duration);
 
     /**
      * Handles frames comes from FrameExchangeManager::Sensing.
-     * 
+     *
      * \param sender the MAC address of the sender
      * \param rssi the RSSI of the frame
      * \param duration the duration of the frame
@@ -58,16 +58,11 @@ class SensingMac : public Object
 
     /**
      * Handles frames comes from PanlinkWifiMac::Sensing.
-     * 
+     *
      * \param mpdu the MPDU
      * \param linkId the ID of the link
      */
     void WifiMacSensing(Ptr<const WifiMpdu> mpdu, uint8_t linkId);
-
-    /**
-     * Handles frames comes from WifiMac::m_ackedMpduCallback.
-     */
-    void AckedMpdu(Ptr<const WifiMpdu> mpdu);
 
     /**
      * Trace the packet that has been enqueued to the given AC MAC queue.
@@ -77,20 +72,47 @@ class SensingMac : public Object
      */
     void NotifyEdcaEnqueue(std::string ac, Ptr<const WifiMpdu> item);
 
+    /**
+     * Trace the packet that has been sent by wifi PHY.
+     *
+     * \param context the string contains link ID
+     * \param packet the sent packet
+     * \param txPowerW the transmission power
+     */
+    void NotifyPhyTxBegin(std::string context, Ptr<const Packet> p, double txPowerW);
+
+    /**
+     * Handles frames comes from WifiMac::m_ackedMpduCallback.
+     *
+     * \param mpdu the MPDU
+     */
+    void AckedMpdu(Ptr<const WifiMpdu> mpdu);
+
+    struct SelfPacketInfo
+    {
+        uint64_t m_uid;
+        uint32_t m_packetSize;
+        AcIndex m_ac;
+        uint8_t m_linkId;
+        Time m_enqueueTime;
+        Time m_duration;
+        Time m_ackedTime{Seconds(0)};
+        std::vector<Time> m_phyTxTime;
+        double m_txPowerW;
+    };
+
   protected:
     void DoDispose() override;
 
     /**
-     * Trace the packet that has been received by the MAC and is about to be forwarded up to the
-     * WifiNetDevice.
-     *
-     * \param packet the packet to be forwarded up.
+     * Wipe all expired packets that is considered stale.
      */
-    void MacRx(Ptr<const Packet> packet);
+    virtual void WipeAllExpiredPackets();
 
   private:
     Ptr<WifiMac> m_mac;
-    Time m_duration;
+    Time m_duration; ///< maximum duration of the data stored
+    std::map<uint64_t /* UID */, SelfPacketInfo> m_selfPacketMap;
 };
 
 } // namespace ns3
