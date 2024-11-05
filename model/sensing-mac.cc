@@ -8,8 +8,8 @@
 
 #include "sensing-mac.h"
 
-#include "ns3/wifi-mpdu.h"
 #include "ns3/env-utils.h"
+#include "ns3/wifi-mpdu.h"
 
 namespace ns3
 {
@@ -69,6 +69,8 @@ SensingMac::NotifyEdcaEnqueue(std::string ac, Ptr<const WifiMpdu> item)
 {
     NS_LOG_FUNCTION(this << ac << item);
 
+    WipeAllExpiredPackets();
+
     auto uid = item->GetPacket()->GetUid();
     auto [it, inserted] = m_selfPacketMap.try_emplace(uid);
     NS_ABORT_MSG_IF(!inserted, "Packet with uid=" << uid << " already exists");
@@ -87,7 +89,8 @@ SensingMac::NotifyPhyTxBegin(std::string context, Ptr<const Packet> p, double tx
 
     auto linkId = static_cast<uint8_t>(std::stoi(context));
     auto it = m_selfPacketMap.find(p->GetUid());
-    NS_ABORT_MSG_IF(it == m_selfPacketMap.cend(), "Packet with uid=" << p->GetUid() << " not found");
+    NS_ABORT_MSG_IF(it == m_selfPacketMap.cend(),
+                    "Packet with uid=" << p->GetUid() << " not found");
 
     it->second.m_linkId = linkId;
     it->second.m_phyTxTime.push_back(Simulator::Now());
@@ -106,7 +109,7 @@ SensingMac::AckedMpdu(Ptr<const WifiMpdu> mpdu)
     it->second.m_ackedTime = Simulator::Now();
 }
 
-void 
+void
 SensingMac::WipeAllExpiredPackets()
 {
     NS_LOG_FUNCTION(this);
@@ -122,6 +125,59 @@ SensingMac::WipeAllExpiredPackets()
             ++it;
         }
     }
+}
+
+double
+SensingMac::GetThptReq(Time period, AcIndex ac, uint8_t linkId) const
+{
+    NS_LOG_FUNCTION(this << period << ac << linkId);
+
+    double thptReq = 0;
+    for (const auto& [uid, info] : m_selfPacketMap)
+    {
+        if (info.m_ac == ac && info.m_linkId == linkId &&
+            Simulator::Now() - info.m_enqueueTime < period)
+        {
+            thptReq += info.m_packetSize;
+        }
+    }
+    return thptReq * 8e-6 / period.GetSeconds(); // Mbps
+}
+
+double
+SensingMac::GetThpt(Time period, AcIndex ac, uint8_t linkId) const
+{
+    NS_LOG_FUNCTION(this << period << ac << linkId);
+
+    double thpt = 0;
+    for (const auto& [uid, info] : m_selfPacketMap)
+    {
+        if (info.m_ac == ac && info.m_linkId == linkId &&
+            Simulator::Now() - info.m_enqueueTime < period && info.m_ackedTime != Seconds(0))
+        {
+            thpt += info.m_packetSize;
+        }
+    }
+    return thpt * 8e-6 / period.GetSeconds(); // Mbps
+}
+
+double
+SensingMac::GetDelay(Time period, AcIndex ac, uint8_t linkId) const
+{
+    NS_LOG_FUNCTION(this << period << ac << linkId);
+
+    Time delay = Seconds(0);
+    double counter = 0;
+    for (const auto& [uid, info] : m_selfPacketMap)
+    {
+        if (info.m_ac == ac && info.m_linkId == linkId &&
+            Simulator::Now() - info.m_enqueueTime < period && info.m_ackedTime != Seconds(0))
+        {
+            delay += info.m_ackedTime - info.m_enqueueTime;
+            counter++;
+        }
+    }
+    return counter == 0 ? 0 : delay.ToDouble(Time::MS) / counter; // ms
 }
 
 void

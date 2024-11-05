@@ -101,6 +101,36 @@ class SensingMac : public Object
         double m_txPowerW;
     };
 
+    /**
+     * Get the required throughput for the given ac and link ID in the past period of time.
+     *
+     * \param period the period
+     * \param ac the AC
+     * \param linkId the ID of the link
+     * \return the throughput in Mbps
+     */
+    double GetThptReq(Time period, AcIndex ac, uint8_t linkId = SINGLE_LINK_OP_ID) const;
+
+    /**
+     * Get the actual throughput of the given ac and link ID in the past period of time.
+     *
+     * \param period the period
+     * \param ac the AC
+     * \param linkId the ID of the link
+     * \return the throughput in Mbps
+     */
+    double GetThpt(Time period, AcIndex ac, uint8_t linkId = SINGLE_LINK_OP_ID) const;
+
+    /**
+     * Get the average delay of the given ac and link ID in the past period of time.
+     *
+     * \param period the period
+     * \param ac the AC
+     * \param linkId the ID of the link
+     * \return the average delay in milliseconds (0 if no packet tx successfully)
+     */
+    double GetDelay(Time period, AcIndex ac, uint8_t linkId = SINGLE_LINK_OP_ID) const;
+
   protected:
     void DoDispose() override;
 
