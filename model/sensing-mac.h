@@ -140,8 +140,8 @@ class SensingMac : public Object
     virtual void WipeAllExpiredPackets();
 
   private:
-    Ptr<WifiMac> m_mac;
-    Time m_duration; ///< maximum duration of the data stored
+    Ptr<WifiMac> m_mac; //!< associated MAC
+    Time m_duration;    //!< maximum duration of the data stored
     std::map<uint64_t /* UID */, SelfPacketInfo> m_selfPacketMap;
 };
 

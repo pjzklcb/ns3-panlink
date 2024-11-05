@@ -9,8 +9,8 @@
 #include "env-agent.h"
 
 #include "ns3/enum.h"
-#include "ns3/uinteger.h"
 #include "ns3/simulator.h"
+#include "ns3/uinteger.h"
 
 namespace ns3
 {
@@ -91,7 +91,7 @@ EnvAgent::SetNode(Ptr<Node> node)
     m_node = node;
 }
 
-void 
+void
 EnvAgent::SetMemoryId(uint32_t memoryId)
 {
     NS_LOG_FUNCTION(this << memoryId);
@@ -129,8 +129,33 @@ EnvAgent::GetPeriod() const
     return m_period;
 }
 
+EnvAgent::ModuleObs
+EnvAgent::GetModuleObs(Time period) const
+{
+    NS_LOG_FUNCTION(this << period);
+
+    ModuleObs obs;
+    if (auto device = DynamicCast<WifiNetDevice>(m_node->GetDevice(0)))
+    {
+        if (auto staMac = DynamicCast<PanlinkStaWifiMac>(device->GetMac()))
+        {
+            auto sensingMac = staMac->GetSensingMac();
+            int i = 0;
+            for (const auto& [ac, _] : wifiAcList)
+            {
+                obs.thptReq[i] = sensingMac->GetThptReq(period, ac);
+                obs.thpt[i] = sensingMac->GetThpt(period, ac);
+                obs.delay[i] = sensingMac->GetDelay(period, ac);
+                i++;
+            }
+        }
+    }
+
+    return obs;
+}
+
 void
-EnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, void* obs)
+EnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, ModuleObs& obs)
 {
     NS_LOG_FUNCTION(this);
 
@@ -144,6 +169,10 @@ EnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, void* obs)
     env.agentType = m_type;
     env.counter = m_counter;
     env.simTime = now.GetSeconds();
+    env.thptReq = obs.thptReq;
+    env.thpt = obs.thpt;
+    env.delayReq = std::array<double, 4>{30, 30, 30, 30};
+    env.delay = obs.delay;
 }
 
 void

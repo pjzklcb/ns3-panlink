@@ -15,6 +15,10 @@
 #include "ns3/node.h"
 #include "ns3/ns3-ai-msg-interface.h"
 #include "ns3/object.h"
+#include "ns3/panlink-ap-wifi-mac.h"
+#include "ns3/panlink-sta-wifi-mac.h"
+#include "ns3/sensing-mac.h"
+#include "ns3/wifi-net-device.h"
 
 namespace ns3
 {
@@ -93,13 +97,27 @@ class EnvAgent : public Object
      */
     Time GetPeriod() const;
 
+    struct ModuleObs
+    {
+        std::array<double, 4> thptReq; //!< the required throughput
+        std::array<double, 4> thpt;    //!< the actual throughput
+        std::array<double, 4> delay;   //!< the average delay
+    };
+
+    /**
+     * Get the observation of the module.
+     *
+     * \param period the obs collection period
+     */
+    virtual ModuleObs GetModuleObs(Time period) const;
+
     /**
      * Get the observation of environment.
      *
      * \param msgInterface the message interface
-     * \param obs the observation from the environment
+     * \param obs the observation from the module
      */
-    virtual void GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, void* obs);
+    virtual void GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, ModuleObs& obs);
     /**
      * Set the action feedbacked from RL agent.
      */

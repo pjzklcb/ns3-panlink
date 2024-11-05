@@ -132,6 +132,8 @@ SensingMac::GetThptReq(Time period, AcIndex ac, uint8_t linkId) const
 {
     NS_LOG_FUNCTION(this << period << ac << linkId);
 
+    NS_ASSERT(period < m_duration);
+
     double thptReq = 0;
     for (const auto& [uid, info] : m_selfPacketMap)
     {
@@ -148,6 +150,8 @@ double
 SensingMac::GetThpt(Time period, AcIndex ac, uint8_t linkId) const
 {
     NS_LOG_FUNCTION(this << period << ac << linkId);
+
+    NS_ASSERT(period < m_duration);
 
     double thpt = 0;
     for (const auto& [uid, info] : m_selfPacketMap)
@@ -166,6 +170,8 @@ SensingMac::GetDelay(Time period, AcIndex ac, uint8_t linkId) const
 {
     NS_LOG_FUNCTION(this << period << ac << linkId);
 
+    NS_ASSERT(period < m_duration);
+    
     Time delay = Seconds(0);
     double counter = 0;
     for (const auto& [uid, info] : m_selfPacketMap)

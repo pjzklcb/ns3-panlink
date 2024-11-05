@@ -52,6 +52,20 @@ EnvAgentManager::Install(Ptr<Node> node, std::vector<AgentInfo> agentList)
     }
 }
 
+Ptr<EnvAgent>
+EnvAgentManager::GetEnvAgent(uint32_t nodeId, AgentType type)
+{
+    NS_LOG_FUNCTION(this << nodeId << type);
+
+    auto it = m_agentMap[nodeId].find(type);
+    if (it == m_agentMap[nodeId].end())
+    {
+        NS_LOG_DEBUG("Node-" << nodeId << " does not have an agent of type " << type);
+        return 0;
+    }
+    return it->second;
+}
+
 bool
 EnvAgentManager::IsEmpty()
 {
@@ -105,28 +119,22 @@ EnvAgentManager::ScheduleInfoExchange(uint32_t nodeId, AgentType type, Time peri
 {
     NS_LOG_FUNCTION(this << nodeId << type << period);
 
-    DoEnvInfoExchange(nodeId, type, nullptr);
+    auto obs = GetEnvAgent(nodeId, type)->GetModuleObs(period);
+    DoEnvInfoExchange(nodeId, type, obs);
 
     // Periodically trigger information exchange
     Simulator::Schedule(period, &EnvAgentManager::ScheduleInfoExchange, this, nodeId, type, period);
 }
 
 void
-EnvAgentManager::DoEnvInfoExchange(uint32_t nodeId, AgentType type, void* obs)
+EnvAgentManager::DoEnvInfoExchange(uint32_t nodeId, AgentType type, EnvAgent::ModuleObs& obs)
 {
     NS_LOG_FUNCTION(this << nodeId << type);
 
     Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface =
         Ns3AiMsgInterface::Get()->GetInterface<Obs, Act>();
 
-    auto it = m_agentMap[nodeId].find(type);
-    if (it == m_agentMap[nodeId].end())
-    {
-        NS_LOG_DEBUG("Node-" << nodeId << " does not have an agent of type " << type);
-        return;
-    }
-
-    auto agent = it->second;
+    auto agent = GetEnvAgent(nodeId, type);
 
     msgInterface->CppSendBegin();
     agent->GetEnvObs(msgInterface, obs);

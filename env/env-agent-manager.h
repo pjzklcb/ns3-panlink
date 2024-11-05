@@ -41,6 +41,14 @@ class EnvAgentManager : public Singleton<EnvAgentManager>
     void Install(Ptr<Node> node, std::vector<AgentInfo> agentList);
 
     /**
+     * Get the environment agent of the specified node and type.
+     *
+     * \param nodeId the node ID
+     * \param type the type of the agent
+     */
+    Ptr<EnvAgent> GetEnvAgent(uint32_t nodeId, AgentType type);
+
+    /**
      * Check if there is no agent installed.
      */
     bool IsEmpty();
@@ -55,6 +63,8 @@ class EnvAgentManager : public Singleton<EnvAgentManager>
      * exchange periodically.
      */
     void ScheduleInitInfoExchange();
+
+  private:
     /**
      * Schedule an information exchange for the specified agent.
      *
@@ -64,15 +74,14 @@ class EnvAgentManager : public Singleton<EnvAgentManager>
      */
     void ScheduleInfoExchange(uint32_t nodeId, AgentType type, Time period);
 
-  private:
     /**
      * Execute information exchange for the specified agent.
      *
      * \param nodeId the node ID
      * \param type the type of the agent
-     * \param obs the obs from the environment
+     * \param obs the obs from the functional module
      */
-    void DoEnvInfoExchange(uint32_t nodeId, AgentType type, void* obs);
+    void DoEnvInfoExchange(uint32_t nodeId, AgentType type, EnvAgent::ModuleObs& obs);
 
     std::map<uint32_t /* Node ID */, uint32_t /* memory ID */> m_memoryMap;
     std::map<uint32_t /* Node ID */, std::map<AgentType, Ptr<EnvAgent>>> m_agentMap;

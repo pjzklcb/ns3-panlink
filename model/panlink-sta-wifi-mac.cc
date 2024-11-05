@@ -51,7 +51,7 @@ PanlinkStaWifiMac::SetSensingMac(const Ptr<SensingMac> sensingMac)
     m_sensingMac = sensingMac;
     // connect callbacks
     TraceConnectWithoutContext("AckedMpdu", MakeCallback(&SensingMac::AckedMpdu, m_sensingMac));
-    for (const auto& ac : {AC_BE, AC_BK, AC_VI, AC_VO})
+    for (const auto& [ac, _] : wifiAcList)
     {
         GetTxopQueue(ac)->TraceConnect("Enqueue",
                                        AcIndexToString(ac),
