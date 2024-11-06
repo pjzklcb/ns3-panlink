@@ -89,12 +89,12 @@ SensingMac::NotifyPhyTxBegin(std::string context, Ptr<const Packet> p, double tx
 
     auto linkId = static_cast<uint8_t>(std::stoi(context));
     auto it = m_selfPacketMap.find(p->GetUid());
-    NS_ABORT_MSG_IF(it == m_selfPacketMap.cend(),
-                    "Packet with uid=" << p->GetUid() << " not found");
-
-    it->second.m_linkId = linkId;
-    it->second.m_phyTxTime.push_back(Simulator::Now());
-    it->second.m_txPowerW = txPowerW;
+    if (it != m_selfPacketMap.end())
+    {
+        it->second.m_linkId = linkId;
+        it->second.m_phyTxTime.push_back(Simulator::Now());
+        it->second.m_txPowerW = txPowerW;
+    }
 }
 
 void
@@ -171,7 +171,7 @@ SensingMac::GetDelay(Time period, AcIndex ac, uint8_t linkId) const
     NS_LOG_FUNCTION(this << period << ac << linkId);
 
     NS_ASSERT(period < m_duration);
-    
+
     Time delay = Seconds(0);
     double counter = 0;
     for (const auto& [uid, info] : m_selfPacketMap)

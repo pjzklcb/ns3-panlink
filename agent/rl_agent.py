@@ -35,7 +35,7 @@ class RlAgent():
         new_counter = env.counter
         if self.agent_type.value == agent_type and self.counter < new_counter:
             self.counter = new_counter
-            print("At {:6f}s, Node-{}: Agent-{} triggers interaction with counter={}".format(
+            print("At {:6f}s, Node-{}: Agent-{} triggered with counter={}".format(
                 self.sim_time, self.node_id, self.agent_type.name, self.counter))
             return True
         return False

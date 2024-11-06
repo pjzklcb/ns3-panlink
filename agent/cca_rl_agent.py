@@ -22,10 +22,11 @@ class CcaRlAgent(RlAgent):
 
     def get_obs(self, msg_interface):
         env = msg_interface.GetCpp2PyVector()[self.memory_id]
-        ac = 0                      # AC_BE
-        thpt_req = env.thptReq[ac]   # in Mbps
+        self.sim_time = env.simTime
+        ac = 0  # AC_BE
+        thpt_req = env.thptReq[ac]  # in Mbps
         thpt = env.thpt[ac]          
-        delay_req = env.delayReq[ac] # in ms
+        delay_req = env.delayReq[ac]    # in ms
         delay = env.delay[ac]
 
         obs = [ac, thpt_req, thpt, delay_req, delay]

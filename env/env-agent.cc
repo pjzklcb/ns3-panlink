@@ -179,7 +179,7 @@ EnvAgent::GetModuleObs(Time period) const
 
     auto sensingMac = GetSensingMac();
     int i = 0;
-    for (const auto& [ac, _] : wifiAcList)
+    for (const auto& ac : {AC_BE, AC_BK, AC_VI, AC_VO})
     {
         obs.thptReq[i] = sensingMac->GetThptReq(period, ac);
         obs.thpt[i] = sensingMac->GetThpt(period, ac);

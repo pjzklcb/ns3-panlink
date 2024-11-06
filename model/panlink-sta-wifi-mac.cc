@@ -35,7 +35,7 @@ PanlinkStaWifiMac::PanlinkStaWifiMac()
 {
     NS_LOG_FUNCTION(this);
 
-    m_rxMiddle->SetForwardCallback(MakeCallback(&PanlinkStaWifiMac::Sensing, this));
+    // m_rxMiddle->SetForwardCallback(MakeCallback(&PanlinkStaWifiMac::Sensing, this));
 }
 
 PanlinkStaWifiMac::~PanlinkStaWifiMac()

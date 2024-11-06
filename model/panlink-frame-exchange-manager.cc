@@ -50,7 +50,7 @@ PanlinkFrameExchangeManager::SetWifiPhy(const Ptr<WifiPhy> phy)
     NS_LOG_FUNCTION(this << phy);
     HeFrameExchangeManager::SetWifiPhy(phy);
 
-    m_phy->SetReceiveOkCallback(MakeCallback(&PanlinkFrameExchangeManager::Sensing, this));
+    // m_phy->SetReceiveOkCallback(MakeCallback(&PanlinkFrameExchangeManager::Sensing, this));
 }
 
 void 
