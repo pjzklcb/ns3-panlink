@@ -97,6 +97,16 @@ class EnvAgent : public Object
      */
     Time GetPeriod() const;
 
+    /**
+     * Get the wifi mac of the bound node.
+     */
+    Ptr<WifiMac> GetWifiMac() const;
+
+    /**
+     * Get the sensing mac of the bound node.
+     */
+    Ptr<SensingMac> GetSensingMac() const;
+
     struct ModuleObs
     {
         std::array<double, 4> thptReq; //!< the required throughput
@@ -125,7 +135,7 @@ class EnvAgent : public Object
 
   protected:
     void DoDispose() override;
-    
+
     AgentType m_type;    //!< the type of this env agent
     Ptr<Node> m_node;    //!< the bound node
     uint32_t m_memoryId; //!< memory ID assigned to the bound node

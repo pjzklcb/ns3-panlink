@@ -48,27 +48,19 @@ CcaEnvAgent::GetModuleObs(Time period) const
 {
     NS_LOG_FUNCTION(this << period);
 
-    CcaModuleObs obs;
+    auto obs = EnvAgent::GetModuleObs(period);
+    auto ccaObs = static_cast<CcaModuleObs>(obs);
     if (auto device = DynamicCast<WifiNetDevice>(m_node->GetDevice(0)))
     {
         if (auto staMac = DynamicCast<PanlinkStaWifiMac>(device->GetMac()))
         {
-            auto sensingMac = staMac->GetSensingMac();
-            int i = 0;
-            for (const auto& [ac, _] : wifiAcList)
-            {
-                obs.thptReq[i] = sensingMac->GetThptReq(period, ac);
-                obs.thpt[i] = sensingMac->GetThpt(period, ac);
-                obs.delay[i] = sensingMac->GetDelay(period, ac);
-                i++;
-            }
-            obs.apRssi = 0;
-            obs.bssRssi = 0;
-            obs.obssRssi = 0;
+            ccaObs.apRssi = 0;
+            ccaObs.bssRssi = 0;
+            ccaObs.obssRssi = 0;
         }
     }
 
-    return obs;
+    return ccaObs;
 }
 
 void
@@ -91,7 +83,8 @@ CcaEnvAgent::SetEnvAct(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface)
 {
     NS_LOG_FUNCTION(this);
 
-    // auto& act = msgInterface->GetCpp2PyVector()->at(m_memoryId);
+    // auto& act = msgInterface->GetPy2CppVector()->at(m_memoryId);
+    // double nextCca = act.ccaSensitivity;
 }
 
 } // namespace ns3

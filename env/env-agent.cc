@@ -77,7 +77,7 @@ EnvAgent::EnvAgent(Ptr<Node> node, uint32_t memoryId)
     NS_LOG_FUNCTION(this);
 }
 
-void 
+void
 EnvAgent::DoDispose()
 {
     NS_LOG_FUNCTION(this);
@@ -138,26 +138,53 @@ EnvAgent::GetPeriod() const
     return m_period;
 }
 
+Ptr<WifiMac>
+EnvAgent::GetWifiMac() const
+{
+    NS_LOG_FUNCTION(this);
+
+    for (size_t i = 0; i < m_node->GetNDevices(); ++i)
+    {
+        if (auto device = DynamicCast<WifiNetDevice>(m_node->GetDevice(i)))
+        {
+            return device->GetMac();
+        }
+    }
+    return 0;
+}
+
+Ptr<SensingMac>
+EnvAgent::GetSensingMac() const
+{
+    NS_LOG_FUNCTION(this);
+
+    auto mac = GetWifiMac();
+    // if (auto apMac = DynamicCast<PanlinkApWifiMac>(mac))
+    // {
+    //     return apMac->GetSensingMac();
+    // }
+    if (auto staMac = DynamicCast<PanlinkStaWifiMac>(mac))
+    {
+        return staMac->GetSensingMac();
+    }
+    return 0;
+}
+
 EnvAgent::ModuleObs
 EnvAgent::GetModuleObs(Time period) const
 {
     NS_LOG_FUNCTION(this << period);
 
     ModuleObs obs;
-    if (auto device = DynamicCast<WifiNetDevice>(m_node->GetDevice(0)))
+
+    auto sensingMac = GetSensingMac();
+    int i = 0;
+    for (const auto& [ac, _] : wifiAcList)
     {
-        if (auto staMac = DynamicCast<PanlinkStaWifiMac>(device->GetMac()))
-        {
-            auto sensingMac = staMac->GetSensingMac();
-            int i = 0;
-            for (const auto& [ac, _] : wifiAcList)
-            {
-                obs.thptReq[i] = sensingMac->GetThptReq(period, ac);
-                obs.thpt[i] = sensingMac->GetThpt(period, ac);
-                obs.delay[i] = sensingMac->GetDelay(period, ac);
-                i++;
-            }
-        }
+        obs.thptReq[i] = sensingMac->GetThptReq(period, ac);
+        obs.thpt[i] = sensingMac->GetThpt(period, ac);
+        obs.delay[i] = sensingMac->GetDelay(period, ac);
+        i++;
     }
 
     return obs;
@@ -189,7 +216,7 @@ EnvAgent::SetEnvAct(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface)
 {
     NS_LOG_FUNCTION(this);
 
-    // auto& act = msgInterface->GetCpp2PyVector()->at(m_memoryId);
+    // auto& act = msgInterface->GetPy2CppVector()->at(m_memoryId);
 }
 
 } // namespace ns3
