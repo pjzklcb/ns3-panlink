@@ -192,10 +192,4 @@ SensingMac::FrameExchangeSensing(Mac48Address sender, double rssi, Time duration
     NS_LOG_FUNCTION(this << sender << rssi << duration);
 }
 
-void
-SensingMac::WifiMacSensing(Ptr<const WifiMpdu> mpdu, uint8_t linkId)
-{
-    NS_LOG_FUNCTION(this << mpdu << linkId);
-}
-
 } // namespace ns3

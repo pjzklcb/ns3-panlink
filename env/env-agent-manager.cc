@@ -21,8 +21,14 @@ EnvAgentManager::~EnvAgentManager()
 {
     NS_LOG_FUNCTION(this);
 
+    for (auto& [nodeId, agentList] : m_agentMap)
+    {
+        for (auto& [type, agent] : agentList)
+        {
+            agent = nullptr;
+        }
+    }
     m_agentMap.clear();
-    m_memoryMap.clear();
 }
 
 void

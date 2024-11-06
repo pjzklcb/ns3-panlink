@@ -57,14 +57,6 @@ class SensingMac : public Object
     void FrameExchangeSensing(Mac48Address sender, double rssi, Time duration, uint8_t linkId);
 
     /**
-     * Handles frames comes from PanlinkWifiMac::Sensing.
-     *
-     * \param mpdu the MPDU
-     * \param linkId the ID of the link
-     */
-    void WifiMacSensing(Ptr<const WifiMpdu> mpdu, uint8_t linkId);
-
-    /**
      * Trace the packet that has been enqueued to the given AC MAC queue.
      *
      * \param ac the AC of the MacQueue

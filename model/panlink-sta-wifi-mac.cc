@@ -34,8 +34,6 @@ PanlinkStaWifiMac::GetTypeId()
 PanlinkStaWifiMac::PanlinkStaWifiMac()
 {
     NS_LOG_FUNCTION(this);
-
-    // m_rxMiddle->SetForwardCallback(MakeCallback(&PanlinkStaWifiMac::Sensing, this));
 }
 
 PanlinkStaWifiMac::~PanlinkStaWifiMac()
@@ -92,13 +90,6 @@ PanlinkStaWifiMac::PanStaLinkEntity&
 PanlinkStaWifiMac::GetPanStaLink(const std::unique_ptr<WifiMac::LinkEntity>& link) const
 {
     return static_cast<PanStaLinkEntity&>(*link);
-}
-
-void
-PanlinkStaWifiMac::Sensing(Ptr<const WifiMpdu> mpdu, uint8_t linkId)
-{
-    NS_LOG_FUNCTION(this << *mpdu << linkId);
-    m_sensingMac->WifiMacSensing(mpdu, linkId);
 }
 
 } // namespace ns3
