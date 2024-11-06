@@ -32,6 +32,8 @@ namespace ns3
 class EnvAgentManager : public Singleton<EnvAgentManager>
 {
   public:
+    ~EnvAgentManager();
+
     /**
      * Install EnvAgents with the specified node.
      *

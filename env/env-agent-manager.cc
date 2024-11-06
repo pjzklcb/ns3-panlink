@@ -17,6 +17,14 @@ namespace ns3
 
 NS_LOG_COMPONENT_DEFINE("EnvAgentManager");
 
+EnvAgentManager::~EnvAgentManager()
+{
+    NS_LOG_FUNCTION(this);
+
+    m_agentMap.clear();
+    m_memoryMap.clear();
+}
+
 void
 EnvAgentManager::Install(Ptr<Node> node, std::vector<AgentInfo> agentList)
 {

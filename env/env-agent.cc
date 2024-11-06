@@ -77,6 +77,15 @@ EnvAgent::EnvAgent(Ptr<Node> node, uint32_t memoryId)
     NS_LOG_FUNCTION(this);
 }
 
+void 
+EnvAgent::DoDispose()
+{
+    NS_LOG_FUNCTION(this);
+
+    m_node = nullptr;
+    Object::DoDispose();
+}
+
 void
 EnvAgent::SetAgentType(AgentType type)
 {

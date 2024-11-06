@@ -124,6 +124,8 @@ class EnvAgent : public Object
     virtual void SetEnvAct(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface);
 
   protected:
+    void DoDispose() override;
+    
     AgentType m_type;    //!< the type of this env agent
     Ptr<Node> m_node;    //!< the bound node
     uint32_t m_memoryId; //!< memory ID assigned to the bound node
