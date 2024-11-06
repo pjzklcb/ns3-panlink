@@ -47,7 +47,7 @@ class CcaRlAgent(RlAgent):
         if self.state:
             # caculate reward
             r_thpt = min(0, p-1)
-            r_delay = -5 if d else 1-d
+            r_delay = -5 if d == 0 else 1-d
             reward = r_thpt + r_delay
             self.reward_log.append(reward)
             self.model.store_transition(self.state, self.action, reward, next_state)
