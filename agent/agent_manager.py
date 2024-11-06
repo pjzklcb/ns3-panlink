@@ -11,6 +11,7 @@ from cca_rl_agent import CcaRlAgent
 class AgentManager:
     def __init__(self):
         self.agent_dict = {}
+        self.active_agent = None
     
     def create_agent(self, node_id, memory_id, agent_type):
         if agent_type == "dummy":

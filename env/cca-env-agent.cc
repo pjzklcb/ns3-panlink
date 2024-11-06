@@ -54,15 +54,10 @@ CcaEnvAgent::GetModuleObs(Time period) const
 
     auto obs = EnvAgent::GetModuleObs(period);
     auto ccaObs = static_cast<CcaModuleObs>(obs);
-    if (auto device = DynamicCast<WifiNetDevice>(m_node->GetDevice(0)))
-    {
-        if (auto staMac = DynamicCast<PanlinkStaWifiMac>(device->GetMac()))
-        {
-            ccaObs.apRssi = 0;
-            ccaObs.bssRssi = 0;
-            ccaObs.obssRssi = 0;
-        }
-    }
+    
+    ccaObs.apRssi = 0;
+    ccaObs.bssRssi = 0;
+    ccaObs.obssRssi = 0;
 
     return ccaObs;
 }
@@ -77,6 +72,7 @@ CcaEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, ModuleObs&
     auto ccaObs = static_cast<CcaModuleObs>(obs);
 
     auto& env = msgInterface->GetCpp2PyVector()->at(m_memoryId);
+    env.agentType = RL_CCA_SENSITIVITY;
     env.apRssi = ccaObs.apRssi;
     env.bssRssi = ccaObs.bssRssi;
     env.obssRssi = ccaObs.obssRssi;
@@ -88,13 +84,13 @@ CcaEnvAgent::SetEnvAct(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface)
     NS_LOG_FUNCTION(this);
 
     auto& act = msgInterface->GetPy2CppVector()->at(m_memoryId);
-    double nextCca = act.ccaSensitivity;
+    double newCca = act.ccaSensitivity;
 
     auto preambleDetectionModel = CreateObject<ThresholdPreambleDetectionModel>();
-    preambleDetectionModel->SetAttribute("MinimumRssi", DoubleValue(nextCca));
+    preambleDetectionModel->SetAttribute("MinimumRssi", DoubleValue(newCca));
 
     auto phy = GetWifiMac()->GetWifiPhy();
-    phy->SetCcaSensitivityThreshold(nextCca);
+    phy->SetCcaSensitivityThreshold(newCca);
     phy->SetPreambleDetectionModel(preambleDetectionModel);
 }
 

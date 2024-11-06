@@ -35,7 +35,7 @@ class CcaRlAgent(RlAgent):
         self.choose_action(obs)
 
     def set_action(self, msg_interface):
-        msg_interface.GetCpp2PyVector()[self.memory_id].ccaSensitivity = self.new_cca
+        msg_interface.GetPy2CppVector()[self.memory_id].ccaSensitivity = self.new_cca
 
     def choose_action(self, obs):
         ac, thpt_req, thpt, delay_req, delay = obs
@@ -48,7 +48,7 @@ class CcaRlAgent(RlAgent):
             r_thpt = min(0, p-1)
             r_delay = -5 if d else 1-d
             reward = r_thpt + r_delay
-            self.model.store_transition((self.state, self.action, reward, next_state))
+            self.model.store_transition(self.state, self.action, reward, next_state)
             if self.enable_learning:
                 self.model.learn()
 

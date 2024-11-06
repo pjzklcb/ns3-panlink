@@ -8,12 +8,12 @@
 
 #include "ns3/app-installer.h"
 #include "ns3/core-module.h"
+#include "ns3/env-helper.h"
 #include "ns3/internet-module.h"
 #include "ns3/intf-deployer.h"
 #include "ns3/mobility-module.h"
 #include "ns3/multi-model-spectrum-channel.h"
 #include "ns3/network-module.h"
-#include "ns3/env-helper.h"
 #include "ns3/panlink-mac-helper.h"
 #include "ns3/panlink-utils.h"
 #include "ns3/wifi-module.h"
@@ -95,8 +95,8 @@ main(int argc, char* argv[])
     if (verbose)
     {
         LogComponentEnableAll(LOG_PREFIX_ALL);
-        LogComponentEnable("AppInstaller", LOG_LEVEL_ALL);
-        LogComponentEnable("BurstApplication", LOG_LEVEL_ALL);
+        LogComponentEnable("EnvAgent", LOG_LEVEL_ALL);
+        LogComponentEnable("CcaEnvAgent", LOG_LEVEL_ALL);
     }
 
     WifiHelper g_wifiHelper;
@@ -240,7 +240,7 @@ main(int argc, char* argv[])
 
         if (node.m_type == "PO")
         {
-            g_macHelper.SetType("ns3::ApWifiMac",
+            g_macHelper.SetType("ns3::PanlinkApWifiMac",
                                 "Ssid",
                                 SsidValue(ssid),
                                 "EnableBeaconJitter",
@@ -249,7 +249,7 @@ main(int argc, char* argv[])
         }
         else if (node.m_type == "PC")
         {
-            g_macHelper.SetType("ns3::StaWifiMac", "Ssid", SsidValue(ssid));
+            g_macHelper.SetType("ns3::PanlinkStaWifiMac", "Ssid", SsidValue(ssid));
             g_macHelper.SetFrameExchangeManager("ns3::HeFrameExchangeManager");
         }
         else if (node.m_type == "AP")

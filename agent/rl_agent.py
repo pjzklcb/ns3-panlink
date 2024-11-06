@@ -25,7 +25,7 @@ class RlAgent():
         self.action = None
         self.action_log = []
         self.reward_log = []
-        
+
         self.enable_learning = True
         self.show_log = True
 
@@ -35,8 +35,8 @@ class RlAgent():
         new_counter = env.counter
         if self.agent_type.value == agent_type and self.counter < new_counter:
             self.counter = new_counter
-            print("Node-{}: Agent-{} triggers interaction with counter={}".format(
-                self.node_id, self.agent_type.name, self.counter))
+            print("At {:6f}s, Node-{}: Agent-{} triggers interaction with counter={}".format(
+                self.sim_time, self.node_id, self.agent_type.name, self.counter))
             return True
         return False
 
