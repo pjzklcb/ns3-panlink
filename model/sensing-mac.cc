@@ -68,12 +68,42 @@ void
 SensingMac::NotifyFrameInfo(Mac48Address sender, double rssi, Time duration, uint8_t linkId)
 {
     NS_LOG_FUNCTION(this << sender << rssi << duration);
+
+    auto it = m_neighborStaMap.find(sender);
+    if (it != m_neighborStaMap.end())
+    {
+        NS_ASSERT(it->second.linkId == linkId);
+        it->second.lastTxDuration = duration;
+        it->second.rssi = rssi;
+    }
+    else
+    {
+        NeighborStaInfo info;
+        info.linkId = linkId;
+        info.lastTxDuration = duration;
+        info.rssi = rssi;
+        m_neighborStaMap[sender] = info;
+    }
 }
 
 void
 SensingMac::NotifyLastTxOkSta(Mac48Address sta, uint8_t linkId)
 {
     NS_LOG_FUNCTION(this << sta << linkId);
+
+    auto it = m_neighborStaMap.find(sta);
+    if (it != m_neighborStaMap.end())
+    {
+        NS_ASSERT(it->second.linkId == linkId);
+        it->second.lastTxOkTime = Simulator::Now();
+    }
+    else
+    {
+        NeighborStaInfo info;
+        info.linkId = linkId;
+        info.lastTxOkTime = Simulator::Now();
+        m_neighborStaMap[sta] = info;
+    }
 }
 
 void
@@ -110,7 +140,7 @@ SensingMac::NotifyPhyTxBegin(std::string context, Ptr<const Packet> p, double tx
 }
 
 void
-SensingMac::AckedMpdu(Ptr<const WifiMpdu> mpdu)
+SensingMac::NotifyAckedMpdu(Ptr<const WifiMpdu> mpdu)
 {
     NS_LOG_FUNCTION(this << mpdu);
 

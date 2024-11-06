@@ -58,11 +58,28 @@ class SensingMac : public Object
 
     /**
      * Record the STA whose last transmission was successful.
-     * 
+     *
      * \param sta the MAC address of the STA
      * \param linkId the ID of the link
      */
     void NotifyLastTxOkSta(Mac48Address sta, uint8_t linkId);
+
+    enum NeighborStaRole
+    {
+        SELF = 0,
+        ASSOCIATED_AP,
+        BSS_STA,
+        OBSS
+    };
+
+    struct NeighborStaInfo
+    {
+        NeighborStaRole role;
+        uint8_t linkId;
+        Time lastTxOkTime;
+        Time lastTxDuration;
+        double rssi;
+    };
 
     /**
      * Trace the packet that has been enqueued to the given AC MAC queue.
@@ -86,7 +103,7 @@ class SensingMac : public Object
      *
      * \param mpdu the MPDU
      */
-    void AckedMpdu(Ptr<const WifiMpdu> mpdu);
+    void NotifyAckedMpdu(Ptr<const WifiMpdu> mpdu);
 
     struct SelfPacketInfo
     {
@@ -143,6 +160,7 @@ class SensingMac : public Object
     Ptr<WifiMac> m_mac; //!< associated MAC
     Time m_duration;    //!< maximum duration of the data stored
     std::map<uint64_t /* UID */, SelfPacketInfo> m_selfPacketMap;
+    std::unordered_map<Mac48Address, NeighborStaInfo, WifiAddressHash> m_neighborStaMap;
 };
 
 } // namespace ns3
