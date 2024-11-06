@@ -65,6 +65,18 @@ SensingMac::SetDuration(Time duration)
 }
 
 void
+SensingMac::NotifyFrameInfo(Mac48Address sender, double rssi, Time duration, uint8_t linkId)
+{
+    NS_LOG_FUNCTION(this << sender << rssi << duration);
+}
+
+void
+SensingMac::NotifyLastTxOkSta(Mac48Address sta, uint8_t linkId)
+{
+    NS_LOG_FUNCTION(this << sta << linkId);
+}
+
+void
 SensingMac::NotifyEdcaEnqueue(std::string ac, Ptr<const WifiMpdu> item)
 {
     NS_LOG_FUNCTION(this << ac << item);
@@ -184,12 +196,6 @@ SensingMac::GetDelay(Time period, AcIndex ac, uint8_t linkId) const
         }
     }
     return counter == 0 ? 0 : delay.ToDouble(Time::MS) / counter; // ms
-}
-
-void
-SensingMac::FrameExchangeSensing(Mac48Address sender, double rssi, Time duration, uint8_t linkId)
-{
-    NS_LOG_FUNCTION(this << sender << rssi << duration);
 }
 
 } // namespace ns3

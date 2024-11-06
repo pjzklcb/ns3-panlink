@@ -31,7 +31,10 @@ class PanlinkFrameExchangeManager : public HeFrameExchangeManager
     PanlinkFrameExchangeManager();
     ~PanlinkFrameExchangeManager() override;
 
-    void SetWifiPhy(const Ptr<WifiPhy> phy) override;
+    void Receive(Ptr<const WifiPsdu> psdu,
+                 RxSignalInfo rxSignalInfo,
+                 const WifiTxVector& txVector,
+                 const std::vector<bool>& perMpduStatus) override;
 
     /**
      * Set sensing MAC.
@@ -42,21 +45,6 @@ class PanlinkFrameExchangeManager : public HeFrameExchangeManager
 
   protected:
     void DoDispose() override;
-
-    /**
-     * Handles all the psdus received by the FrameExchangeManager::Receive callback, including
-     * those that are filtered by FrameExchangeManager::Receive due to being non-broadcast or not
-     * intended for the current MAC.
-     *
-     * \param psdu the received PSDU
-     * \param rxSignalInfo the info on the received signal (\see RxSignalInfo)
-     * \param txVector TxVector of the received PSDU
-     * \param perMpduStatus per MPDU reception status
-     */
-    void Sensing(Ptr<const WifiPsdu> psdu,
-                 RxSignalInfo rxSignalInfo,
-                 const WifiTxVector& txVector,
-                 const std::vector<bool>& perMpduStatus);
 
   private:
     Ptr<SensingMac> m_sensingMac;

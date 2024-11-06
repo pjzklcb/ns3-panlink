@@ -47,14 +47,22 @@ class SensingMac : public Object
     void SetDuration(Time duration);
 
     /**
-     * Handles frames comes from FrameExchangeManager::Sensing.
+     * Handles received frames not matter the STA they are sent to.
      *
      * \param sender the MAC address of the sender
      * \param rssi the RSSI of the frame
      * \param duration the duration of the frame
      * \param linkId the ID of the link
      */
-    void FrameExchangeSensing(Mac48Address sender, double rssi, Time duration, uint8_t linkId);
+    void NotifyFrameInfo(Mac48Address sender, double rssi, Time duration, uint8_t linkId);
+
+    /**
+     * Record the STA whose last transmission was successful.
+     * 
+     * \param sta the MAC address of the STA
+     * \param linkId the ID of the link
+     */
+    void NotifyLastTxOkSta(Mac48Address sta, uint8_t linkId);
 
     /**
      * Trace the packet that has been enqueued to the given AC MAC queue.

@@ -45,15 +45,6 @@ PanlinkFrameExchangeManager::DoDispose()
 }
 
 void
-PanlinkFrameExchangeManager::SetWifiPhy(const Ptr<WifiPhy> phy)
-{
-    NS_LOG_FUNCTION(this << phy);
-    HeFrameExchangeManager::SetWifiPhy(phy);
-
-    // m_phy->SetReceiveOkCallback(MakeCallback(&PanlinkFrameExchangeManager::Sensing, this));
-}
-
-void 
 PanlinkFrameExchangeManager::SetSensingMac(const Ptr<SensingMac> sensingMac)
 {
     NS_LOG_FUNCTION(this << sensingMac);
@@ -61,28 +52,38 @@ PanlinkFrameExchangeManager::SetSensingMac(const Ptr<SensingMac> sensingMac)
 }
 
 void
-PanlinkFrameExchangeManager::Sensing(Ptr<const WifiPsdu> psdu,
+PanlinkFrameExchangeManager::Receive(Ptr<const WifiPsdu> psdu,
                                      RxSignalInfo rxSignalInfo,
                                      const WifiTxVector& txVector,
                                      const std::vector<bool>& perMpduStatus)
 {
-    NS_LOG_FUNCTION(this << psdu << rxSignalInfo << txVector << perMpduStatus.size());
+    NS_LOG_FUNCTION(this << psdu << rxSignalInfo << txVector);
 
-    // Ignore ACK and CTS that does not contain TA, and RTS whose duration does not reflect the
-    // channel occupancy of itself
-    if (psdu->GetNMpdus() == 1)
+    FrameExchangeManager::Receive(psdu, rxSignalInfo, txVector, perMpduStatus);
+
+    // Only process once after the whole PSDU is received.
+    if (perMpduStatus.empty())
     {
-        auto& hdr = psdu->GetHeader(0);
-        if (hdr.IsAck() || hdr.IsCts() || hdr.IsRts())
-            return;
+        return;
     }
 
-    // Get frame's sender, RSSI and duration
-    Mac48Address sender = psdu->GetAddr2();
-    double rssi = rxSignalInfo.rssi;
-    Time duration = psdu->GetDuration();
+    // Capturing ACK or BA
+    auto& hdr = psdu->GetHeader(0);
+    if (hdr.IsAck() || hdr.IsBlockAck())
+    {
+        Mac48Address receiver = hdr.GetAddr1();
+        m_sensingMac->NotifyLastTxOkSta(receiver, m_linkId);
+    }
 
-    m_sensingMac->FrameExchangeSensing(sender, rssi, duration, m_linkId);
+    if (!hdr.IsAck() && !hdr.IsCts() && !hdr.IsRts())
+    {
+        // Ack and CTS do not carry Addr2, the duration of CTS and RTS contains PPDU's length
+        Mac48Address sender = psdu->GetAddr2();
+        double rssi = rxSignalInfo.rssi;
+        Time duration = psdu->GetDuration();
+
+        m_sensingMac->NotifyFrameInfo(sender, rssi, duration, m_linkId);
+    }
 }
 
 } // namespace ns3
