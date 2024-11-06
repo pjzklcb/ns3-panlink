@@ -49,6 +49,7 @@ class CcaRlAgent(RlAgent):
             r_thpt = min(0, p-1)
             r_delay = -5 if d else 1-d
             reward = r_thpt + r_delay
+            self.reward_log.append(reward)
             self.model.store_transition(self.state, self.action, reward, next_state)
             if self.enable_learning:
                 self.model.learn()
@@ -63,7 +64,7 @@ class CcaRlAgent(RlAgent):
         self.state = next_state
 
     def save_model(self, save_dir):
-        self.model.save_model('{}/learn/node_{}_model_cca.pt'.format(save_dir, self.node_id))
+        self.model.save_model('{}/node_{}_model_cca.pt'.format(save_dir, self.node_id))
 
     def plot_results(self, save_dir):
         y = self.reward_log
@@ -71,7 +72,7 @@ class CcaRlAgent(RlAgent):
         plt.plot(range(len(y)), y, 'g-', linewidth=1)
         plt.xlabel('Step number')
         plt.ylabel('Reward')
-        plt.savefig('{}/learn/node_{}_reward_cca.png'.format(save_dir, self.node_id))
+        plt.savefig('{}/node_{}_reward_cca.png'.format(save_dir, self.node_id))
         plt.close()
 
         y = self.cca_log
@@ -79,7 +80,7 @@ class CcaRlAgent(RlAgent):
         plt.plot(range(len(y)), y, 'r-', linewidth=1, alpha=0.5, marker='o', markersize=3)
         plt.xlabel('Step number')
         plt.ylabel('Cca sensitivity')
-        plt.savefig('{}/learn/node_{}_action_cca.png'.format(save_dir, self.node_id))
+        plt.savefig('{}/node_{}_action_cca.png'.format(save_dir, self.node_id))
         plt.close()
 
         y = self.model.loss_log
@@ -87,5 +88,5 @@ class CcaRlAgent(RlAgent):
         plt.plot(range(len(y)), y, 'b-', linewidth=1)
         plt.xlabel('Step number')
         plt.ylabel('Loss')
-        plt.savefig('{}/learn/node_{}_loss_cca.png'.format(save_dir, self.node_id))
+        plt.savefig('{}/node_{}_loss_cca.png'.format(save_dir, self.node_id))
         plt.close()

@@ -115,7 +115,11 @@ if __name__ == '__main__':
 
     else:
         if args.stats:
-            pass
+            learn_dir = os.path.join(result_dir, 'learn')
+            if not os.path.exists(learn_dir):
+                os.makedirs(learn_dir)
+            agent_manager.plot_results(learn_dir)
+            agent_manager.save_models(learn_dir)
 
     finally:
         time_cost = int(time.time()) - int(timestamp)
