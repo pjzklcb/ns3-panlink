@@ -14,7 +14,7 @@ class AgentType(Enum):
     RL_AGGREGATION = 4
 
 
-class BaseAgent():
+class RlAgent():
     def __init__(self, node_id, memory_id):
         self.node_id = node_id
         self.memory_id = memory_id
@@ -25,6 +25,9 @@ class BaseAgent():
         self.action = None
         self.action_log = []
         self.reward_log = []
+        
+        self.enable_learning = True
+        self.show_log = True
 
     def is_active(self, msg_interface):
         env = msg_interface.GetCpp2PyVector()[self.memory_id]

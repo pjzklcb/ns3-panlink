@@ -5,16 +5,16 @@
 # Author: Pan Jinzhe <pjzklcb@gmail.com>
 
 import matplotlib.pyplot as plt
-from base_agent import AgentType, BaseAgent
+from rl_agent import AgentType, RlAgent
 from models.ddqn import DDQN
 
 
-class CcaAgent(BaseAgent):
+class CcaRlAgent(RlAgent):
     def __init__(self, node_id, memory_id):
         super().__init__(node_id, memory_id)
         self.agent_type = AgentType.RL_CCA_SENSITIVITY
         
-        state_size = 4
+        state_size = 3
         action_size = (-62) - (-82) + 1
         self.model = DDQN(state_size, action_size)
         self.new_cca = -82
@@ -22,15 +22,44 @@ class CcaAgent(BaseAgent):
 
     def get_obs(self, msg_interface):
         env = msg_interface.GetCpp2PyVector()[self.memory_id]
-        self.sim_time = env.simTime
+        ac = 0                      # AC_BE
+        thpt_req = env.thptReq[ac]   # in Mbps
+        thpt = env.thpt[ac]          
+        delay_req = env.delayReq[ac] # in ms
+        delay = env.delay[ac]
 
-        self.choose_action()
+        obs = [ac, thpt_req, thpt, delay_req, delay]
+        if self.show_log:
+            print("Recv obs: [" + ' '.join('{:.4f}'.format(x) for x in obs) + "]")
+        
+        self.choose_action(obs)
 
     def set_action(self, msg_interface):
         msg_interface.GetCpp2PyVector()[self.memory_id].ccaSensitivity = self.new_cca
 
-    def choose_action(self):
-        pass
+    def choose_action(self, obs):
+        ac, thpt_req, thpt, delay_req, delay = obs
+        p = thpt/thpt_req if thpt_req else 0
+        d = delay/delay_req if thpt_req else 1
+
+        next_state = [ac, p, d]
+        if self.state:
+            # caculate reward
+            r_thpt = min(0, p-1)
+            r_delay = -5 if d else 1-d
+            reward = r_thpt + r_delay
+            self.model.store_transition((self.state, self.action, reward, next_state))
+            if self.enable_learning:
+                self.model.learn()
+
+        # choose action
+        self.action = self.model.choose_action(next_state)
+        self.action_log.append(self.action)
+        self.new_cca = -82 + self.action
+        self.cca_log.append(self.new_cca)
+        if self.show_log:
+            print("New CCA={}".format(self.new_cca))
+        self.state = next_state
 
     def save_model(self, save_dir):
         self.model.save_model('{}/learn/node_{}_model_cca.pt'.format(save_dir, self.node_id))

@@ -5,7 +5,8 @@
 # Author: Pan Jinzhe <pjzklcb@gmail.com>
 
 import json
-from base_agent import AgentType, BaseAgent
+from rl_agent import AgentType, RlAgent
+from cca_rl_agent import CcaRlAgent
 
 class AgentManager:
     def __init__(self):
@@ -13,11 +14,11 @@ class AgentManager:
     
     def create_agent(self, node_id, memory_id, agent_type):
         if agent_type == "dummy":
-            return BaseAgent(node_id, memory_id)
+            return RlAgent(node_id, memory_id)
         elif agent_type in {"cca", "CCA", "cca sensitivity", "CCA Sensitivity",
                             "cca-sensitivity", "cca_sensitivity",
                             "CCA-Sensitivity", "CCA_Sensitivity"}:
-            pass
+            return CcaRlAgent(node_id, memory_id)
         elif agent_type in {"channel access", "channel-access", "channel_access",
                             "Channel Access", "Channel-Access", "Channel_Access"}:
             pass

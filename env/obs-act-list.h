@@ -23,7 +23,7 @@ struct Obs
 
     // self
     std::array<double, 4> thpt;     // actual throughput for different AC
-    std::array<double, 4> thptReq;
+    std::array<double, 4> thptReq;  // {AC_BE, AC_BK, AC_VI, AC_VO}
     std::array<double, 4> delay;
     std::array<double, 4> delayReq;
 
