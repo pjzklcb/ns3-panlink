@@ -8,6 +8,10 @@
 
 #include "cca-env-agent.h"
 
+#include "ns3/double.h"
+#include "ns3/threshold-preamble-detection-model.h"
+#include "ns3/wifi-phy.h"
+
 namespace ns3
 {
 
@@ -83,8 +87,15 @@ CcaEnvAgent::SetEnvAct(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface)
 {
     NS_LOG_FUNCTION(this);
 
-    // auto& act = msgInterface->GetPy2CppVector()->at(m_memoryId);
-    // double nextCca = act.ccaSensitivity;
+    auto& act = msgInterface->GetPy2CppVector()->at(m_memoryId);
+    double nextCca = act.ccaSensitivity;
+
+    auto preambleDetectionModel = CreateObject<ThresholdPreambleDetectionModel>();
+    preambleDetectionModel->SetAttribute("MinimumRssi", DoubleValue(nextCca));
+
+    auto phy = GetWifiMac()->GetWifiPhy();
+    phy->SetCcaSensitivityThreshold(nextCca);
+    phy->SetPreambleDetectionModel(preambleDetectionModel);
 }
 
 } // namespace ns3
