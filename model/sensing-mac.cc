@@ -28,7 +28,7 @@ SensingMac::GetTypeId()
                             .AddAttribute("MaxDuration",
                                           "The maximum duration of the data stored.",
                                           TimeValue(Seconds(1.0)),
-                                          MakeTimeAccessor(&SensingMac::SetDuration),
+                                          MakeTimeAccessor(&SensingMac::SetMaxDuration),
                                           MakeTimeChecker());
     return tid;
 }
@@ -36,8 +36,6 @@ SensingMac::GetTypeId()
 SensingMac::SensingMac()
 {
     NS_LOG_FUNCTION(this);
-
-    m_neighborStaMap[m_mac->GetAddress()] = {.role = SELF, .linkId = 0, .rssi = 0};
 }
 
 SensingMac::~SensingMac()
@@ -46,9 +44,29 @@ SensingMac::~SensingMac()
 }
 
 void
+SensingMac::DoInitialize()
+{
+    NS_LOG_FUNCTION(this);
+
+    NS_ASSERT(m_mac);
+    for (uint8_t linkId = 0; linkId < m_mac->GetNLinks(); ++linkId)
+    {
+        m_linkMap[linkId] = SelfLinkInfo();
+    }
+}
+
+void
 SensingMac::DoDispose()
 {
     NS_LOG_FUNCTION(this);
+
+    m_linkMap.clear();
+    m_neighborStaMap.clear();
+
+    if (m_mac)
+    {
+        m_mac->Dispose();
+    }
     m_mac = nullptr;
 }
 
@@ -60,7 +78,7 @@ SensingMac::SetWifiMac(const Ptr<WifiMac> mac)
 }
 
 void
-SensingMac::SetDuration(Time duration)
+SensingMac::SetMaxDuration(Time duration)
 {
     NS_LOG_FUNCTION(this << duration);
     m_duration = duration;
@@ -129,10 +147,16 @@ SensingMac::NotifyLastTxOkSta(Mac48Address sta, uint8_t linkId)
 {
     NS_LOG_FUNCTION(this << sta << linkId);
 
+    // Self packets are handled by NotifyAckedMpdu
+    if (sta == m_mac->GetAddress())
+    {
+        return;
+    }
+
     auto it = m_neighborStaMap.find(sta);
     if (it != m_neighborStaMap.end())
     {
-        NS_ASSERT(it->second.role != SELF && it->second.linkId == linkId);
+        NS_ASSERT(it->second.linkId == linkId);
         it->second.lastTxOkTime = Simulator::Now();
     }
     else
@@ -152,14 +176,14 @@ SensingMac::NotifyEdcaEnqueue(std::string ac, Ptr<const WifiMpdu> item)
     WipeAllExpiredPackets();
 
     auto uid = item->GetPacket()->GetUid();
-    auto [it, inserted] = m_selfPacketMap.try_emplace(uid);
+    auto [it, inserted] = m_packetMap.try_emplace(uid);
     NS_ABORT_MSG_IF(!inserted, "Packet with uid=" << uid << " already exists");
 
-    it->second.m_uid = uid;
-    it->second.m_packetSize = item->GetPacketSize();
-    it->second.m_ac = StringToAcIndex(ac);
-    it->second.m_enqueueTime = Simulator::Now();
-    it->second.m_duration = item->GetHeader().GetDuration();
+    it->second.uid = uid;
+    it->second.packetSize = item->GetPacketSize();
+    it->second.ac = StringToAcIndex(ac);
+    it->second.enqueueTime = Simulator::Now();
+    it->second.duration = item->GetHeader().GetDuration();
 }
 
 void
@@ -168,12 +192,13 @@ SensingMac::NotifyPhyTxBegin(std::string context, Ptr<const Packet> p, double tx
     NS_LOG_FUNCTION(this << context << p << txPowerW);
 
     auto linkId = static_cast<uint8_t>(std::stoi(context));
-    auto it = m_selfPacketMap.find(p->GetUid());
-    if (it != m_selfPacketMap.end())
+    auto it = m_packetMap.find(p->GetUid());
+    if (it != m_packetMap.end())
     {
-        it->second.m_linkId = linkId;
-        it->second.m_phyTxTime.push_back(Simulator::Now());
-        it->second.m_txPowerW = txPowerW;
+        it->second.linkId = linkId;
+        it->second.phyTxTime.emplace_back(Simulator::Now());
+        it->second.txPowerW = txPowerW;
+        m_linkMap[linkId].packetList.emplace_back(p->GetUid());
     }
 }
 
@@ -183,10 +208,12 @@ SensingMac::NotifyAckedMpdu(Ptr<const WifiMpdu> mpdu)
     NS_LOG_FUNCTION(this << mpdu);
 
     auto uid = mpdu->GetPacket()->GetUid();
-    auto it = m_selfPacketMap.find(uid);
-    NS_ABORT_MSG_IF(it == m_selfPacketMap.cend(), "Packet with uid=" << uid << " not found");
+    auto it = m_packetMap.find(uid);
+    NS_ABORT_MSG_IF(it == m_packetMap.cend(), "Packet with uid=" << uid << " not found");
 
-    it->second.m_ackedTime = Simulator::Now();
+    it->second.ackedTime = Simulator::Now();
+
+    m_linkMap[it->second.linkId].lastTxOkTime = Simulator::Now();
 }
 
 void
@@ -194,11 +221,11 @@ SensingMac::WipeAllExpiredPackets()
 {
     NS_LOG_FUNCTION(this);
 
-    for (auto it = m_selfPacketMap.begin(); it != m_selfPacketMap.end();)
+    for (auto it = m_packetMap.begin(); it != m_packetMap.end();)
     {
-        if (Simulator::Now() - it->second.m_enqueueTime > m_duration)
+        if (Simulator::Now() - it->second.enqueueTime > m_duration)
         {
-            it = m_selfPacketMap.erase(it);
+            it = m_packetMap.erase(it);
         }
         else
         {
@@ -214,13 +241,19 @@ SensingMac::GetThptReq(Time period, AcIndex ac, uint8_t linkId) const
 
     NS_ASSERT(period < m_duration);
 
+    auto linkIt = m_linkMap.find(linkId);
+    NS_ASSERT_MSG(linkIt != m_linkMap.end(), "Link not found");
+
     double thptReq = 0;
-    for (const auto& [uid, info] : m_selfPacketMap)
+    for (auto uid : linkIt->second.packetList)
     {
-        if (info.m_ac == ac && info.m_linkId == linkId &&
-            Simulator::Now() - info.m_enqueueTime < period)
+        auto packetIt = m_packetMap.find(uid);
+        NS_ASSERT_MSG(packetIt != m_packetMap.end(), " Packet not found");
+
+        const auto& info = packetIt->second;
+        if (info.ac == ac && Simulator::Now() - info.enqueueTime < period)
         {
-            thptReq += info.m_packetSize;
+            thptReq += info.packetSize;
         }
     }
     return thptReq * 8e-6 / period.GetSeconds(); // Mbps
@@ -233,13 +266,20 @@ SensingMac::GetThpt(Time period, AcIndex ac, uint8_t linkId) const
 
     NS_ASSERT(period < m_duration);
 
+    auto linkIt = m_linkMap.find(linkId);
+    NS_ASSERT_MSG(linkIt != m_linkMap.end(), "Link not found");
+
     double thpt = 0;
-    for (const auto& [uid, info] : m_selfPacketMap)
+    for (const auto& uid : linkIt->second.packetList)
     {
-        if (info.m_ac == ac && info.m_linkId == linkId &&
-            Simulator::Now() - info.m_enqueueTime < period && info.m_ackedTime != Seconds(0))
+        auto packetIt = m_packetMap.find(uid);
+        NS_ASSERT_MSG(packetIt != m_packetMap.end(), " Packet not found");
+
+        const auto& info = packetIt->second;
+        if (info.ac == ac && Simulator::Now() - info.enqueueTime < period &&
+            info.ackedTime != Seconds(0))
         {
-            thpt += info.m_packetSize;
+            thpt += info.packetSize;
         }
     }
     return thpt * 8e-6 / period.GetSeconds(); // Mbps
@@ -252,14 +292,21 @@ SensingMac::GetDelay(Time period, AcIndex ac, uint8_t linkId) const
 
     NS_ASSERT(period < m_duration);
 
+    auto linkIt = m_linkMap.find(linkId);
+    NS_ASSERT_MSG(linkIt != m_linkMap.end(), "Link not found");
+
     Time delay = Seconds(0);
     double counter = 0;
-    for (const auto& [uid, info] : m_selfPacketMap)
+    for (const auto& uid : linkIt->second.packetList)
     {
-        if (info.m_ac == ac && info.m_linkId == linkId &&
-            Simulator::Now() - info.m_enqueueTime < period && info.m_ackedTime != Seconds(0))
+        auto packetIt = m_packetMap.find(uid);
+        NS_ASSERT_MSG(packetIt != m_packetMap.end(), " Packet not found");
+
+        const auto& info = packetIt->second;
+        if (info.ac == ac && Simulator::Now() - info.enqueueTime < period &&
+            info.ackedTime != Seconds(0))
         {
-            delay += info.m_ackedTime - info.m_enqueueTime;
+            delay += info.ackedTime - info.enqueueTime;
             counter++;
         }
     }

@@ -48,7 +48,8 @@ class PanlinkStaWifiMac : public StaWifiMac
 
   protected:
     friend class SensingMac;
-    
+
+    void DoInitialize() override;
     void DoDispose() override;
 
     /**

@@ -42,6 +42,19 @@ PanlinkStaWifiMac::~PanlinkStaWifiMac()
 }
 
 void 
+PanlinkStaWifiMac::DoInitialize()
+{
+    NS_LOG_FUNCTION(this);
+
+    if (m_sensingMac)
+    {
+        m_sensingMac->Initialize();
+    }
+
+    StaWifiMac::DoInitialize();
+}
+
+void 
 PanlinkStaWifiMac::DoDispose()
 {
     NS_LOG_FUNCTION(this);

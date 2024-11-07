@@ -45,7 +45,7 @@ class SensingMac : public Object
      *
      * \param duration the duration after which the data is considered stale
      */
-    void SetDuration(Time duration);
+    void SetMaxDuration(Time duration);
 
     /**
      * Handles received frames not matter the STA they are sent to.
@@ -64,16 +64,20 @@ class SensingMac : public Object
      */
     void NotifyLastTxOkSta(Mac48Address sta, uint8_t linkId);
 
+    /**
+     * The role for neighboring STAs.
+     */
     enum NeighborStaRole
     {
-        SELF = 0,
-        ASSOCIATED_AP,
-        ASSOCIATED_STA,
+        ASSOCIATED_AP = 0,
         BSS_STA,
         OBSS,
         UNKNOWN
     };
 
+    /**
+     * Information of the neighbor STAs.
+     */
     struct NeighborStaInfo
     {
         NeighborStaRole role{UNKNOWN};
@@ -82,6 +86,32 @@ class SensingMac : public Object
         std::map<Time /* Rx time */, Time /* duration */> channelUtil;
         double rssi;
     };
+
+    /**
+     * Get the time of the last successful transmission of this STA on the given link.
+     *
+     * \param linkId the link ID
+     */
+    Time GetSelfLastTxOk(uint8_t linkId) const;
+    /**
+     * Get the time of the last successful transmission of other STAs on the given link.
+     *
+     * \param linkId the link ID
+     */
+    Time GetOtherLastTxOk(uint8_t linkId) const;
+
+    /**
+     * Get the number of STAs in the same BSS on the given link.
+     *
+     * \param linkId the link ID
+     */
+    uint32_t GetNBssStas(uint8_t linkId) const;
+    /**
+     * Get the number of STAs belongs to OBSS on the given link.
+     *
+     * \param linkId the link ID
+     */
+    uint32_t GetNObssStas(uint8_t linkId) const;
 
     /**
      * Trace the packet that has been enqueued to the given AC MAC queue.
@@ -107,17 +137,29 @@ class SensingMac : public Object
      */
     void NotifyAckedMpdu(Ptr<const WifiMpdu> mpdu);
 
+    /**
+     * The information of the packets sent by this STA.
+     */
     struct SelfPacketInfo
     {
-        uint64_t m_uid;
-        uint32_t m_packetSize;
-        AcIndex m_ac;
-        uint8_t m_linkId;
-        Time m_enqueueTime;
-        Time m_duration;
-        Time m_ackedTime{Seconds(0)};
-        std::vector<Time> m_phyTxTime;
-        double m_txPowerW;
+        uint64_t uid;
+        uint32_t packetSize;
+        AcIndex ac;
+        uint8_t linkId;
+        Time enqueueTime;
+        Time duration;
+        Time ackedTime{Seconds(0)};
+        std::vector<Time> phyTxTime;
+        double txPowerW;
+    };
+
+    /**
+     * The channel utilization of this STA on the given link.
+     */
+    struct SelfLinkInfo
+    {
+        Time lastTxOkTime;
+        std::vector<uint64_t /* UID */> packetList;
     };
 
     /**
@@ -151,6 +193,7 @@ class SensingMac : public Object
     double GetDelay(Time period, AcIndex ac, uint8_t linkId = SINGLE_LINK_OP_ID) const;
 
   protected:
+    void DoInitialize() override;
     void DoDispose() override;
 
     /**
@@ -161,8 +204,10 @@ class SensingMac : public Object
   private:
     Ptr<WifiMac> m_mac; //!< associated MAC
     Time m_duration;    //!< maximum duration of the data stored
-    std::map<uint64_t /* UID */, SelfPacketInfo> m_selfPacketMap;
-    std::unordered_map<Mac48Address, NeighborStaInfo, WifiAddressHash> m_neighborStaMap;
+    std::map<uint64_t /* UID */, SelfPacketInfo> m_packetMap; //!< packets sent by this STA
+    std::map<uint8_t, SelfLinkInfo> m_linkMap; //!< each link's channel utilization of this STA
+    std::unordered_map<Mac48Address, NeighborStaInfo, WifiAddressHash>
+        m_neighborStaMap; //!< channel utilization of neighbor STAs
 };
 
 } // namespace ns3
