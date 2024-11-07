@@ -87,6 +87,9 @@ PanlinkStaWifiMac::SetSensingMac(const Ptr<SensingMac> sensingMac)
         link->phy->TraceConnect("PhyTxBegin",
                                 std::to_string(id),
                                 MakeCallback(&SensingMac::NotifyPhyTxBegin, m_sensingMac));
+        link->phy->TraceConnect("PhyTxEnd",
+                                std::to_string(id),
+                                MakeCallback(&SensingMac::NotifyPhyTxEnd, m_sensingMac));
     }
 }
 

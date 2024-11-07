@@ -30,7 +30,14 @@ PanlinkMacHelper::Create(Ptr<WifiNetDevice> device, WifiStandard standard) const
 {
     auto mac = WifiMacHelper::Create(device, standard);
 
+    if (m_mac.GetTypeId() != PanlinkStaWifiMac::GetTypeId())
+    // && m_mac.GetTypeId() != PanlinkApWifiMac::GetTypeId())
+    {
+        return mac;
+    }
+
     auto sensingMac = m_sensingMac.Create<SensingMac>();
+    sensingMac->SetWifiMac(mac);
     for (uint8_t linkId = 0; linkId < mac->GetNLinks(); ++linkId)
     {
         auto fem = mac->GetFrameExchangeManager(linkId);
@@ -40,6 +47,7 @@ PanlinkMacHelper::Create(Ptr<WifiNetDevice> device, WifiStandard standard) const
         }
     }
 
+    std::cout << "checkpoint" << std::endl;
     // if (auto apMac = DynamicCast<PanlinkApWifiMac>(mac))
     // {
     //   apMac->SetSensingMac(sensingMac);

@@ -196,10 +196,22 @@ SensingMac::NotifyPhyTxBegin(std::string context, Ptr<const Packet> p, double tx
     if (it != m_packetMap.end())
     {
         it->second.linkId = linkId;
-        it->second.phyTxTime.emplace_back(Simulator::Now());
+        it->second.txCounter++;
         it->second.txPowerW = txPowerW;
-        m_linkMap[linkId].packetList.emplace_back(p->GetUid());
     }
+
+    m_linkMap[linkId].channelUtil.push_back({Simulator::Now(), Seconds(0)});
+}
+
+void
+SensingMac::NotifyPhyTxEnd(std::string context, Ptr<const Packet> p)
+{
+    NS_LOG_FUNCTION(this << context << p);
+
+    auto linkId = static_cast<uint8_t>(std::stoi(context));
+    auto& lastPacket = m_linkMap[linkId].channelUtil.back();
+    NS_ASSERT(lastPacket.second == Seconds(0));
+    lastPacket.second = Simulator::Now();
 }
 
 void
@@ -242,17 +254,10 @@ SensingMac::GetThptReq(Time period, AcIndex ac, uint8_t linkId) const
     NS_ASSERT(period > Seconds(0));
     NS_ASSERT_MSG(period <= m_duration, "Period surpass maximum duration");
 
-    auto linkIt = m_linkMap.find(linkId);
-    NS_ASSERT_MSG(linkIt != m_linkMap.end(), "Link not found");
-
     double thptReq = 0;
-    for (auto uid : linkIt->second.packetList)
+    for (const auto& [uid, info] : m_packetMap)
     {
-        auto packetIt = m_packetMap.find(uid);
-        NS_ASSERT_MSG(packetIt != m_packetMap.end(), " Packet not found");
-
-        const auto& info = packetIt->second;
-        if (info.ac == ac && Simulator::Now() - info.enqueueTime < period)
+        if (info.ac == ac && info.linkId == linkId && info.enqueueTime >= Simulator::Now() - period)
         {
             thptReq += info.packetSize;
         }
@@ -269,18 +274,11 @@ SensingMac::GetThpt(Time period, AcIndex ac, uint8_t linkId) const
     NS_ASSERT(period > Seconds(0));
     NS_ASSERT_MSG(period <= m_duration, "Period surpass maximum duration");
 
-    auto linkIt = m_linkMap.find(linkId);
-    NS_ASSERT_MSG(linkIt != m_linkMap.end(), "Link not found");
-
     double thpt = 0;
-    for (const auto& uid : linkIt->second.packetList)
+    for (const auto& [uid, info] : m_packetMap)
     {
-        auto packetIt = m_packetMap.find(uid);
-        NS_ASSERT_MSG(packetIt != m_packetMap.end(), " Packet not found");
-
-        const auto& info = packetIt->second;
-        if (info.ac == ac && Simulator::Now() - info.enqueueTime < period &&
-            info.ackedTime != Seconds(0))
+        if (info.ac == ac && info.linkId == linkId &&
+            info.enqueueTime >= Simulator::Now() - period && info.ackedTime != Seconds(0))
         {
             thpt += info.packetSize;
         }
@@ -297,19 +295,12 @@ SensingMac::GetDelay(Time period, AcIndex ac, uint8_t linkId) const
     NS_ASSERT(period > Seconds(0));
     NS_ASSERT_MSG(period <= m_duration, "Period surpass maximum duration");
 
-    auto linkIt = m_linkMap.find(linkId);
-    NS_ASSERT_MSG(linkIt != m_linkMap.end(), "Link not found");
-
     Time delay = Seconds(0);
     double counter = 0;
-    for (const auto& uid : linkIt->second.packetList)
+    for (const auto& [uid, info] : m_packetMap)
     {
-        auto packetIt = m_packetMap.find(uid);
-        NS_ASSERT_MSG(packetIt != m_packetMap.end(), " Packet not found");
-
-        const auto& info = packetIt->second;
-        if (info.ac == ac && Simulator::Now() - info.enqueueTime < period &&
-            info.ackedTime != Seconds(0))
+        if (info.ac == ac && info.linkId == linkId &&
+            info.enqueueTime >= Simulator::Now() - period && info.ackedTime != Seconds(0))
         {
             delay += info.ackedTime - info.enqueueTime;
             counter++;
@@ -319,7 +310,7 @@ SensingMac::GetDelay(Time period, AcIndex ac, uint8_t linkId) const
     return counter == 0 ? 0 : delay.ToDouble(Time::MS) / counter; // ms
 }
 
-double 
+double
 SensingMac::GetMinBssRssi(uint8_t linkId) const
 {
     NS_LOG_FUNCTION(this << linkId);
@@ -430,21 +421,13 @@ SensingMac::GetSelfChannelUtil(Time period, uint8_t linkId) const
     Time left = Simulator::Now() - period;
     Time right = Simulator::Now();
     std::vector<std::pair<Time, Time>> segments;
-    for (const auto& uid : linkIt->second.packetList)
+    for (const auto& [begin, end] : linkIt->second.channelUtil)
     {
-        auto packetIt = m_packetMap.find(uid);
-        NS_ASSERT_MSG(packetIt == m_packetMap.end(), "Packet not found");
-
-        const auto& info = packetIt->second;
-        for (auto txTime : info.phyTxTime)
+        if (end <= left)
         {
-            auto rxTime = txTime + info.duration;
-            if (rxTime < left)
-            {
-                continue;
-            }
-            segments.emplace_back(std::make_pair(std::max(left, txTime), std::min(right, rxTime)));
+            continue;
         }
+        segments.emplace_back(std::make_pair(std::max(left, begin), std::min(right, end)));
     }
 
     // Sort the segments by txTime
@@ -457,7 +440,7 @@ SensingMac::GetSelfChannelUtil(Time period, uint8_t linkId) const
     Time prevRxTime = left;
     for (const auto& [begin, end] : segments)
     {
-        if (end < prevRxTime)
+        if (end <= prevRxTime)
         {
             continue;
         }
@@ -468,7 +451,7 @@ SensingMac::GetSelfChannelUtil(Time period, uint8_t linkId) const
     return channelUtil / period.GetSeconds();
 }
 
-double 
+double
 SensingMac::GetOtherChannelUtil(Time period, uint8_t linkId) const
 {
     NS_LOG_FUNCTION(this << period << linkId);
@@ -487,14 +470,14 @@ SensingMac::GetOtherChannelUtil(Time period, uint8_t linkId) const
             continue;
         }
 
-        for (auto [rxTime, duration] : sta.channelUtil)
+        for (auto [end, duration] : sta.channelUtil)
         {
-            auto txTime = rxTime + duration;
-            if (rxTime < left)
+            auto begin = end - duration;
+            if (end <= left)
             {
                 continue;
             }
-            segments.emplace_back(std::make_pair(std::max(left, txTime), std::min(right, rxTime)));
+            segments.emplace_back(std::make_pair(std::max(left, begin), std::min(right, end)));
         }
     }
 
@@ -508,7 +491,7 @@ SensingMac::GetOtherChannelUtil(Time period, uint8_t linkId) const
     Time prevRxTime = left;
     for (const auto& [begin, end] : segments)
     {
-        if (end < prevRxTime)
+        if (end <= prevRxTime)
         {
             continue;
         }

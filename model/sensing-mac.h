@@ -83,7 +83,7 @@ class SensingMac : public Object
         NeighborStaRole role{UNKNOWN};
         uint8_t linkId;
         Time lastTxOkTime;
-        std::map<Time /* Rx time */, Time /* duration */> channelUtil;
+        std::map<Time /* Rx End */, Time /* duration */> channelUtil;
         double rssi;
     };
 
@@ -159,6 +159,15 @@ class SensingMac : public Object
     void NotifyPhyTxBegin(std::string context, Ptr<const Packet> p, double txPowerW);
 
     /**
+     * Trace the packet that finished transmission by wifi PHY.
+     *
+     * \param context the string contains link ID
+     * \param packet the sent packet
+     * \param txPowerW the transmission power
+     */
+    void NotifyPhyTxEnd(std::string context, Ptr<const Packet> p);
+
+    /**
      * Handles frames comes from WifiMac::m_ackedMpduCallback.
      *
      * \param mpdu the MPDU
@@ -177,7 +186,7 @@ class SensingMac : public Object
         Time enqueueTime;
         Time duration;
         Time ackedTime{Seconds(0)};
-        std::vector<Time> phyTxTime;
+        uint32_t txCounter{0};
         double txPowerW;
     };
 
@@ -187,7 +196,7 @@ class SensingMac : public Object
     struct SelfLinkInfo
     {
         Time lastTxOkTime;
-        std::vector<uint64_t /* UID */> packetList;
+        std::vector<std::pair<Time /* Tx Begin */, Time /* Tx End */>> channelUtil;
     };
 
     /**
