@@ -35,7 +35,6 @@ class CcaEnvAgent : public EnvAgent
 
     struct CcaModuleObs : public ModuleObs
     {
-        double apRssi;
         double bssRssi;
         double obssRssi;
     };

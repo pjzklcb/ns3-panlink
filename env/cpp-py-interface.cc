@@ -56,12 +56,14 @@ PYBIND11_MODULE(cpp_py_interface, m)
         .def_readwrite("thptReq", &Obs::thptReq)
         .def_readwrite("delay", &Obs::delay)
         .def_readwrite("delayReq", &Obs::delayReq)
-        .def_readwrite("apRssi", &Obs::apRssi)
-        .def_readwrite("apTxPower", &Obs::apTxPower)
+        .def_readwrite("selfD2lt", &Obs::selfD2lt)
+        .def_readwrite("selfChannelUtil", &Obs::selfChannelUtil)
+        .def_readwrite("nBssStas", &Obs::nBssStas)
+        .def_readwrite("nObssStas", &Obs::nObssStas)
         .def_readwrite("bssRssi", &Obs::bssRssi)
-        .def_readwrite("bssTxPower", &Obs::bssTxPower)
         .def_readwrite("obssRssi", &Obs::obssRssi)
-        .def_readwrite("obssTxPower", &Obs::obssTxPower);
+        .def_readwrite("otherD2lt", &Obs::otherD2lt)
+        .def_readwrite("otherChannelUtil", &Obs::otherChannelUtil);
 
     py::class_<Act>(m, "PyActStruct")
         .def(py::init<>())

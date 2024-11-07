@@ -55,7 +55,6 @@ CcaEnvAgent::GetModuleObs(Time period) const
     auto obs = EnvAgent::GetModuleObs(period);
     auto ccaObs = static_cast<CcaModuleObs>(obs);
     
-    ccaObs.apRssi = 0;
     ccaObs.bssRssi = 0;
     ccaObs.obssRssi = 0;
 
@@ -73,7 +72,6 @@ CcaEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, ModuleObs&
 
     auto& env = msgInterface->GetCpp2PyVector()->at(m_memoryId);
     env.agentType = RL_CCA_SENSITIVITY;
-    env.apRssi = ccaObs.apRssi;
     env.bssRssi = ccaObs.bssRssi;
     env.obssRssi = ccaObs.obssRssi;
 }

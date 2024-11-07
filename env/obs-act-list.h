@@ -26,14 +26,16 @@ struct Obs
     std::array<double, 4> thptReq;  // {AC_BE, AC_BK, AC_VI, AC_VO}
     std::array<double, 4> delay;
     std::array<double, 4> delayReq;
+    double selfD2lt;
+    double selfChannelUtil;
 
     // neighbor
-    double apRssi;
-    double apTxPower;
+    uint32_t nBssStas;
+    uint32_t nObssStas;
     double bssRssi;
-    double bssTxPower;
     double obssRssi;
-    double obssTxPower;
+    double otherD2lt;
+    double otherChannelUtil;
 };
 
 struct Act
