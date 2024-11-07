@@ -239,7 +239,8 @@ SensingMac::GetThptReq(Time period, AcIndex ac, uint8_t linkId) const
 {
     NS_LOG_FUNCTION(this << period << ac << linkId);
 
-    NS_ASSERT(period < m_duration);
+    NS_ASSERT(period > Seconds(0));
+    NS_ASSERT_MSG(period <= m_duration, "Period surpass maximum duration");
 
     auto linkIt = m_linkMap.find(linkId);
     NS_ASSERT_MSG(linkIt != m_linkMap.end(), "Link not found");
@@ -264,7 +265,8 @@ SensingMac::GetThpt(Time period, AcIndex ac, uint8_t linkId) const
 {
     NS_LOG_FUNCTION(this << period << ac << linkId);
 
-    NS_ASSERT(period < m_duration);
+    NS_ASSERT(period > Seconds(0));
+    NS_ASSERT_MSG(period <= m_duration, "Period surpass maximum duration");
 
     auto linkIt = m_linkMap.find(linkId);
     NS_ASSERT_MSG(linkIt != m_linkMap.end(), "Link not found");
@@ -290,7 +292,8 @@ SensingMac::GetDelay(Time period, AcIndex ac, uint8_t linkId) const
 {
     NS_LOG_FUNCTION(this << period << ac << linkId);
 
-    NS_ASSERT(period < m_duration);
+    NS_ASSERT(period > Seconds(0));
+    NS_ASSERT_MSG(period <= m_duration, "Period surpass maximum duration");
 
     auto linkIt = m_linkMap.find(linkId);
     NS_ASSERT_MSG(linkIt != m_linkMap.end(), "Link not found");
@@ -311,6 +314,172 @@ SensingMac::GetDelay(Time period, AcIndex ac, uint8_t linkId) const
         }
     }
     return counter == 0 ? 0 : delay.ToDouble(Time::MS) / counter; // ms
+}
+
+Time
+SensingMac::GetSelfLastTxOk(uint8_t linkId) const
+{
+    NS_LOG_FUNCTION(this << linkId);
+
+    auto linkIt = m_linkMap.find(linkId);
+    NS_ASSERT_MSG(linkIt != m_linkMap.end(), "Link not found");
+
+    return linkIt->second.lastTxOkTime;
+}
+
+Time
+SensingMac::GetOtherLastTxOk(uint8_t linkId) const
+{
+    NS_LOG_FUNCTION(this << linkId);
+
+    Time lastTxOkTime = Seconds(0);
+    for (auto& [_, sta] : m_neighborStaMap)
+    {
+        if (sta.linkId == linkId)
+        {
+            lastTxOkTime = std::max(lastTxOkTime, sta.lastTxOkTime);
+        }
+    }
+
+    return lastTxOkTime;
+}
+
+uint32_t
+SensingMac::GetNBssStas(uint8_t linkId) const
+{
+    NS_LOG_FUNCTION(this << linkId);
+
+    uint32_t nStas = 0;
+    for (auto& [_, sta] : m_neighborStaMap)
+    {
+        if (sta.linkId == linkId && sta.role == BSS_STA)
+        {
+            nStas++;
+        }
+    }
+
+    return nStas;
+}
+
+uint32_t
+SensingMac::GetNObssStas(uint8_t linkId) const
+{
+    NS_LOG_FUNCTION(this << linkId);
+
+    uint32_t nStas = 0;
+    for (auto& [_, sta] : m_neighborStaMap)
+    {
+        if (sta.linkId == linkId && sta.role == OBSS)
+        {
+            nStas++;
+        }
+    }
+
+    return nStas;
+}
+
+double
+SensingMac::GetSelfChannelUtil(Time period, uint8_t linkId) const
+{
+    NS_LOG_FUNCTION(this << period << linkId);
+
+    NS_ASSERT(period > Seconds(0));
+    NS_ASSERT_MSG(period <= m_duration, "Period surpass maximum duration");
+
+    auto linkIt = m_linkMap.find(linkId);
+    NS_ASSERT_MSG(linkIt != m_linkMap.end(), "Link not found");
+
+    // Get the segements in the period
+    Time left = Simulator::Now() - period;
+    Time right = Simulator::Now();
+    std::vector<std::pair<Time, Time>> segments;
+    for (const auto& uid : linkIt->second.packetList)
+    {
+        auto packetIt = m_packetMap.find(uid);
+        NS_ASSERT_MSG(packetIt == m_packetMap.end(), "Packet not found");
+
+        const auto& info = packetIt->second;
+        for (auto txTime : info.phyTxTime)
+        {
+            auto rxTime = txTime + info.duration;
+            if (rxTime < left)
+            {
+                continue;
+            }
+            segments.emplace_back(std::make_pair(std::max(left, txTime), std::min(right, rxTime)));
+        }
+    }
+
+    // Sort the segments by txTime
+    std::sort(segments.begin(), segments.end(), [](const auto& a, const auto& b) {
+        return a.first < b.first;
+    });
+
+    // Calculate channel utilization
+    double channelUtil = 0;
+    Time prevRxTime = left;
+    for (const auto& [left, right] : segments)
+    {
+        if (right < prevRxTime)
+        {
+            continue;
+        }
+        channelUtil += (right - prevRxTime).GetSeconds();
+        prevRxTime = right;
+    }
+
+    return channelUtil / period.GetSeconds();
+}
+
+double 
+SensingMac::GetOtherChannelUtil(Time period, uint8_t linkId) const
+{
+    NS_LOG_FUNCTION(this << period << linkId);
+
+    NS_ASSERT(period > Seconds(0));
+    NS_ASSERT_MSG(period <= m_duration, "Period surpass maximum duration");
+
+    // Get the segements in the period
+    Time left = Simulator::Now() - period;
+    Time right = Simulator::Now();
+    std::vector<std::pair<Time, Time>> segments;
+    for (const auto& [_, sta] : m_neighborStaMap)
+    {
+        if (sta.linkId != linkId)
+        {
+            continue;
+        }
+
+        for (auto [rxTime, duration] : sta.channelUtil)
+        {
+            auto txTime = rxTime + duration;
+            if (rxTime < left)
+            {
+                continue;
+            }
+            segments.emplace_back(std::make_pair(std::max(left, txTime), std::min(right, rxTime)));
+        }
+    }
+
+    // Sort the segments by txTime
+    std::sort(segments.begin(), segments.end(), [](const auto& a, const auto& b) {
+        return a.first < b.first;
+    });
+
+    // Calculate channel utilization
+    double channelUtil = 0;
+    Time prevRxTime = left;
+    for (const auto& [left, right] : segments)
+    {
+        if (right < prevRxTime)
+        {
+            continue;
+        }
+        channelUtil += (right - prevRxTime).GetSeconds();
+        prevRxTime = right;
+    }
+
+    return channelUtil / period.GetSeconds();
 }
 
 } // namespace ns3

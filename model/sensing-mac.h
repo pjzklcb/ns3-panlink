@@ -114,6 +114,21 @@ class SensingMac : public Object
     uint32_t GetNObssStas(uint8_t linkId) const;
 
     /**
+     * Get the channel utilization of previous period of this STA on the given link.
+     * 
+     * \param period the period of time
+     * \param linkId the link ID
+     */
+    double GetSelfChannelUtil(Time period, uint8_t linkId) const;
+    /**
+     * Get the channel utilization of previous period of other STAs on the given link.
+     * 
+     * \param period the period of time
+     * \param linkId the link ID
+     */
+    double GetOtherChannelUtil(Time period, uint8_t linkId) const;
+
+    /**
      * Trace the packet that has been enqueued to the given AC MAC queue.
      *
      * \param ac the AC of the MacQueue
