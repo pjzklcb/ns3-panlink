@@ -9,11 +9,12 @@
 #ifndef SENSING_MAC_H
 #define SENSING_MAC_H
 
+#include "panlink-sta-wifi-mac.h"
+
 #include "ns3/mac48-address.h"
 #include "ns3/nstime.h"
 #include "ns3/object.h"
 #include "ns3/packet.h"
-#include "ns3/wifi-mac.h"
 
 namespace ns3
 {
@@ -49,12 +50,11 @@ class SensingMac : public Object
     /**
      * Handles received frames not matter the STA they are sent to.
      *
-     * \param sender the MAC address of the sender
+     * \param hdr the MAC header of the frame
      * \param rssi the RSSI of the frame
-     * \param duration the duration of the frame
      * \param linkId the ID of the link
      */
-    void NotifyFrameInfo(Mac48Address sender, double rssi, Time duration, uint8_t linkId);
+    void NotifyFrameInfo(const WifiMacHeader& hdr, double rssi, uint8_t linkId);
 
     /**
      * Record the STA whose last transmission was successful.
@@ -68,16 +68,18 @@ class SensingMac : public Object
     {
         SELF = 0,
         ASSOCIATED_AP,
+        ASSOCIATED_STA,
         BSS_STA,
-        OBSS
+        OBSS,
+        UNKNOWN
     };
 
     struct NeighborStaInfo
     {
-        NeighborStaRole role;
+        NeighborStaRole role{UNKNOWN};
         uint8_t linkId;
         Time lastTxOkTime;
-        Time lastTxDuration;
+        std::map<Time /* Rx time */, Time /* duration */> channelUtil;
         double rssi;
     };
 

@@ -36,6 +36,8 @@ SensingMac::GetTypeId()
 SensingMac::SensingMac()
 {
     NS_LOG_FUNCTION(this);
+
+    m_neighborStaMap[m_mac->GetAddress()] = {.role = SELF, .linkId = 0, .rssi = 0};
 }
 
 SensingMac::~SensingMac()
@@ -65,22 +67,58 @@ SensingMac::SetDuration(Time duration)
 }
 
 void
-SensingMac::NotifyFrameInfo(Mac48Address sender, double rssi, Time duration, uint8_t linkId)
+SensingMac::NotifyFrameInfo(const WifiMacHeader& hdr, double rssi, uint8_t linkId)
 {
-    NS_LOG_FUNCTION(this << sender << rssi << duration);
+    NS_LOG_FUNCTION(this << hdr << rssi << linkId);
+
+    Mac48Address sender = hdr.GetAddr2();
+    Mac48Address receiver = hdr.GetAddr1();
+
+    // Recognize the role of the sender
+    NeighborStaRole role = UNKNOWN;
+    if (m_mac->GetTypeOfStation() == STA)
+    {
+        auto staMac = DynamicCast<PanlinkStaWifiMac>(m_mac);
+        if (staMac->IsAssociated())
+        {
+            auto apAddr = staMac->GetLink(linkId).bssid;
+            if (sender == apAddr)
+            {
+                role = ASSOCIATED_AP;
+            }
+            else if (receiver == apAddr)
+            {
+                role = BSS_STA;
+            }
+            else
+            {
+                role = OBSS;
+            }
+        }
+    }
 
     auto it = m_neighborStaMap.find(sender);
     if (it != m_neighborStaMap.end())
     {
         NS_ASSERT(it->second.linkId == linkId);
-        it->second.lastTxDuration = duration;
+
+        if (it->second.role == UNKNOWN)
+        {
+            it->second.role = role;
+        }
+        else
+        {
+            NS_ASSERT(it->second.role == role);
+        }
+        it->second.channelUtil[Simulator::Now()] = hdr.GetDuration();
         it->second.rssi = rssi;
     }
     else
     {
         NeighborStaInfo info;
+        info.role = role;
         info.linkId = linkId;
-        info.lastTxDuration = duration;
+        info.channelUtil[Simulator::Now()] = hdr.GetDuration();
         info.rssi = rssi;
         m_neighborStaMap[sender] = info;
     }
@@ -94,7 +132,7 @@ SensingMac::NotifyLastTxOkSta(Mac48Address sta, uint8_t linkId)
     auto it = m_neighborStaMap.find(sta);
     if (it != m_neighborStaMap.end())
     {
-        NS_ASSERT(it->second.linkId == linkId);
+        NS_ASSERT(it->second.role != SELF && it->second.linkId == linkId);
         it->second.lastTxOkTime = Simulator::Now();
     }
     else

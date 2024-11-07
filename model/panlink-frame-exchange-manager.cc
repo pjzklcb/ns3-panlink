@@ -78,11 +78,8 @@ PanlinkFrameExchangeManager::Receive(Ptr<const WifiPsdu> psdu,
     if (!hdr.IsAck() && !hdr.IsCts() && !hdr.IsRts())
     {
         // Ack and CTS do not carry Addr2, the duration of CTS and RTS contains PPDU's length
-        Mac48Address sender = psdu->GetAddr2();
         double rssi = rxSignalInfo.rssi;
-        Time duration = psdu->GetDuration();
-
-        m_sensingMac->NotifyFrameInfo(sender, rssi, duration, m_linkId);
+        m_sensingMac->NotifyFrameInfo(hdr, rssi, m_linkId);
     }
 }
 

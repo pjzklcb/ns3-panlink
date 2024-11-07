@@ -9,14 +9,13 @@
 #ifndef PANLINK_STA_WIFI_MAC_H
 #define PANLINK_STA_WIFI_MAC_H
 
-#include "sensing-mac.h"
-
 #include "ns3/sta-wifi-mac.h"
 
 namespace ns3
 {
 
 class FrameExchangeManager;
+class SensingMac;
 
 /**
  * \ingroup panlink
@@ -48,8 +47,10 @@ class PanlinkStaWifiMac : public StaWifiMac
     Ptr<SensingMac> GetSensingMac() const;
 
   protected:
-    void DoDispose() override;
+    friend class SensingMac;
     
+    void DoDispose() override;
+
     /**
      * Structure holding information specific to a single link. Here, the meaning of
      * "link" is that of the 11be amendment which introduced multi-link devices. For
