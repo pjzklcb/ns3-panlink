@@ -41,6 +41,20 @@ PanlinkStaWifiMac::~PanlinkStaWifiMac()
     NS_LOG_FUNCTION(this);
 }
 
+void 
+PanlinkStaWifiMac::DoDispose()
+{
+    NS_LOG_FUNCTION(this);
+
+    if (m_sensingMac)
+    {
+        m_sensingMac->Dispose();
+    }
+    m_sensingMac = nullptr;
+
+    StaWifiMac::DoDispose();
+}
+
 void
 PanlinkStaWifiMac::SetSensingMac(const Ptr<SensingMac> sensingMac)
 {

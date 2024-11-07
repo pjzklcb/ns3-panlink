@@ -13,7 +13,7 @@ Modified Files
 The following files have been modified:
 
 * :file:`frame-exchange-manager.h` - Make FrameExchangeManager::Receive virtual
-* :file:`file2.txt` - Brief description of changes made to file2.txt
+* :file:`sta-wifi-mac.h` - Make some private methods protected
 * :file:`file3.cpp` - Brief description of changes made to file3.cpp
 
 .. note::
@@ -27,10 +27,10 @@ File Details
 * :ref:`frame-exchange-manager.h <src/wifi/model/frame-exchange-manager.h>` 
    - Modify FrameExchangeManager to make the Receive method virtual. This change enables the PanlinkFrameExchangeManager to override the Receive method, allowing it to collect and process all received frames, regardless of whether they are addressed to the current device.
 
-### file2.txt
+### sta-wifi-mac.h
 
-* :ref:`file2.txt <file2_txt>` 
-   - Detailed description of changes made to file2.txt
+* :ref:`sta-wifi-mac.h <src/wifi/model/sta-wifi-mac.h>` 
+   - Make two private methods DoDispose and DoIntialize protected, so that they can be override in the derived classes.
 
 ### file3.cpp
 

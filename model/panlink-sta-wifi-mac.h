@@ -48,6 +48,8 @@ class PanlinkStaWifiMac : public StaWifiMac
     Ptr<SensingMac> GetSensingMac() const;
 
   protected:
+    void DoDispose() override;
+    
     /**
      * Structure holding information specific to a single link. Here, the meaning of
      * "link" is that of the 11be amendment which introduced multi-link devices. For
