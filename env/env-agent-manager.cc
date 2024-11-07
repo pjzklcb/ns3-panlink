@@ -133,7 +133,7 @@ EnvAgentManager::ScheduleInfoExchange(uint32_t nodeId, AgentType type, Time peri
 {
     NS_LOG_FUNCTION(this << nodeId << type << period);
 
-    auto obs = GetEnvAgent(nodeId, type)->GetModuleObs(period);
+    auto obs = EnvAgent::ModuleObs();
     DoEnvInfoExchange(nodeId, type, obs);
 
     // Periodically trigger information exchange

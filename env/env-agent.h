@@ -107,19 +107,13 @@ class EnvAgent : public Object
      */
     Ptr<SensingMac> GetSensingMac() const;
 
+    /**
+     * The observation from module.
+     */
     struct ModuleObs
     {
-        std::array<double, 4> thptReq; //!< the required throughput
-        std::array<double, 4> thpt;    //!< the actual throughput
-        std::array<double, 4> delay;   //!< the average delay
+        uint8_t linkId{0};
     };
-
-    /**
-     * Get the observation of the module.
-     *
-     * \param period the obs collection period
-     */
-    virtual ModuleObs GetModuleObs(Time period) const;
 
     /**
      * Get the observation of environment.

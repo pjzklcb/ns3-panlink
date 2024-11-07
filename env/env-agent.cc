@@ -170,26 +170,6 @@ EnvAgent::GetSensingMac() const
     return 0;
 }
 
-EnvAgent::ModuleObs
-EnvAgent::GetModuleObs(Time period) const
-{
-    NS_LOG_FUNCTION(this << period);
-
-    ModuleObs obs;
-
-    auto sensingMac = GetSensingMac();
-    int i = 0;
-    for (const auto& ac : {AC_BE, AC_BK, AC_VI, AC_VO})
-    {
-        obs.thptReq[i] = sensingMac->GetThptReq(period, ac);
-        obs.thpt[i] = sensingMac->GetThpt(period, ac);
-        obs.delay[i] = sensingMac->GetDelay(period, ac);
-        i++;
-    }
-
-    return obs;
-}
-
 void
 EnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, ModuleObs& obs)
 {
@@ -205,10 +185,23 @@ EnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, ModuleObs& ob
     env.agentType = m_type;
     env.counter = m_counter;
     env.simTime = now.GetSeconds();
-    env.thptReq = obs.thptReq;
-    env.thpt = obs.thpt;
-    env.delayReq = std::array<double, 4>{30, 30, 30, 30};
-    env.delay = obs.delay;
+
+    // Get obs from sensing MAC
+    auto sensingMac = GetSensingMac();
+    auto linkId = obs.linkId;
+    int i = 0;
+    for (const auto& ac : {AC_BE, AC_BK, AC_VI, AC_VO})
+    {
+        env.thptReq[i] = sensingMac->GetThptReq(m_period, ac);
+        env.thpt[i] = sensingMac->GetThpt(m_period, ac);
+        env.delayReq[i] = 30; //ms
+        env.delay[i] = sensingMac->GetDelay(m_period, ac);
+        i++;
+    }
+    env.nBssStas = sensingMac->GetNBssStas(linkId);
+    env.nObssStas = sensingMac->GetNObssStas(linkId);
+    env.selfChannelUtil = sensingMac->GetSelfChannelUtil(m_period, linkId);
+    env.otherChannelUtil = sensingMac->GetOtherChannelUtil(m_period, linkId);
 }
 
 void

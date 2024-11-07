@@ -33,13 +33,6 @@ class CcaEnvAgent : public EnvAgent
 
     CcaEnvAgent(Ptr<Node> node, uint32_t memoryId);
 
-    struct CcaModuleObs : public ModuleObs
-    {
-        double bssRssi;
-        double obssRssi;
-    };
-
-    ModuleObs GetModuleObs(Time period) const override;
     void GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, ModuleObs& obs) override;
     void SetEnvAct(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface) override;
 

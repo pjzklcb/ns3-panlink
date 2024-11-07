@@ -47,20 +47,6 @@ CcaEnvAgent::CcaEnvAgent(Ptr<Node> node, uint32_t memoryId)
     m_type = RL_CCA_SENSITIVITY;
 }
 
-EnvAgent::ModuleObs
-CcaEnvAgent::GetModuleObs(Time period) const
-{
-    NS_LOG_FUNCTION(this << period);
-
-    auto obs = EnvAgent::GetModuleObs(period);
-    auto ccaObs = static_cast<CcaModuleObs>(obs);
-    
-    ccaObs.bssRssi = 0;
-    ccaObs.obssRssi = 0;
-
-    return ccaObs;
-}
-
 void
 CcaEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, ModuleObs& obs)
 {
@@ -68,12 +54,14 @@ CcaEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, ModuleObs&
 
     EnvAgent::GetEnvObs(msgInterface, obs);
 
-    auto ccaObs = static_cast<CcaModuleObs>(obs);
-
     auto& env = msgInterface->GetCpp2PyVector()->at(m_memoryId);
     env.agentType = RL_CCA_SENSITIVITY;
-    env.bssRssi = ccaObs.bssRssi;
-    env.obssRssi = ccaObs.obssRssi;
+
+    // Get obs from sensing MAC
+    auto sensingMac = GetSensingMac();
+    auto linkId = obs.linkId;
+    env.bssRssi = sensingMac->GetMinBssRssi(linkId);
+    env.obssRssi = sensingMac->GetMaxObssRssi(linkId);
 }
 
 void
