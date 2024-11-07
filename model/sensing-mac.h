@@ -88,6 +88,19 @@ class SensingMac : public Object
     };
 
     /**
+     * Get the minimum RSSI of BSS STAs on the given link.
+     * 
+     * \param linkId the link ID
+     */
+    double GetMinBssRssi(uint8_t linkId) const;
+    /**
+     * Get the maximum RSSI of OBSS STAs on the given link.
+     * 
+     * \param linkId the link ID
+     */
+    double GetMaxObssRssi(uint8_t linkId) const;
+
+    /**
      * Get the time of the last successful transmission of this STA on the given link.
      *
      * \param linkId the link ID

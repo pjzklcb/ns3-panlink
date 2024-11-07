@@ -257,6 +257,7 @@ SensingMac::GetThptReq(Time period, AcIndex ac, uint8_t linkId) const
             thptReq += info.packetSize;
         }
     }
+
     return thptReq * 8e-6 / period.GetSeconds(); // Mbps
 }
 
@@ -284,6 +285,7 @@ SensingMac::GetThpt(Time period, AcIndex ac, uint8_t linkId) const
             thpt += info.packetSize;
         }
     }
+
     return thpt * 8e-6 / period.GetSeconds(); // Mbps
 }
 
@@ -313,7 +315,42 @@ SensingMac::GetDelay(Time period, AcIndex ac, uint8_t linkId) const
             counter++;
         }
     }
+
     return counter == 0 ? 0 : delay.ToDouble(Time::MS) / counter; // ms
+}
+
+double 
+SensingMac::GetMinBssRssi(uint8_t linkId) const
+{
+    NS_LOG_FUNCTION(this << linkId);
+
+    double rssi = 0;
+    for (auto& [_, sta] : m_neighborStaMap)
+    {
+        if (sta.linkId == linkId && (sta.role == ASSOCIATED_AP || sta.role == BSS_STA))
+        {
+            rssi = std::min(rssi, sta.rssi);
+        }
+    }
+
+    return rssi;
+}
+
+double
+SensingMac::GetMaxObssRssi(uint8_t linkId) const
+{
+    NS_LOG_FUNCTION(this << linkId);
+
+    double rssi = -101;
+    for (auto& [_, sta] : m_neighborStaMap)
+    {
+        if (sta.linkId == linkId && sta.role == OBSS)
+        {
+            rssi = std::max(rssi, sta.rssi);
+        }
+    }
+
+    return rssi;
 }
 
 Time
