@@ -418,14 +418,14 @@ SensingMac::GetSelfChannelUtil(Time period, uint8_t linkId) const
     // Calculate channel utilization
     double channelUtil = 0;
     Time prevRxTime = left;
-    for (const auto& [left, right] : segments)
+    for (const auto& [begin, end] : segments)
     {
-        if (right < prevRxTime)
+        if (end < prevRxTime)
         {
             continue;
         }
-        channelUtil += (right - prevRxTime).GetSeconds();
-        prevRxTime = right;
+        channelUtil += (end - std::max(begin, prevRxTime)).GetSeconds();
+        prevRxTime = end;
     }
 
     return channelUtil / period.GetSeconds();
@@ -469,14 +469,14 @@ SensingMac::GetOtherChannelUtil(Time period, uint8_t linkId) const
     // Calculate channel utilization
     double channelUtil = 0;
     Time prevRxTime = left;
-    for (const auto& [left, right] : segments)
+    for (const auto& [begin, end] : segments)
     {
-        if (right < prevRxTime)
+        if (end < prevRxTime)
         {
             continue;
         }
-        channelUtil += (right - prevRxTime).GetSeconds();
-        prevRxTime = right;
+        channelUtil += (end - std::max(begin, prevRxTime)).GetSeconds();
+        prevRxTime = end;
     }
 
     return channelUtil / period.GetSeconds();
