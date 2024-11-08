@@ -140,6 +140,21 @@ SensingMac::NotifyFrameInfo(const WifiMacHeader& hdr, double rssi, uint8_t linkI
         info.rssi = rssi;
         m_neighborStaMap[sender] = info;
     }
+
+    // Remove outdated packets
+    auto& util = m_neighborStaMap[sender].channelUtil;
+    for (auto it = util.begin(); it != util.end();)
+    {
+        Time rxBegin = it->first - it->second;
+        if (Simulator::Now() - rxBegin > m_duration)
+        {
+            it = util.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+    }
 }
 
 void
@@ -200,7 +215,7 @@ SensingMac::NotifyPhyTxBegin(std::string context, Ptr<const Packet> p, double tx
         it->second.txPowerW = txPowerW;
     }
 
-    m_linkMap[linkId].channelUtil.push_back({Simulator::Now(), Seconds(0)});
+    m_linkMap[linkId].channelUtil[p->GetUid()] = {Simulator::Now(), Seconds(0)};
 }
 
 void
@@ -208,10 +223,26 @@ SensingMac::NotifyPhyTxEnd(std::string context, Ptr<const Packet> p)
 {
     NS_LOG_FUNCTION(this << context << p);
 
-    auto linkId = static_cast<uint8_t>(std::stoi(context));
-    auto& lastPacket = m_linkMap[linkId].channelUtil.back();
-    NS_ASSERT(lastPacket.second == Seconds(0));
-    lastPacket.second = Simulator::Now();
+    uint8_t linkId = static_cast<uint8_t>(std::stoi(context));
+    auto it = m_packetMap.find(p->GetUid());
+    NS_ASSERT_MSG(it != m_packetMap.end(), "Packet with uid=" << p->GetUid() << " not found");
+
+    auto& util = m_linkMap[linkId].channelUtil;
+    NS_ASSERT(util[p->GetUid()].second == Seconds(0));
+    util[p->GetUid()].second = Simulator::Now();
+
+    // Remove outdated and invalid packets
+    for (auto it = util.begin(); it != util.end();)
+    {
+        if (Simulator::Now() - it->second.first > m_duration || it->second.second == Seconds(0))
+        {
+            it = util.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+    }
 }
 
 void
@@ -418,34 +449,18 @@ SensingMac::GetSelfChannelUtil(Time period, uint8_t linkId) const
     NS_ASSERT_MSG(linkIt != m_linkMap.end(), "Link not found");
 
     // Get the segements in the period
-    Time left = Simulator::Now() - period;
-    Time right = Simulator::Now();
-    std::vector<std::pair<Time, Time>> segments;
-    for (const auto& [begin, end] : linkIt->second.channelUtil)
-    {
-        if (end <= left)
-        {
-            continue;
-        }
-        segments.emplace_back(std::make_pair(std::max(left, begin), std::min(right, end)));
-    }
-
-    // Sort the segments by txTime
-    std::sort(segments.begin(), segments.end(), [](const auto& a, const auto& b) {
-        return a.first < b.first;
-    });
-
-    // Calculate channel utilization
+    Time prevEnd = Simulator::Now() - period;
     double channelUtil = 0;
-    Time prevRxTime = left;
-    for (const auto& [begin, end] : segments)
+    for (const auto& [uid, pair] : linkIt->second.channelUtil)
     {
-        if (end <= prevRxTime)
+        Time begin = pair.first;
+        Time end = (pair.second == Seconds(0)) ? Simulator::Now() : pair.second; // RX not end yet
+        if (end <= prevEnd)
         {
             continue;
         }
-        channelUtil += (end - std::max(begin, prevRxTime)).GetSeconds();
-        prevRxTime = end;
+        channelUtil += (end - std::max(prevEnd, begin)).GetSeconds();
+        prevEnd = end;
     }
 
     return channelUtil / period.GetSeconds();
@@ -488,15 +503,15 @@ SensingMac::GetOtherChannelUtil(Time period, uint8_t linkId) const
 
     // Calculate channel utilization
     double channelUtil = 0;
-    Time prevRxTime = left;
+    Time prevEnd = left;
     for (const auto& [begin, end] : segments)
     {
-        if (end <= prevRxTime)
+        if (end <= prevEnd)
         {
             continue;
         }
-        channelUtil += (end - std::max(begin, prevRxTime)).GetSeconds();
-        prevRxTime = end;
+        channelUtil += (end - std::max(begin, prevEnd)).GetSeconds();
+        prevEnd = end;
     }
 
     return channelUtil / period.GetSeconds();

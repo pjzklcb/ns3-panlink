@@ -89,13 +89,13 @@ class SensingMac : public Object
 
     /**
      * Get the minimum RSSI of BSS STAs on the given link.
-     * 
+     *
      * \param linkId the link ID
      */
     double GetMinBssRssi(uint8_t linkId) const;
     /**
      * Get the maximum RSSI of OBSS STAs on the given link.
-     * 
+     *
      * \param linkId the link ID
      */
     double GetMaxObssRssi(uint8_t linkId) const;
@@ -128,14 +128,14 @@ class SensingMac : public Object
 
     /**
      * Get the channel utilization of previous period of this STA on the given link.
-     * 
+     *
      * \param period the period of time
      * \param linkId the link ID
      */
     double GetSelfChannelUtil(Time period, uint8_t linkId) const;
     /**
      * Get the channel utilization of previous period of other STAs on the given link.
-     * 
+     *
      * \param period the period of time
      * \param linkId the link ID
      */
@@ -196,7 +196,8 @@ class SensingMac : public Object
     struct SelfLinkInfo
     {
         Time lastTxOkTime;
-        std::vector<std::pair<Time /* Tx Begin */, Time /* Tx End */>> channelUtil;
+        std::map<uint64_t /* UID */, std::pair<Time /* Tx Begin */, Time /* Tx End */>>
+            channelUtil;
     };
 
     /**
