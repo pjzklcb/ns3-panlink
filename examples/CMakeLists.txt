@@ -5,4 +5,5 @@ if(${GSL_FOUND})
   )
 endif()
 
-add_subdirectory(baseline)
+add_subdirectory(cca)
+add_subdirectory(channel-access)

@@ -54,7 +54,7 @@ if __name__ == '__main__':
 
     # register agents
     agent_manager = AgentManager()
-    n_vec_size = agent_manager.register_agents(os.path.join(config_dir, 'config_panlink.json'))
+    n_vec_size = agent_manager.register_agents(os.path.join(config_dir, 'config_cca.json'))
     
     # create and save ns3 settings
     ns3_settings = {
@@ -76,7 +76,7 @@ if __name__ == '__main__':
         with open(os.path.join(result_dir, 'ns3_settings.json'), 'w') as f:
             json.dump(ns3_settings, f, indent=4)
 
-    exp = Experiment("panlink_baseline", ns3_dir, py_binding, 
+    exp = Experiment("panlink_cca", ns3_dir, py_binding, 
                      handleFinish=True, useVector=True, vectorSize=n_vec_size,
                      segName = timestamp + ' Seg',
                      cpp2pyMsgName = timestamp + ' Cpp to Python Msg',

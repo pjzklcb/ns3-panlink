@@ -1,8 +1,8 @@
 
 build_lib_example(
-        NAME panlink_baseline
+        NAME panlink_channel_access
         SOURCE_FILES
-            baseline.cc
+            channel-access.cc
         LIBRARIES_TO_LINK
             ${libai}
             ${libcore}
