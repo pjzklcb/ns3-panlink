@@ -39,6 +39,7 @@ void
 PanlinkFrameExchangeManager::DoDispose()
 {
     NS_LOG_FUNCTION(this);
+
     m_sensingMac = nullptr;
 
     FrameExchangeManager::DoDispose();

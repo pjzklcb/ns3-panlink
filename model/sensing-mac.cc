@@ -63,10 +63,6 @@ SensingMac::DoDispose()
     m_linkMap.clear();
     m_neighborStaMap.clear();
 
-    if (m_mac)
-    {
-        m_mac->Dispose();
-    }
     m_mac = nullptr;
 }
 
@@ -224,8 +220,6 @@ SensingMac::NotifyPhyTxEnd(std::string context, Ptr<const Packet> p)
     NS_LOG_FUNCTION(this << context << p);
 
     uint8_t linkId = static_cast<uint8_t>(std::stoi(context));
-    auto it = m_packetMap.find(p->GetUid());
-    NS_ASSERT_MSG(it != m_packetMap.end(), "Packet with uid=" << p->GetUid() << " not found");
 
     auto& util = m_linkMap[linkId].channelUtil;
     NS_ASSERT(util[p->GetUid()].second == Seconds(0));
