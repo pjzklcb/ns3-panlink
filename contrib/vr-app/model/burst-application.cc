@@ -139,7 +139,7 @@ BurstApplication::DoDispose()
     Application::DoDispose();
 }
 
-int64_t 
+int64_t
 BurstApplication::AssignStreams(int64_t stream)
 {
     NS_LOG_FUNCTION(this << stream);
@@ -233,32 +233,97 @@ BurstApplication::SendBurst()
     NS_LOG_FUNCTION(this);
     NS_ASSERT(m_nextBurstEvent.IsExpired());
 
-    // get burst info
-    uint32_t burstSize = 0;
-    Time period;
-    // packets must be at least as big as the header
-    while (burstSize < 24) // TODO: find a way to improve this
+    if (!m_burstGenerator->HasNextBurst())
     {
-        if (!m_burstGenerator->HasNextBurst())
-        {
-            NS_LOG_LOGIC("Burst generator has no next burst: stopping application");
-            StopApplication();
-            return;
-        }
-
-        std::tie(burstSize, period) = m_burstGenerator->GenerateBurst();
-        NS_LOG_DEBUG("Generated burstSize=" << burstSize << ", period=" << period.As(Time::MS));
+        NS_LOG_LOGIC("Burst generator has no next burst: stopping application");
+        StopApplication();
+        return;
     }
+
+    auto [burstSize, period] = m_burstGenerator->GenerateBurst();
+    NS_LOG_DEBUG("Generated burstSize=" << burstSize << ", period=" << period.As(Time::MS));
 
     NS_ASSERT_MSG(period.IsPositive(),
                   "Period must be non-negative, instead found period=" << period.As(Time::S));
 
-    // send packets for current burst
-    SendFragmentedBurst(burstSize);
+    // if packet size is shorter than header
+    if (burstSize <= SeqTsSizeFragHeader().GetSerializedSize())
+    {
+        SendSingleFragBurst(burstSize);
+    }
+    else
+    {
+        // send packets for current burst
+        SendFragmentedBurst(burstSize);
+    }
 
     // schedule next burst
     NS_LOG_DEBUG("Next burst scheduled in " << period.As(Time::S));
     m_nextBurstEvent = Simulator::Schedule(period, &BurstApplication::SendBurst, this);
+}
+
+void
+BurstApplication::SendSingleFragBurst(uint32_t burstSize)
+{
+    NS_LOG_FUNCTION(this << burstSize);
+
+    // Trace before adding header, for consistency with BurstSink
+    Address from, to;
+    m_socket->GetSockName(from);
+    m_socket->GetPeerName(to);
+
+    // prepare header used for traceback only
+    SeqTsSizeFragHeader hdrTmp;
+    hdrTmp.SetSeq(m_totTxBursts);
+    hdrTmp.SetSize(burstSize);
+    hdrTmp.SetFrags(1);
+    hdrTmp.SetFragSeq(0);
+
+    Ptr<Packet> burst = Create<Packet>(burstSize);
+    m_txBurstTrace(burst, from, to, hdrTmp);
+
+    NS_ASSERT_MSG(burstSize >= 4, "At least contain seqN");
+    // create packet contains seqN
+    uint8_t buffer[4];
+    std::memcpy(buffer, &m_totTxBursts, sizeof(uint32_t));
+    Ptr<Packet> fragment = Create<Packet>(buffer, burstSize);
+    m_txFragmentTrace(fragment, from, to, hdrTmp); // Trace before sending
+
+    uint32_t fragmentSize = fragment->GetSize();
+    int actual = m_socket->Send(fragment);
+    if (uint32_t(actual) == fragmentSize)
+    {
+        m_totTxFragments++;
+        m_totTxBytes += fragmentSize;
+
+        std::stringstream addressStr;
+        if (InetSocketAddress::IsMatchingType(m_peer))
+        {
+            addressStr << InetSocketAddress::ConvertFrom(m_peer).GetIpv4() << " port "
+                       << InetSocketAddress::ConvertFrom(m_peer).GetPort();
+        }
+        else if (Inet6SocketAddress::IsMatchingType(m_peer))
+        {
+            addressStr << Inet6SocketAddress::ConvertFrom(m_peer).GetIpv6() << " port "
+                       << Inet6SocketAddress::ConvertFrom(m_peer).GetPort();
+        }
+        else
+        {
+            addressStr << "UNKNOWN ADDRESS TYPE";
+        }
+
+        NS_LOG_INFO("At time " << Simulator::Now().As(Time::S)
+                               << " bursty application sent fragment of " << fragment->GetSize()
+                               << " bytes to " << addressStr.str() << " with header=" << hdrTmp);
+    }
+    else
+    {
+        NS_LOG_DEBUG("Unable to send fragment: fragment size=" << fragment->GetSize()
+                                                               << ", socket sent=" << actual
+                                                               << "; ignoring unexpected behavior");
+    }
+
+    m_totTxBursts++;
 }
 
 void
@@ -384,8 +449,7 @@ BurstApplication::SendFragment(Ptr<Packet> fragment,
     m_socket->GetSockName(from);
     m_socket->GetPeerName(to);
 
-    m_txFragmentTrace(fragment, from, to,
-                      header); // Trace before sending
+    m_txFragmentTrace(fragment, from, to, header); // Trace before sending
 
     uint32_t fragmentSize = fragment->GetSize();
     int actual = m_socket->Send(fragment);

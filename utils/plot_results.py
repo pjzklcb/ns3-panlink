@@ -308,7 +308,7 @@ class PlotResults(object):
                         dropped[info.port] = []
                     dropped[info.port].append(info.app_tx_time)
                 else:
-                    assert info.acked, "not acked"
+                    # packet may rx successfully but simulation ends before acked
                     if info.port not in l2_delay:
                         l2_delay[info.port] = []
                     l2_delay[info.port].append((info.app_tx_time, (info.l2_rx_time-info.app_tx_time) * 1e3))

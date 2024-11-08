@@ -151,6 +151,13 @@ class BurstApplication : public Application
     void SendBurst();
 
     /**
+     * \brief Send burst with a single fragment without header
+     * 
+     * \param burstSize the size of the burst in Bytes
+     */
+    void SendSingleFragBurst(uint32_t burstSize);
+
+    /**
      * \brief Send burst fragmented into multiple packets
      * \param burstSize the size of the burst in Bytes
      */

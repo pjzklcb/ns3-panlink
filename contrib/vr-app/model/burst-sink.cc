@@ -236,9 +236,24 @@ BurstSink::FragmentReceived(BurstHandler& burstHandler,
     NS_LOG_FUNCTION(this << f);
 
     SeqTsSizeFragHeader header;
-    f->PeekHeader(header);
-    NS_ABORT_IF(header.GetSize() == 0);
-
+    // burst too short to contain header
+    bool pseudoHeader = f->GetSize() <= SeqTsSizeFragHeader().GetSerializedSize(); 
+    if (pseudoHeader)
+    {   
+        uint8_t buffer[4];
+        f->CopyData(buffer, sizeof(uint32_t));
+        uint32_t seq = *reinterpret_cast<uint32_t*>(buffer);
+        // create pseudo header
+        header.SetSeq(seq); // new burst
+        header.SetSize(f->GetSize());
+        header.SetFrags(1);
+        header.SetFragSeq(0);
+    }
+    else
+    {
+        f->PeekHeader(header);
+    }
+    
     m_totRxFragments++;
     m_rxFragmentTrace(f,
                       from,
@@ -283,7 +298,8 @@ BurstSink::FragmentReceived(BurstHandler& burstHandler,
         if (header.GetFragSeq() == burstHandler.m_fragmentsMerged)
         {
             // following packet: merge it
-            f->RemoveHeader(header);
+            if (!pseudoHeader)
+                f->RemoveHeader(header);
             burstHandler.m_burstBuffer->AddAtEnd(f);
             burstHandler.m_fragmentsMerged++;
             NS_LOG_LOGIC("Fragments merged " << burstHandler.m_fragmentsMerged << "/"

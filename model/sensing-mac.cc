@@ -116,13 +116,9 @@ SensingMac::NotifyFrameInfo(const WifiMacHeader& hdr, double rssi, uint8_t linkI
     {
         NS_ASSERT(it->second.linkId == linkId);
 
-        if (it->second.role == UNKNOWN)
+        if (role != UNKNOWN)
         {
             it->second.role = role;
-        }
-        else
-        {
-            NS_ASSERT(it->second.role == role);
         }
         it->second.channelUtil[Simulator::Now()] = hdr.GetDuration();
         it->second.rssi = rssi;
@@ -137,7 +133,7 @@ SensingMac::NotifyFrameInfo(const WifiMacHeader& hdr, double rssi, uint8_t linkI
         m_neighborStaMap[sender] = info;
     }
 
-    // Remove outdated packets
+    // Remove stale packets
     auto& util = m_neighborStaMap[sender].channelUtil;
     for (auto it = util.begin(); it != util.end();)
     {
@@ -145,6 +141,20 @@ SensingMac::NotifyFrameInfo(const WifiMacHeader& hdr, double rssi, uint8_t linkI
         if (Simulator::Now() - rxBegin > m_duration)
         {
             it = util.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+    }
+
+    // Remove inactive OBSS STAs
+    for (auto it = m_neighborStaMap.begin(); it != m_neighborStaMap.end();)
+    {
+        if ((it->second.role == OBSS || it->second.role == UNKNOWN) &&
+            it->second.channelUtil.size() == 0)
+        {
+            it = m_neighborStaMap.erase(it);
         }
         else
         {
@@ -225,7 +235,7 @@ SensingMac::NotifyPhyTxEnd(std::string context, Ptr<const Packet> p)
     NS_ASSERT(util[p->GetUid()].second == Seconds(0));
     util[p->GetUid()].second = Simulator::Now();
 
-    // Remove outdated and invalid packets
+    // Remove stale and invalid packets
     for (auto it = util.begin(); it != util.end();)
     {
         if (Simulator::Now() - it->second.first > m_duration || it->second.second == Seconds(0))
@@ -360,7 +370,7 @@ SensingMac::GetMaxObssRssi(uint8_t linkId) const
     double rssi = -101;
     for (auto& [_, sta] : m_neighborStaMap)
     {
-        if (sta.linkId == linkId && sta.role == OBSS)
+        if (sta.linkId == linkId && (sta.role == OBSS || sta.role == UNKNOWN))
         {
             rssi = std::max(rssi, sta.rssi);
         }
@@ -405,7 +415,7 @@ SensingMac::GetNBssStas(uint8_t linkId) const
     uint32_t nStas = 0;
     for (auto& [_, sta] : m_neighborStaMap)
     {
-        if (sta.linkId == linkId && sta.role == BSS_STA)
+        if (sta.linkId == linkId && (sta.role == BSS_STA || sta.role == ASSOCIATED_AP))
         {
             nStas++;
         }
@@ -422,7 +432,7 @@ SensingMac::GetNObssStas(uint8_t linkId) const
     uint32_t nStas = 0;
     for (auto& [_, sta] : m_neighborStaMap)
     {
-        if (sta.linkId == linkId && sta.role == OBSS)
+        if (sta.linkId == linkId && (sta.role == OBSS || sta.role == UNKNOWN))
         {
             nStas++;
         }
