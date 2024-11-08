@@ -95,8 +95,8 @@ main(int argc, char* argv[])
     if (verbose)
     {
         LogComponentEnableAll(LOG_PREFIX_ALL);
-        LogComponentEnable("EnvAgent", LOG_LEVEL_ALL);
-        LogComponentEnable("CcaEnvAgent", LOG_LEVEL_ALL);
+        LogComponentEnable("SensingMac", LOG_LEVEL_ALL);
+        LogComponentEnable("PanlinkFrameExchangeManager", LOG_LEVEL_ALL);
     }
 
     WifiHelper g_wifiHelper;
@@ -245,12 +245,10 @@ main(int argc, char* argv[])
                                 SsidValue(ssid),
                                 "EnableBeaconJitter",
                                 BooleanValue(true));
-            g_macHelper.SetFrameExchangeManager("ns3::PanlinkFrameExchangeManager");
         }
         else if (node.m_type == "PC")
         {
             g_macHelper.SetType("ns3::PanlinkStaWifiMac", "Ssid", SsidValue(ssid));
-            g_macHelper.SetFrameExchangeManager("ns3::PanlinkFrameExchangeManager");
         }
         else if (node.m_type == "AP")
         {
@@ -259,12 +257,10 @@ main(int argc, char* argv[])
                                 SsidValue(ssid),
                                 "EnableBeaconJitter",
                                 BooleanValue(true));
-            g_macHelper.SetFrameExchangeManager("ns3::HeFrameExchangeManager");
         }
         else if (node.m_type == "STA")
         {
             g_macHelper.SetType("ns3::StaWifiMac", "Ssid", SsidValue(ssid));
-            g_macHelper.SetFrameExchangeManager("ns3::HeFrameExchangeManager");
         }
         else
         {
