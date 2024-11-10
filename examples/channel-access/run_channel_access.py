@@ -54,7 +54,7 @@ if __name__ == '__main__':
 
     # register agents
     agent_manager = AgentManager()
-    n_vec_size = agent_manager.register_agents(os.path.join(config_dir, 'config_cca.json'))
+    n_vec_size = agent_manager.register_agents(os.path.join(config_dir, 'config_channel_access.json'))
     
     # create and save ns3 settings
     ns3_settings = {

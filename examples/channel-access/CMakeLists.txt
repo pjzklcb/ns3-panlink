@@ -1,3 +1,9 @@
+set(gsl_libraries)
+if(${GSL_FOUND})
+  set(gsl_libraries
+      ${GSL_LIBRARIES}
+  )
+endif()
 
 build_lib_example(
         NAME panlink_channel_access
