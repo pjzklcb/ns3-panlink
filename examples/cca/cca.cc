@@ -285,6 +285,10 @@ main(int argc, char* argv[])
             g_srcAppMap[node.m_id] = std::vector<SrcApp>();
             for (auto& app : node.m_applications)
             {
+                if (app.m_dst == node.m_id || app.m_dst > panlinkNodes.GetN() - 1)
+                {
+                    NS_ABORT_MSG("Invalid application destination node ID!");
+                }
                 g_srcAppMap[node.m_id].emplace_back(app);
             }
         }
