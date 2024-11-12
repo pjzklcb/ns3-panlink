@@ -35,4 +35,16 @@ PanlinkTxop::~PanlinkTxop()
     NS_LOG_FUNCTION(this);
 }
 
+std::unique_ptr<Txop::LinkEntity>
+PanlinkTxop::CreateLinkEntity() const
+{
+    return std::make_unique<PanLinkEntity>();
+}
+
+PanlinkTxop::PanLinkEntity&
+PanlinkTxop::GetLink(uint8_t linkId) const
+{
+    return static_cast<PanLinkEntity&>(Txop::GetLink(linkId));
+}
+
 } // namespace ns3
