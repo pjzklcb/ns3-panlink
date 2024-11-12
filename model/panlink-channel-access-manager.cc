@@ -35,4 +35,10 @@ PanlinkChannelAccessManager::~PanlinkChannelAccessManager()
     NS_LOG_FUNCTION(this);
 }
 
+void 
+PanlinkChannelAccessManager::DoScheduleDeferredAccessEnd()
+{
+    NS_LOG_FUNCTION(this);
+}
+
 } // namespace ns3

@@ -54,6 +54,7 @@ class PanlinkTxop : public QosTxop
     friend class ::EmlsrUlTxopTest;
 
     void GenerateBackoff(uint8_t linkId) override;
+    void UpdateBackoffSlotsNow(uint32_t nSlots, Time backoffUpdateBound, uint8_t linkId) override;
 
     /**
      * Generate new backoff for the given link after deferred access.

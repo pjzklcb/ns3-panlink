@@ -96,6 +96,7 @@ main(int argc, char* argv[])
     {
         LogComponentEnableAll(LOG_PREFIX_ALL);
         LogComponentEnable("Txop", LOG_LEVEL_ALL);
+        LogComponentEnable("PanlinkTxop", LOG_LEVEL_ALL);
         LogComponentEnable("ChannelAccessManager", LOG_LEVEL_ALL);
     }
 

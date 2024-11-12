@@ -31,6 +31,12 @@ class PanlinkChannelAccessManager : public ChannelAccessManager
 
   protected:
   private:
+    /**
+     * Schedule the deferred access end event.
+     */
+    void DoScheduleDeferredAccessEnd();
+
+    EventId m_deferredAccessEnd;  //!< the deferred access end event
 };
 
 } // namespace ns3

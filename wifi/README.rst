@@ -12,9 +12,9 @@ Modified Files
 
 The following files have been modified:
 
-* :file:`frame-exchange-manager.h` - Make FrameExchangeManager::Receive virtual
+* :file:`frame-exchange-manager.h` - Make some methods virtual
 * :file:`sta-wifi-mac.h` - Make some private methods protected
-* :file:`file3.cpp` - Brief description of changes made to file3.cpp
+* :file:`txop.h` - Make some methods virtual
 
 .. note::
    This list only includes files that have been modified, and does not include new files or deleted files.
@@ -32,7 +32,7 @@ File Details
 * :ref:`sta-wifi-mac.h <src/wifi/model/sta-wifi-mac.h>` 
    - Make two private methods DoDispose and DoIntialize protected, so that they can be override in the derived classes.
 
-### file3.cpp
+### txop.h
 
-* :ref:`file3.cpp <file3_cpp>` 
-   - Detailed description of changes made to file3.cpp
+* :ref:`txop.h <src/wifi/model/txop.h>` 
+   - Make Txop::UpdateBackoffSlotsNow virtual
