@@ -32,6 +32,7 @@ set(source_files
     helper/env-agent-helper.cc
     helper/panlink-mac-helper.cc
     model/panlink-ap-wifi-mac.cc
+    model/panlink-channel-access-manager.cc
     model/panlink-frame-exchange-manager.cc
     model/panlink-sta-wifi-mac.cc
     model/panlink-txop.cc
@@ -55,6 +56,7 @@ set(header_files
     helper/env-agent-helper.h
     helper/panlink-mac-helper.h
     model/panlink-ap-wifi-mac.h
+    model/panlink-channel-access-manager.h
     model/panlink-frame-exchange-manager.h
     model/panlink-sta-wifi-mac.h
     model/panlink-txop.h
