@@ -29,7 +29,39 @@ class PanlinkTxop : public QosTxop
     PanlinkTxop();
     ~PanlinkTxop() override;
 
+    /**
+     * Get the number of waited slots of the given link by far.
+     * 
+     * \param linkId the link ID
+     */
+    uint32_t GetWaitedSlots(uint8_t linkId) const;
+
+    /**
+     * Get the times of deferred access on the given link by far.
+     * 
+     * \param linkId the link ID
+     */
+    uint32_t GetNDeferredAccess(uint8_t linkId) const;
+
+    /**
+     * Get whether panlink channel access strategy is supported by MAC.
+     */
+    bool GetEnableChannelAccess() const;
+
   protected:
+    ///< ChannelAccessManager associated class
+    friend class ChannelAccessManager;
+    friend class ::EmlsrUlTxopTest;
+
+    void GenerateBackoff(uint8_t linkId) override;
+
+    /**
+     * Generate new backoff for the given link after deferred access.
+     *
+     * \param linkId the link ID
+     */
+    void GenerateNewBackoff(uint8_t linkId);
+
     /**
      * Structure holding information specific to a single link. Here, the meaning of
      * "link" is that of the 11be amendment which introduced multi-link devices. For
@@ -41,7 +73,7 @@ class PanlinkTxop : public QosTxop
         ~PanLinkEntity() override = default;
 
         uint32_t waitedSlots{0};  //!< total waited slots
-        uint32_t nAccessDefer{0}; //!< access defer times
+        uint32_t nDeferredAccess{0}; //!< deferred access times
     };
 
     /**

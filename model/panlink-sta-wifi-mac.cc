@@ -24,10 +24,19 @@ NS_OBJECT_ENSURE_REGISTERED(PanlinkStaWifiMac);
 TypeId
 PanlinkStaWifiMac::GetTypeId()
 {
-    static TypeId tid = TypeId("ns3::PanlinkStaWifiMac")
-                            .SetParent<StaWifiMac>()
-                            .SetGroupName("Panlink")
-                            .AddConstructor<PanlinkStaWifiMac>();
+    static TypeId tid =
+        TypeId("ns3::PanlinkStaWifiMac")
+            .SetParent<StaWifiMac>()
+            .SetGroupName("Panlink")
+            .AddConstructor<PanlinkStaWifiMac>()
+            .AddAttribute("EnableChannelAccess",
+                          "Enable the Panlink channel access strategy.",
+                          TypeId::ATTR_GET |
+                              TypeId::ATTR_CONSTRUCT, // prevent setting after construction
+                          BooleanValue(true),
+                          MakeBooleanAccessor(&PanlinkStaWifiMac::SetEnableChannelAccess,
+                                              &PanlinkStaWifiMac::GetEnableChannelAccess),
+                          MakeBooleanChecker());
     return tid;
 }
 
@@ -98,6 +107,18 @@ Ptr<SensingMac>
 PanlinkStaWifiMac::GetSensingMac() const
 {
     return m_sensingMac;
+}
+
+void
+PanlinkStaWifiMac::SetEnableChannelAccess(bool enableChannelAccess)
+{
+    m_enableChannelAccess = enableChannelAccess;
+}
+
+bool
+PanlinkStaWifiMac::GetEnableChannelAccess() const
+{
+    return m_enableChannelAccess;
 }
 
 PanlinkStaWifiMac::PanStaLinkEntity::~PanStaLinkEntity()
