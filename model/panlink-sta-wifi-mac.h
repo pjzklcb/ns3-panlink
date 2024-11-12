@@ -34,7 +34,7 @@ class PanlinkStaWifiMac : public StaWifiMac
 
     /**
      * Set the sensing MAC attached to this MAC.
-     * 
+     *
      * \param sensingMac the sensing MAC object
      */
     void SetSensingMac(const Ptr<SensingMac> sensingMac);

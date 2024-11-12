@@ -14,6 +14,7 @@
 #include "ns3/multi-user-scheduler.h"
 #include "ns3/panlink-frame-exchange-manager.h"
 #include "ns3/panlink-sta-wifi-mac.h"
+#include "ns3/panlink-txop.h"
 #include "ns3/pointer.h"
 #include "ns3/sensing-mac.h"
 #include "ns3/wifi-assoc-manager.h"
@@ -46,14 +47,15 @@ PanlinkMacHelper::Create(Ptr<WifiNetDevice> device, WifiStandard standard) const
     ObjectFactory macObjectFactory = m_mac;
     macObjectFactory.Set("QosSupported", BooleanValue(true));
 
-    // create (Qos)Txop objects
+    // create PanlinkTxop objects
     for (auto [aci, edca] : m_edca)
     {
         edca.Set("AcIndex", EnumValue<AcIndex>(aci));
         std::stringstream ss;
         ss << aci << "_Txop";
         auto s = ss.str().substr(3); // discard "AC "
-        macObjectFactory.Set(s, PointerValue(edca.Create<QosTxop>()));
+        edca.SetTypeId("ns3::PanlinkTxop");
+        macObjectFactory.Set(s, PointerValue(edca.Create<PanlinkTxop>()));
     }
 
     // WaveNetDevice (through ns-3.38) stores PHY entities in a different member than WifiNetDevice,

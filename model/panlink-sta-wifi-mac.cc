@@ -41,7 +41,7 @@ PanlinkStaWifiMac::~PanlinkStaWifiMac()
     NS_LOG_FUNCTION(this);
 }
 
-void 
+void
 PanlinkStaWifiMac::DoInitialize()
 {
     NS_LOG_FUNCTION(this);
@@ -54,7 +54,7 @@ PanlinkStaWifiMac::DoInitialize()
     StaWifiMac::DoInitialize();
 }
 
-void 
+void
 PanlinkStaWifiMac::DoDispose()
 {
     NS_LOG_FUNCTION(this);
@@ -75,7 +75,8 @@ PanlinkStaWifiMac::SetSensingMac(const Ptr<SensingMac> sensingMac)
 
     m_sensingMac = sensingMac;
     // connect callbacks
-    TraceConnectWithoutContext("AckedMpdu", MakeCallback(&SensingMac::NotifyAckedMpdu, m_sensingMac));
+    TraceConnectWithoutContext("AckedMpdu",
+                               MakeCallback(&SensingMac::NotifyAckedMpdu, m_sensingMac));
     for (const auto& [ac, _] : wifiAcList)
     {
         GetTxopQueue(ac)->TraceConnect("Enqueue",
