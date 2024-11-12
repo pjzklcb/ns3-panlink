@@ -34,6 +34,7 @@ set(source_files
     model/panlink-ap-wifi-mac.cc
     model/panlink-frame-exchange-manager.cc
     model/panlink-sta-wifi-mac.cc
+    model/panlink-txop.cc
     model/sensing-mac.cc
     utils/app-installer.cc
     utils/intf-deployer.cc
@@ -56,6 +57,7 @@ set(header_files
     model/panlink-ap-wifi-mac.h
     model/panlink-frame-exchange-manager.h
     model/panlink-sta-wifi-mac.h
+    model/panlink-txop.h
     model/sensing-mac.h
     utils/app-installer.h
     utils/intf-deployer.h
