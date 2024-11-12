@@ -46,6 +46,8 @@ if __name__ == '__main__':
                         help='whether to enable pcap')
     parser.add_argument('--stats', action='store_true',
                         help='whether to store results')
+    parser.add_argument('--ns3_log', action='store_true',
+                        help='whether to print ns-3 log')
     args = parser.parse_args()
     
     # set seed
@@ -64,7 +66,7 @@ if __name__ == '__main__':
         'enableIntf': args.use_intf,
         'pcap': args.pcap,
         'stats': args.stats,
-        "verbose": False
+        "verbose": args.ns3_log
     }
 
     # create result directory

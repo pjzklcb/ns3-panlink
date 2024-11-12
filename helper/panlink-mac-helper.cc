@@ -12,6 +12,7 @@
 #include "ns3/eht-configuration.h"
 #include "ns3/emlsr-manager.h"
 #include "ns3/multi-user-scheduler.h"
+#include "ns3/panlink-channel-access-manager.h"
 #include "ns3/panlink-frame-exchange-manager.h"
 #include "ns3/panlink-sta-wifi-mac.h"
 #include "ns3/panlink-txop.h"
@@ -25,6 +26,17 @@ namespace ns3
 
 PanlinkMacHelper::PanlinkMacHelper()
 {
+    if (m_mac.GetTypeId() != PanlinkStaWifiMac::GetTypeId())
+    // && m_mac.GetTypeId() != PanlinkApWifiMac::GetTypeId())
+    {
+        m_channelAccessManager.SetTypeId("ns3::PanlinkChannelAccessManager");
+        m_frameExchangeManager.SetTypeId("ns3::PanlinkFrameExchangeManager");
+        for (const auto& [aci, ac] : wifiAcList)
+        {
+            m_edca[aci].SetTypeId("ns3::PanlinkTxop");
+        }
+    }
+
     m_sensingMac.SetTypeId("ns3::SensingMac");
 }
 
@@ -54,8 +66,7 @@ PanlinkMacHelper::Create(Ptr<WifiNetDevice> device, WifiStandard standard) const
         std::stringstream ss;
         ss << aci << "_Txop";
         auto s = ss.str().substr(3); // discard "AC "
-        edca.SetTypeId("ns3::PanlinkTxop");
-        macObjectFactory.Set(s, PointerValue(edca.Create<PanlinkTxop>()));
+        macObjectFactory.Set(s, PointerValue(edca.Create<QosTxop>()));
     }
 
     // WaveNetDevice (through ns-3.38) stores PHY entities in a different member than WifiNetDevice,
@@ -64,6 +75,7 @@ PanlinkMacHelper::Create(Ptr<WifiNetDevice> device, WifiStandard standard) const
 
     // create Channel Access Managers
     std::vector<Ptr<ChannelAccessManager>> caManagers;
+
     for (uint8_t linkId = 0; linkId < nLinks; ++linkId)
     {
         caManagers.emplace_back(m_channelAccessManager.Create<ChannelAccessManager>());
@@ -81,11 +93,9 @@ PanlinkMacHelper::Create(Ptr<WifiNetDevice> device, WifiStandard standard) const
 
     // create Frame Exchange Managers, each with an attached protection manager and ack manager
     std::vector<Ptr<FrameExchangeManager>> feManagers;
-    auto frameExchangeManager = m_frameExchangeManager;
-    frameExchangeManager.SetTypeId("ns3::PanlinkFrameExchangeManager");
     for (uint8_t linkId = 0; linkId < nLinks; ++linkId)
     {
-        auto fem = frameExchangeManager.Create<FrameExchangeManager>();
+        auto fem = m_frameExchangeManager.Create<FrameExchangeManager>();
         feManagers.emplace_back(fem);
 
         auto protectionManager = m_protectionManager.Create<WifiProtectionManager>();
@@ -99,7 +109,7 @@ PanlinkMacHelper::Create(Ptr<WifiNetDevice> device, WifiStandard standard) const
         fem->SetAckManager(ackManager);
 
         // bind sensing MAC
-        DynamicCast<PanlinkFrameExchangeManager>(fem)->SetSensingMac(sensingMac);
+        StaticCast<PanlinkFrameExchangeManager>(fem)->SetSensingMac(sensingMac);
 
         // 11be MLDs require a MAC address to be assigned to each STA
         fem->SetAddress(device->GetNPhys() > 1 ? Mac48Address::Allocate() : mac->GetAddress());

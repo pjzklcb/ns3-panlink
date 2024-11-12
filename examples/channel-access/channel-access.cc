@@ -98,6 +98,7 @@ main(int argc, char* argv[])
         LogComponentEnable("Txop", LOG_LEVEL_ALL);
         LogComponentEnable("PanlinkTxop", LOG_LEVEL_ALL);
         LogComponentEnable("ChannelAccessManager", LOG_LEVEL_ALL);
+        LogComponentEnable("PanlinkChannelAccessManager", LOG_LEVEL_ALL);
     }
 
     WifiHelper g_wifiHelper;
