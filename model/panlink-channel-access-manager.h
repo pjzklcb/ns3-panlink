@@ -14,6 +14,8 @@
 namespace ns3
 {
 
+class PanlinkTxop;
+
 /**
  * \ingroup panlink
  */
@@ -32,11 +34,17 @@ class PanlinkChannelAccessManager : public ChannelAccessManager
   protected:
   private:
     /**
-     * Schedule the deferred access end event.
+     * Restore the deferred access if needed.
      */
-    void DoScheduleDeferredAccessEnd();
+    void DoRestoreAccessIfNeeded();
 
-    EventId m_deferredAccessEnd;  //!< the deferred access end event
+    /**
+     * Called when access restored from deferring
+     * (e.g. backoff procedure restart).
+     */
+    void AccessRestore();
+
+    EventId m_accessRestore;  //!< the access restore event
 };
 
 } // namespace ns3

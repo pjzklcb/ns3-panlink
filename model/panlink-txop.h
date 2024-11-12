@@ -51,6 +51,7 @@ class PanlinkTxop : public QosTxop
   protected:
     ///< ChannelAccessManager associated class
     friend class ChannelAccessManager;
+    friend class PanlinkChannelAccessManager;
     friend class ::EmlsrUlTxopTest;
 
     void GenerateBackoff(uint8_t linkId) override;

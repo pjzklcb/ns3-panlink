@@ -15,6 +15,7 @@ The following files have been modified:
 * :file:`frame-exchange-manager.h` - Make some methods virtual
 * :file:`sta-wifi-mac.h` - Make some private methods protected
 * :file:`txop.h` - Make some methods virtual
+* :file:`channel-access-manager.h` - Make some methods protected
 
 .. note::
    This list only includes files that have been modified, and does not include new files or deleted files.
@@ -35,4 +36,9 @@ File Details
 ### txop.h
 
 * :ref:`txop.h <src/wifi/model/txop.h>` 
-   - Make Txop::UpdateBackoffSlotsNow virtual
+   - Make Txop::UpdateBackoffSlotsNow virtual.
+
+### channel-access-manager.h
+
+* :ref:`channel-access-manager.h <src/wifi/model/channel-access-manager.h>`
+   - Make all of the private members and methods protected.
