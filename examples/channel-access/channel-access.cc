@@ -250,7 +250,11 @@ main(int argc, char* argv[])
         }
         else if (node.m_type == "PC")
         {
-            g_macHelper.SetType("ns3::PanlinkStaWifiMac", "Ssid", SsidValue(ssid));
+            g_macHelper.SetType("ns3::PanlinkStaWifiMac",
+                                "Ssid",
+                                SsidValue(ssid),
+                                "EnablePanlinkChannelAccess",
+                                BooleanValue(true));
         }
         else if (node.m_type == "AP")
         {

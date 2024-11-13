@@ -35,6 +35,15 @@ class PanlinkMacHelper : public WifiMacHelper
     Ptr<WifiMac> Create(Ptr<WifiNetDevice> device, WifiStandard standard) const override;
 
     /**
+     * Helper function used to set the Channel Access Manager object.
+     *
+     * \tparam Args \deduced Template type parameter pack for the sequence of name-value pairs.
+     * \param args A sequence of name-value pairs of the attributes to set.
+     */
+    template <typename... Args>
+    void SetChannelAccessManager(std::string type, Args&&... args);
+
+    /**
      * Helper function used to set the Frame Exchange Manager object.
      *
      * \tparam Args \deduced Template type parameter pack for the sequence of name-value pairs.
@@ -55,6 +64,14 @@ class PanlinkMacHelper : public WifiMacHelper
 
 namespace ns3
 {
+
+template <typename... Args>
+void
+PanlinkMacHelper::SetChannelAccessManager(std::string type, Args&&... args)
+{
+    m_channelAccessManager.SetTypeId(type);
+    m_channelAccessManager.Set(args...);
+}
 
 template <typename... Args>
 void
