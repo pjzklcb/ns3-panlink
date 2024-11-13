@@ -15,7 +15,7 @@ The following files have been modified:
 * :file:`frame-exchange-manager.h` - Make some methods virtual
 * :file:`sta-wifi-mac.h` - Make some private methods protected
 * :file:`txop.h` - Make some methods virtual
-* :file:`channel-access-manager.h` - Make some methods protected
+* :file:`channel-access-manager.h` - Make some methods protected or virtual
 
 .. note::
    This list only includes files that have been modified, and does not include new files or deleted files.
@@ -42,3 +42,4 @@ File Details
 
 * :ref:`channel-access-manager.h <src/wifi/model/channel-access-manager.h>`
    - Make all of the private members and methods protected.
+   - Make methods related to access defer virtual, so that restore access can be scheduled.

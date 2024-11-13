@@ -179,7 +179,7 @@ class ChannelAccessManager : public Object
      * After this period, the EDCA will start normal operations again by resuming
      * the backoff timer.
      */
-    void DisableEdcaFor(Ptr<Txop> qosTxop, Time duration);
+    virtual void DisableEdcaFor(Ptr<Txop> qosTxop, Time duration);
 
     /**
      * Set the member variable indicating whether the backoff should be invoked when an AC gains
@@ -222,7 +222,7 @@ class ChannelAccessManager : public Object
      * Notify the Txop that a packet reception started
      * for the expected duration.
      */
-    void NotifyRxStartNow(Time duration);
+    virtual void NotifyRxStartNow(Time duration);
     /**
      * Notify the Txop that a packet reception was just
      * completed successfully.
@@ -240,7 +240,7 @@ class ChannelAccessManager : public Object
      * just started and is expected to last for the specified
      * duration.
      */
-    void NotifyTxStartNow(Time duration);
+    virtual void NotifyTxStartNow(Time duration);
     /**
      * @param duration expected duration of CCA busy period
      * @param channelType the channel type for which the CCA busy state is reported.
@@ -251,9 +251,9 @@ class ChannelAccessManager : public Object
      *
      * Notify the Txop that a CCA busy period has just started.
      */
-    void NotifyCcaBusyStartNow(Time duration,
-                               WifiChannelListType channelType,
-                               const std::vector<Time>& per20MhzDurations);
+    virtual void NotifyCcaBusyStartNow(Time duration,
+                                       WifiChannelListType channelType,
+                                       const std::vector<Time>& per20MhzDurations);
     /**
      * @param phyListener the PHY listener that sent this notification
      * @param duration expected duration of channel switching period
@@ -284,13 +284,13 @@ class ChannelAccessManager : public Object
      *
      * Called at end of RX
      */
-    void NotifyNavResetNow(Time duration);
+    virtual void NotifyNavResetNow(Time duration);
     /**
      * @param duration the value of the received NAV.
      *
      * Called at end of RX
      */
-    void NotifyNavStartNow(Time duration);
+    virtual void NotifyNavStartNow(Time duration);
     /**
      * Notify that ack timer has started for the given duration.
      *

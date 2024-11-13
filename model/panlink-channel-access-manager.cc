@@ -67,7 +67,11 @@ PanlinkChannelAccessManager::DoRestoreAccessIfNeeded()
     NS_LOG_DEBUG("Access restore needed: " << needAccessRestore);
     if (needAccessRestore)
     {
-        auto expectedRestoreDelay = accessGrant - now;
+        /* Add one time step to the access restore delay to guarantee that the restore event won't 
+        happen before the ACK transmission event, which will trigger NotifyTxStartNow.
+        The expected time of restore event is in between [accessGrant, backoffStart], which won't 
+        influence the update of backoffStart in UpdateBackoff method. */
+        auto expectedRestoreDelay = accessGrant - now + TimeStep(1);
 
         if (m_accessRestore.IsPending() &&
             Simulator::GetDelayLeft(m_accessRestore) < expectedRestoreDelay)
@@ -91,15 +95,18 @@ PanlinkChannelAccessManager::AccessRestore()
     UpdateBackoff();
 
     // determine the txop that restores access
+    bool needAccessRestore = false;
     for (auto txop : m_txops)
     {
         if (txop->GetAccessStatus(m_linkId) == Txop::REQUESTED)
         {
+            needAccessRestore = true;
             StaticCast<PanlinkTxop>(txop)->GenerateNewBackoff(m_linkId);
             const auto aci = txop->GetWifiMacQueue()->GetAc();
             NS_LOG_DEBUG("access restored for " << aci);
         }
     }
+    NS_ASSERT(needAccessRestore);
     DoRestartAccessTimeoutIfNeeded();
 }
 
