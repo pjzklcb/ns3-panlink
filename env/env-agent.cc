@@ -191,12 +191,12 @@ EnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, ModuleObs& ob
     {
         auto linkId = obs.linkId;
         int i = 0;
-        for (const auto& ac : {AC_BE, AC_BK, AC_VI, AC_VO})
+        for (const auto& [aci, ac] : wifiAcList)
         {
-            env.thptReq[i] = sensingMac->GetThptReq(m_period, ac);
-            env.thpt[i] = sensingMac->GetThpt(m_period, ac);
+            env.thptReq[i] = sensingMac->GetThptReq(m_period, aci);
+            env.thpt[i] = sensingMac->GetThpt(m_period, aci);
             env.delayReq[i] = 30; // ms
-            env.delay[i] = sensingMac->GetDelay(m_period, ac);
+            env.delay[i] = sensingMac->GetDelay(m_period, aci);
             i++;
         }
         env.nBssStas = sensingMac->GetNBssStas(linkId);

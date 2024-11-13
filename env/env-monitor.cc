@@ -87,8 +87,8 @@ EnvMonitor::ConnectAppTrace()
         //                     MakeCallback(&EnvMonitor::NotifyAppTx, this));
         // }
 
-        std::string prefix = "/NodeList/" + std::to_string(srcNodeId) +
-                             "/ApplicationList/*/$ns3::BurstApplication/";
+        std::string prefix =
+            "/NodeList/" + std::to_string(srcNodeId) + "/ApplicationList/*/$ns3::BurstApplication/";
         Config::Connect(prefix + "BurstTx", MakeCallback(&EnvMonitor::NotifyBurstTx, this));
         Config::Connect(prefix + "FragmentTx", MakeCallback(&EnvMonitor::NotifyFragmentTx, this));
     }
@@ -121,10 +121,11 @@ EnvMonitor::ConnectMacTrace()
     Config::Connect("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Mac/$ns3::WifiMac/AckedMpdu",
                     MakeCallback(&EnvMonitor::NotifyAckedMpdu, this));
 
-    for (const auto& ac : {"BE", "BK", "VI", "VO"})
+    for (const auto& [aci, _] : wifiAcList)
     {
         std::string prefix = "/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Mac/$ns3::WifiMac/";
-
+        std::string ac = AcIndexToString(aci);
+        
         // Trace CW update
         Config::Connect(prefix + ac + "_Txop/CwTrace",
                         MakeCallback(&EnvMonitor::NotifyCwUpdate, this));
@@ -141,16 +142,18 @@ EnvMonitor::ConnectEdcaQueueTrace()
     for (auto devIt = m_devices.Begin(); devIt != m_devices.End(); ++devIt)
     {
         auto mac = DynamicCast<WifiNetDevice>(*devIt)->GetMac();
-        for (const auto& ac : {AC_BE, AC_BK, AC_VI, AC_VO})
+        for (const auto& [aci, ac] : wifiAcList)
         {
-            std::string name = AcIndexToString(ac);
-            mac->GetTxopQueue(ac)->TraceConnect("Enqueue",
-                                                name,
-                                                MakeCallback(&EnvMonitor::NotifyEdcaEnqueue, this));
-            mac->GetTxopQueue(ac)->TraceConnect("Dequeue",
-                                                name,
-                                                MakeCallback(&EnvMonitor::NotifyEdcaDequeue, this));
-            mac->GetTxopQueue(ac)->TraceConnectWithoutContext(
+            std::string name = AcIndexToString(aci);
+            mac->GetTxopQueue(aci)->TraceConnect(
+                "Enqueue",
+                name,
+                MakeCallback(&EnvMonitor::NotifyEdcaEnqueue, this));
+            mac->GetTxopQueue(aci)->TraceConnect(
+                "Dequeue",
+                name,
+                MakeCallback(&EnvMonitor::NotifyEdcaDequeue, this));
+            mac->GetTxopQueue(aci)->TraceConnectWithoutContext(
                 "Expired",
                 MakeCallback(&EnvMonitor::NotifyEdcaExpired, this));
         }
