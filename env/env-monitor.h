@@ -29,7 +29,7 @@ class EnvMonitor : public Singleton<EnvMonitor>
 {
   public:
     ~EnvMonitor() override;
-    
+
     /**
      * Set the nodes under monitoring.
      */
@@ -54,7 +54,7 @@ class EnvMonitor : public Singleton<EnvMonitor>
 
     /**
      * Save simulation results to CSV files.
-     * 
+     *
      * \param resultDir the directory of the results
      */
     void WriteResultsToCsv(std::string resultDir);
@@ -186,6 +186,20 @@ class EnvMonitor : public Singleton<EnvMonitor>
      * \param linkId the link ID
      */
     void NotifyNewBackoff(std::string context, uint32_t backoff, uint8_t linkId);
+    /**
+     * Notify that waited slots and other panlink channel access parameters are updated.
+     *
+     * \param context string contains the node ID
+     * \param nDeferredAccess the deferred access times
+     * \param waitedSlots the number of waited slots
+     * \param backoff the new backoff
+     * \param linkId the link ID
+     */
+    void NotifyWaitedSlotsUpdate(std::string context,
+                                 uint32_t nDeferredAccess,
+                                 uint32_t waitedSlots,
+                                 uint32_t backoff,
+                                 uint8_t linkId);
 
     /**
      * Notify that a packet is start to be transmitted.

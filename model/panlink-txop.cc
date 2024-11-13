@@ -26,7 +26,7 @@ PanlinkTxop::GetTypeId()
             .SetGroupName("Panlink")
             .AddConstructor<PanlinkTxop>()
             .AddTraceSource(
-                "WaitedSlots",
+                "WaitedSlotsTrace",
                 "Trace source for values of cw, backoff, waited slots and deferred times",
                 MakeTraceSourceAccessor(&PanlinkTxop::m_waitedSlotsTrace),
                 "ns3::PanlinkTxop::WaitedSlotsValueTracedCallback");
@@ -87,7 +87,7 @@ PanlinkTxop::GenerateBackoff(uint8_t linkId)
         QosTxop::GenerateBackoff(linkId);
         return;
     }
-    
+
     auto& link = GetLink(linkId);
     NS_LOG_FUNCTION(this << linkId << link.nDeferredAccess << link.waitedSlots);
 
@@ -104,7 +104,7 @@ PanlinkTxop::GenerateBackoff(uint8_t linkId)
     StartBackoffNow(backoff, linkId);
     link.nDeferredAccess = 0;
     link.waitedSlots = 0;
-    m_waitedSlotsTrace(link.cw, link.nDeferredAccess, link.waitedSlots, backoff, linkId);
+    m_waitedSlotsTrace(link.nDeferredAccess, link.waitedSlots, backoff, linkId);
 }
 
 void
@@ -134,7 +134,7 @@ PanlinkTxop::GenerateNewBackoff(uint8_t linkId)
         NS_LOG_DEBUG("this access has deferred "
                      << link.nDeferredAccess << " times, waited " << link.waitedSlots
                      << " slots, and new backoff=" << link.backoffSlots);
-        m_waitedSlotsTrace(link.cw, link.nDeferredAccess, link.waitedSlots, link.backoffSlots, linkId);
+        m_waitedSlotsTrace(link.nDeferredAccess, link.waitedSlots, link.backoffSlots, linkId);
     }
 }
 

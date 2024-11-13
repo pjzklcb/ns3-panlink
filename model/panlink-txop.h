@@ -90,8 +90,7 @@ class PanlinkTxop : public QosTxop
     std::unique_ptr<LinkEntity> CreateLinkEntity() const override;
 
     /// TracedCallback for waited slots trace value typedef
-    typedef TracedCallback<uint32_t /* cw */,
-                           uint32_t /* deferred times */,
+    typedef TracedCallback<uint32_t /* deferred times */,
                            uint32_t /* waited slots */,
                            uint32_t /* backoff */,
                            uint8_t /* linkId */>

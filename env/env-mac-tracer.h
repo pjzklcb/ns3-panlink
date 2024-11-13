@@ -90,6 +90,22 @@ class EnvMacTracer : public Object
      * \param ac the AC
      */
     void HandleNewBackoff(uint32_t nodeId, uint32_t backoff, uint8_t linkId, AcIndex ac);
+    /**
+     * Handle the waited slots traceback.
+     *
+     * \param nodeId the node ID
+     * \param nDeferredAccess the deferred access times
+     * \param waitedSlots the number of waited slots
+     * \param backoff the new backoff
+     * \param linkId the link ID
+     * \param ac the AC
+     */
+    void HandleWaitedSlotsUpdate(uint32_t nodeId,
+                                 uint32_t nDeferredAccess,
+                                 uint32_t waitedSlots,
+                                 uint32_t backoff,
+                                 uint8_t linkId,
+                                 AcIndex ac);
 
     /**
      * Save the CW to CSV file.
@@ -103,12 +119,19 @@ class EnvMacTracer : public Object
      * \param resultDir the directory path
      */
     void WriteBackoffToCsv(std::string resultDir);
+    /**
+     * Save the waited slots to CSV file.
+     *
+     * \param resultDir the directory path
+     */
+    void WriteWaitedSlotsToCsv(std::string resultDir);
 
   private:
-    typedef std::map<AcIndex, std::vector<std::pair<Time, uint32_t>>> EdcaQueueMap;
+    typedef std::map<AcIndex, std::map<Time, std::vector<uint32_t>>> EdcaQueueMap;
 
     std::map<uint32_t /* Node ID */, EdcaQueueMap> m_cw;
     std::map<uint32_t /* Node ID */, EdcaQueueMap> m_backoff;
+    std::map<uint32_t /* Node ID */, EdcaQueueMap> m_waitedSlots;
 };
 
 } // namespace ns3

@@ -125,7 +125,7 @@ EnvMonitor::ConnectMacTrace()
     {
         std::string prefix = "/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Mac/$ns3::WifiMac/";
         std::string ac = AcIndexToString(aci);
-        
+
         // Trace CW update
         Config::Connect(prefix + ac + "_Txop/CwTrace",
                         MakeCallback(&EnvMonitor::NotifyCwUpdate, this));
@@ -133,6 +133,17 @@ EnvMonitor::ConnectMacTrace()
         // Trace new backoff
         Config::Connect(prefix + ac + "_Txop/BackoffTrace",
                         MakeCallback(&EnvMonitor::NotifyNewBackoff, this));
+    }
+
+    for (const auto& [aci, _] : wifiAcList)
+    {
+        std::string prefix =
+            "/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Mac/$ns3::PanlinkStaWifiMac/";
+        std::string ac = AcIndexToString(aci);
+
+        // Trace Waited Slots update
+        Config::Connect(prefix + ac + "_Txop/WaitedSlotsTrace",
+                        MakeCallback(&EnvMonitor::NotifyWaitedSlotsUpdate, this));
     }
 }
 
@@ -298,6 +309,18 @@ EnvMonitor::NotifyNewBackoff(std::string context, uint32_t backoff, uint8_t link
 }
 
 void
+EnvMonitor::NotifyWaitedSlotsUpdate(std::string context,
+                                    uint32_t nDeferredAccess,
+                                    uint32_t waitedSlots,
+                                    uint32_t backoff,
+                                    uint8_t linkId)
+{
+    uint32_t nodeId = ContextToNodeId(context);
+    AcIndex ac = ContextToAcIndex(context);
+    m_macTracer->HandleWaitedSlotsUpdate(nodeId, nDeferredAccess, waitedSlots, backoff, linkId, ac);
+}
+
+void
 EnvMonitor::NotifyPhyTxBegin(std::string context, Ptr<const Packet> p, double txPowerW)
 {
     uint32_t nodeId = ContextToNodeId(context);
@@ -317,6 +340,7 @@ EnvMonitor::WriteResultsToCsv(std::string resultDir)
     WriteInFlightPacketMapToCsv(resultDir);
     m_macTracer->WriteCwToCsv(resultDir);
     m_macTracer->WriteBackoffToCsv(resultDir);
+    m_macTracer->WriteWaitedSlotsToCsv(resultDir);
 }
 
 void
