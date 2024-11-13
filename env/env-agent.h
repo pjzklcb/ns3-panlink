@@ -119,7 +119,7 @@ class EnvAgent : public Object
     /**
      * Set the action feedbacked from RL agent.
      */
-    virtual void SetEnvAct(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface);
+    virtual void SetEnvAct(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, ModuleObs& obs);
 
   protected:
     void DoDispose() override;

@@ -10,6 +10,8 @@
 
 #include "panlink-sta-wifi-mac.h"
 
+#include "ns3/channel-access-env-agent.h"
+
 namespace ns3
 {
 

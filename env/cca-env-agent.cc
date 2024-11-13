@@ -65,7 +65,7 @@ CcaEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, ModuleObs&
 }
 
 void
-CcaEnvAgent::SetEnvAct(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface)
+CcaEnvAgent::SetEnvAct(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, ModuleObs& obs)
 {
     NS_LOG_FUNCTION(this);
 
@@ -75,7 +75,7 @@ CcaEnvAgent::SetEnvAct(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface)
     auto preambleDetectionModel = CreateObject<ThresholdPreambleDetectionModel>();
     preambleDetectionModel->SetAttribute("MinimumRssi", DoubleValue(newCca));
 
-    auto phy = GetWifiMac()->GetWifiPhy();
+    auto phy = GetWifiMac()->GetWifiPhy(obs.linkId);
     phy->SetCcaSensitivityThreshold(newCca);
     phy->SetPreambleDetectionModel(preambleDetectionModel);
 }

@@ -61,12 +61,12 @@ ChannelAccessEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, 
 }
 
 void
-ChannelAccessEnvAgent::SetEnvAct(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface)
+ChannelAccessEnvAgent::SetEnvAct(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, ModuleObs& obs)
 {
     NS_LOG_FUNCTION(this);
 
     // auto& act = msgInterface->GetPy2CppVector()->at(m_memoryId);
-    // double newCca = act.ccaSensitivity;
+    // double newBackoff = act.backoff;
 
     // auto phy = GetWifiMac()->GetWifiPhy();
     // phy->SetCcaSensitivityThreshold(newCca);

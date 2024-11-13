@@ -155,7 +155,7 @@ EnvAgentManager::DoEnvInfoExchange(uint32_t nodeId, AgentType type, EnvAgent::Mo
     msgInterface->CppSendEnd();
 
     msgInterface->CppRecvBegin();
-    agent->SetEnvAct(msgInterface);
+    agent->SetEnvAct(msgInterface, obs);
     msgInterface->CppRecvEnd();
 }
 

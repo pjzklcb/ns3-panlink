@@ -33,8 +33,13 @@ class ChannelAccessEnvAgent : public EnvAgent
 
     ChannelAccessEnvAgent(Ptr<Node> node, uint32_t memoryId);
 
+    struct ChannelAccessObs : public EnvAgent::ModuleObs
+    {
+        AcIndex ac;
+    };
+
     void GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, ModuleObs& obs) override;
-    void SetEnvAct(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface) override;
+    void SetEnvAct(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, ModuleObs& obs) override;
 
   private:
 };
