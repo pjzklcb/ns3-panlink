@@ -26,17 +26,6 @@ namespace ns3
 
 PanlinkMacHelper::PanlinkMacHelper()
 {
-    if (m_mac.GetTypeId() != PanlinkStaWifiMac::GetTypeId())
-    // && m_mac.GetTypeId() != PanlinkApWifiMac::GetTypeId())
-    {
-        m_channelAccessManager.SetTypeId("ns3::PanlinkChannelAccessManager");
-        m_frameExchangeManager.SetTypeId("ns3::PanlinkFrameExchangeManager");
-        for (const auto& [aci, ac] : wifiAcList)
-        {
-            m_edca[aci].SetTypeId("ns3::PanlinkTxop");
-        }
-    }
-
     m_sensingMac.SetTypeId("ns3::SensingMac");
 }
 
@@ -66,6 +55,7 @@ PanlinkMacHelper::Create(Ptr<WifiNetDevice> device, WifiStandard standard) const
         std::stringstream ss;
         ss << aci << "_Txop";
         auto s = ss.str().substr(3); // discard "AC "
+        edca.SetTypeId("ns3::PanlinkTxop");
         macObjectFactory.Set(s, PointerValue(edca.Create<QosTxop>()));
     }
 
@@ -75,10 +65,11 @@ PanlinkMacHelper::Create(Ptr<WifiNetDevice> device, WifiStandard standard) const
 
     // create Channel Access Managers
     std::vector<Ptr<ChannelAccessManager>> caManagers;
-
+    auto channelAccessManager = m_channelAccessManager;
+    channelAccessManager.SetTypeId("ns3::PanlinkChannelAccessManager");
     for (uint8_t linkId = 0; linkId < nLinks; ++linkId)
     {
-        caManagers.emplace_back(m_channelAccessManager.Create<ChannelAccessManager>());
+        caManagers.emplace_back(channelAccessManager.Create<ChannelAccessManager>());
     }
 
     Ptr<WifiMac> mac = macObjectFactory.Create<WifiMac>();
@@ -93,9 +84,11 @@ PanlinkMacHelper::Create(Ptr<WifiNetDevice> device, WifiStandard standard) const
 
     // create Frame Exchange Managers, each with an attached protection manager and ack manager
     std::vector<Ptr<FrameExchangeManager>> feManagers;
+    auto frameExchangeManager = m_frameExchangeManager;
+    frameExchangeManager.SetTypeId("ns3::PanlinkFrameExchangeManager");
     for (uint8_t linkId = 0; linkId < nLinks; ++linkId)
     {
-        auto fem = m_frameExchangeManager.Create<FrameExchangeManager>();
+        auto fem = frameExchangeManager.Create<FrameExchangeManager>();
         feManagers.emplace_back(fem);
 
         auto protectionManager = m_protectionManager.Create<WifiProtectionManager>();

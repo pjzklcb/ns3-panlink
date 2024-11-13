@@ -32,6 +32,15 @@ class PanlinkChannelAccessManager : public ChannelAccessManager
     ~PanlinkChannelAccessManager() override;
 
   protected:
+    void DisableEdcaFor(Ptr<Txop> qosTxop, Time duration) override;
+    void NotifyRxStartNow(Time duration) override;
+    void NotifyTxStartNow(Time duration) override;
+    void NotifyCcaBusyStartNow(Time duration,
+                               WifiChannelListType channelType,
+                               const std::vector<Time>& per20MhzDurations) override;
+    void NotifyNavResetNow(Time duration) override;
+    void NotifyNavStartNow(Time duration) override;
+
   private:
     /**
      * Restore the deferred access if needed.
@@ -44,7 +53,7 @@ class PanlinkChannelAccessManager : public ChannelAccessManager
      */
     void AccessRestore();
 
-    EventId m_accessRestore;  //!< the access restore event
+    EventId m_accessRestore; //!< the access restore event
 };
 
 } // namespace ns3

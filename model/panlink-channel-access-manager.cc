@@ -13,6 +13,9 @@
 #include "ns3/simulator.h"
 #include "ns3/wifi-mac-queue.h"
 
+#undef NS_LOG_APPEND_CONTEXT
+#define NS_LOG_APPEND_CONTEXT std::clog << "[link=" << +m_linkId << "] "
+
 namespace ns3
 {
 
@@ -47,35 +50,27 @@ PanlinkChannelAccessManager::DoRestoreAccessIfNeeded()
 
     /**
      * Is there a Txop which needs to access the medium, and,
-     * if there is one, when does its backoff countdown restart (access restore)?
+     * if there is one, when does backoff procedure restart (access restore)?
      */
-    Ptr<Txop> nextTxop;
-    auto expectedBackoffStart = Simulator::GetMaximumSimulationTime();
+    const auto accessGrant = GetAccessGrantStart();
     const auto now = Simulator::Now();
+    bool needAccessRestore = false;
     for (auto txop : m_txops)
     {
-        auto panlinkTxop = StaticCast<PanlinkTxop>(txop);
-        NS_ASSERT(panlinkTxop->GetLink(m_linkId).backoffStart >= now);
-
         if (txop->GetAccessStatus(m_linkId) == Txop::REQUESTED)
         {
-            if (auto backoffStart = GetBackoffStartFor(txop);
-                backoffStart > now && backoffStart < expectedBackoffStart)
-            {
-                expectedBackoffStart = backoffStart;
-                nextTxop = txop;
-            }
+            auto aci = txop->GetWifiMacQueue()->GetAc();
+            NS_LOG_DEBUG("expected access restore=" << accessGrant << " by " << aci);
+            needAccessRestore = true;
         }
     }
-    NS_LOG_DEBUG("Access restore needed: " << (nextTxop != nullptr));
-    if (nextTxop)
+    NS_LOG_DEBUG("Access restore needed: " << needAccessRestore);
+    if (needAccessRestore)
     {
-        const auto aci = nextTxop->GetWifiMacQueue()->GetAc();
-        NS_LOG_DEBUG("expected access restore=" << expectedBackoffStart << " by " << aci);
-        auto expectedRestoreDelay = expectedBackoffStart - now;
+        auto expectedRestoreDelay = accessGrant - now;
 
         if (m_accessRestore.IsPending() &&
-            Simulator::GetDelayLeft(m_accessRestore) > expectedRestoreDelay)
+            Simulator::GetDelayLeft(m_accessRestore) < expectedRestoreDelay)
         {
             m_accessRestore.Cancel();
         }
@@ -88,28 +83,81 @@ PanlinkChannelAccessManager::DoRestoreAccessIfNeeded()
     }
 }
 
-void 
+void
 PanlinkChannelAccessManager::AccessRestore()
 {
     NS_LOG_FUNCTION(this);
 
     UpdateBackoff();
-    
+
     // determine the txop that restores access
     for (auto txop : m_txops)
     {
         if (txop->GetAccessStatus(m_linkId) == Txop::REQUESTED)
         {
-            if (GetBackoffStartFor(txop) == Simulator::Now())
-            {
-                StaticCast<PanlinkTxop>(txop)->GenerateNewBackoff(m_linkId);
-                const auto aci = txop->GetWifiMacQueue()->GetAc();
-                NS_LOG_DEBUG("access restored by " << aci);
-            }
+            StaticCast<PanlinkTxop>(txop)->GenerateNewBackoff(m_linkId);
+            const auto aci = txop->GetWifiMacQueue()->GetAc();
+            NS_LOG_DEBUG("access restored for " << aci);
         }
     }
-
     DoRestartAccessTimeoutIfNeeded();
+}
+
+void
+PanlinkChannelAccessManager::DisableEdcaFor(Ptr<Txop> qosTxop, Time duration)
+{
+    NS_LOG_FUNCTION(this << qosTxop << duration);
+
+    ChannelAccessManager::DisableEdcaFor(qosTxop, duration);
+    DoRestoreAccessIfNeeded();
+}
+
+void
+PanlinkChannelAccessManager::NotifyRxStartNow(Time duration)
+{
+    NS_LOG_FUNCTION(this << duration);
+
+    ChannelAccessManager::NotifyRxStartNow(duration);
+    DoRestoreAccessIfNeeded();
+}
+
+void 
+PanlinkChannelAccessManager::NotifyTxStartNow(Time duration)
+{
+    NS_LOG_FUNCTION(this << duration);
+
+    ChannelAccessManager::NotifyTxStartNow(duration);
+    // wait until the access status changed
+    Simulator::ScheduleNow(&PanlinkChannelAccessManager::DoRestoreAccessIfNeeded, this);
+}
+
+void
+PanlinkChannelAccessManager::NotifyCcaBusyStartNow(Time duration,
+                                                   WifiChannelListType channelType,
+                                                   const std::vector<Time>& per20MhzDurations)
+{
+    NS_LOG_FUNCTION(this << duration << channelType);
+
+    ChannelAccessManager::NotifyCcaBusyStartNow(duration, channelType, per20MhzDurations);
+    DoRestoreAccessIfNeeded();
+}
+
+void
+PanlinkChannelAccessManager::NotifyNavResetNow(Time duration)
+{
+    NS_LOG_FUNCTION(this << duration);
+
+    ChannelAccessManager::NotifyNavResetNow(duration);
+    DoRestoreAccessIfNeeded();
+}
+
+void
+PanlinkChannelAccessManager::NotifyNavStartNow(Time duration)
+{
+    NS_LOG_FUNCTION(this << duration);
+
+    ChannelAccessManager::NotifyNavStartNow(duration);
+    DoRestoreAccessIfNeeded();
 }
 
 } // namespace ns3

@@ -119,7 +119,7 @@ PanlinkTxop::GenerateNewBackoff(uint8_t linkId)
         link.nDeferredAccess += 1;
         link.backoffSlots = m_rng->GetInteger(0, link.cw - link.waitedSlots);
         NS_LOG_DEBUG("this access has deferred "
-                     << link.nDeferredAccess << " times, waited" << link.waitedSlots
+                     << link.nDeferredAccess << " times, waited " << link.waitedSlots
                      << " slots, and new backoff=" << link.backoffSlots);
     }
 }
