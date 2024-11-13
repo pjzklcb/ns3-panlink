@@ -26,6 +26,7 @@ set(source_files
     env/env-phy-tracer.cc
     env/env-agent.cc
     env/cca-env-agent.cc
+    env/channel-access-env-agent.cc
     env/env-agent-manager.cc
     env/env-utils.cc
     helper/env-helper.cc
@@ -49,6 +50,7 @@ set(header_files
     env/env-phy-tracer.h
     env/env-agent.h
     env/cca-env-agent.h
+    env/channel-access-env-agent.h
     env/env-agent-manager.h
     env/env-utils.h
     env/obs-act-list.h

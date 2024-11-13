@@ -55,7 +55,7 @@ CcaEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, ModuleObs&
     EnvAgent::GetEnvObs(msgInterface, obs);
 
     auto& env = msgInterface->GetCpp2PyVector()->at(m_memoryId);
-    env.agentType = RL_CCA_SENSITIVITY;
+    env.agentType = m_type;
 
     // Get obs from sensing MAC
     auto sensingMac = GetSensingMac();

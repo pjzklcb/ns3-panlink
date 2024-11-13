@@ -56,12 +56,6 @@ class EnvAgent : public Object
     EnvAgent& operator=(const EnvAgent&) = delete;
 
     /**
-     * Set the type of this env agent.
-     *
-     * \param type the type of this env agent
-     */
-    void SetAgentType(AgentType type);
-    /**
      * Set the bound node.
      *
      * \param node the bound node
@@ -129,6 +123,13 @@ class EnvAgent : public Object
 
   protected:
     void DoDispose() override;
+
+    /**
+     * Set the type of this env agent. (Cannot change after construct)
+     *
+     * \param type the type of this env agent
+     */
+    void SetAgentType(AgentType type);
 
     AgentType m_type;    //!< the type of this env agent
     Ptr<Node> m_node;    //!< the bound node

@@ -33,7 +33,7 @@ PanlinkStaWifiMac::GetTypeId()
                           "Enable the Panlink channel access strategy.",
                           TypeId::ATTR_GET |
                               TypeId::ATTR_CONSTRUCT, // prevent setting after construction
-                          BooleanValue(true),
+                          BooleanValue(false),
                           MakeBooleanAccessor(&PanlinkStaWifiMac::SetEnablePanlinkChannelAccess,
                                               &PanlinkStaWifiMac::GetEnablePanlinkChannelAccess),
                           MakeBooleanChecker());
