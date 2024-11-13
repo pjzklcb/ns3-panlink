@@ -20,10 +20,16 @@ NS_OBJECT_ENSURE_REGISTERED(PanlinkTxop);
 TypeId
 PanlinkTxop::GetTypeId()
 {
-    static TypeId tid = TypeId("ns3::PanlinkTxop")
-                            .SetParent<QosTxop>()
-                            .SetGroupName("Panlink")
-                            .AddConstructor<PanlinkTxop>();
+    static TypeId tid =
+        TypeId("ns3::PanlinkTxop")
+            .SetParent<QosTxop>()
+            .SetGroupName("Panlink")
+            .AddConstructor<PanlinkTxop>()
+            .AddTraceSource(
+                "WaitedSlots",
+                "Trace source for values of cw, backoff, waited slots and deferred times",
+                MakeTraceSourceAccessor(&PanlinkTxop::m_waitedSlotsTrace),
+                "ns3::PanlinkTxop::WaitedSlotsValueTracedCallback");
     return tid;
 }
 
@@ -62,10 +68,10 @@ PanlinkTxop::GetNDeferredAccess(uint8_t linkId) const
 }
 
 bool
-PanlinkTxop::GetEnableChannelAccess() const
+PanlinkTxop::GetEnablePanlinkChannelAccess() const
 {
     auto staMac = DynamicCast<PanlinkStaWifiMac>(m_mac);
-    if (staMac && staMac->GetEnableChannelAccess())
+    if (staMac && staMac->GetEnablePanlinkChannelAccess())
     {
         return true;
     }
@@ -76,6 +82,12 @@ PanlinkTxop::GetEnableChannelAccess() const
 void
 PanlinkTxop::GenerateBackoff(uint8_t linkId)
 {
+    if (!GetEnablePanlinkChannelAccess())
+    {
+        QosTxop::GenerateBackoff(linkId);
+        return;
+    }
+    
     auto& link = GetLink(linkId);
     NS_LOG_FUNCTION(this << linkId << link.nDeferredAccess << link.waitedSlots);
 
@@ -92,6 +104,7 @@ PanlinkTxop::GenerateBackoff(uint8_t linkId)
     StartBackoffNow(backoff, linkId);
     link.nDeferredAccess = 0;
     link.waitedSlots = 0;
+    m_waitedSlotsTrace(link.cw, link.nDeferredAccess, link.waitedSlots, backoff, linkId);
 }
 
 void
@@ -112,7 +125,7 @@ PanlinkTxop::GenerateNewBackoff(uint8_t linkId)
 {
     NS_LOG_FUNCTION(this << linkId);
 
-    if (GetEnableChannelAccess())
+    if (GetEnablePanlinkChannelAccess())
     {
         auto& link = GetLink(linkId);
 
@@ -121,6 +134,7 @@ PanlinkTxop::GenerateNewBackoff(uint8_t linkId)
         NS_LOG_DEBUG("this access has deferred "
                      << link.nDeferredAccess << " times, waited " << link.waitedSlots
                      << " slots, and new backoff=" << link.backoffSlots);
+        m_waitedSlotsTrace(link.cw, link.nDeferredAccess, link.waitedSlots, link.backoffSlots, linkId);
     }
 }
 

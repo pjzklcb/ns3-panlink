@@ -29,13 +29,13 @@ PanlinkStaWifiMac::GetTypeId()
             .SetParent<StaWifiMac>()
             .SetGroupName("Panlink")
             .AddConstructor<PanlinkStaWifiMac>()
-            .AddAttribute("EnableChannelAccess",
+            .AddAttribute("EnablePanlinkChannelAccess",
                           "Enable the Panlink channel access strategy.",
                           TypeId::ATTR_GET |
                               TypeId::ATTR_CONSTRUCT, // prevent setting after construction
                           BooleanValue(true),
-                          MakeBooleanAccessor(&PanlinkStaWifiMac::SetEnableChannelAccess,
-                                              &PanlinkStaWifiMac::GetEnableChannelAccess),
+                          MakeBooleanAccessor(&PanlinkStaWifiMac::SetEnablePanlinkChannelAccess,
+                                              &PanlinkStaWifiMac::GetEnablePanlinkChannelAccess),
                           MakeBooleanChecker());
     return tid;
 }
@@ -110,15 +110,15 @@ PanlinkStaWifiMac::GetSensingMac() const
 }
 
 void
-PanlinkStaWifiMac::SetEnableChannelAccess(bool enableChannelAccess)
+PanlinkStaWifiMac::SetEnablePanlinkChannelAccess(bool enable)
 {
-    m_enableChannelAccess = enableChannelAccess;
+    m_panlinkChannelAccess = enable;
 }
 
 bool
-PanlinkStaWifiMac::GetEnableChannelAccess() const
+PanlinkStaWifiMac::GetEnablePanlinkChannelAccess() const
 {
-    return m_enableChannelAccess;
+    return m_panlinkChannelAccess;
 }
 
 PanlinkStaWifiMac::PanStaLinkEntity::~PanStaLinkEntity()

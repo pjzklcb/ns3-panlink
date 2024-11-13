@@ -31,14 +31,14 @@ class PanlinkTxop : public QosTxop
 
     /**
      * Get the number of waited slots of the given link by far.
-     * 
+     *
      * \param linkId the link ID
      */
     uint32_t GetWaitedSlots(uint8_t linkId) const;
 
     /**
      * Get the times of deferred access on the given link by far.
-     * 
+     *
      * \param linkId the link ID
      */
     uint32_t GetNDeferredAccess(uint8_t linkId) const;
@@ -46,7 +46,7 @@ class PanlinkTxop : public QosTxop
     /**
      * Get whether panlink channel access strategy is supported by MAC.
      */
-    bool GetEnableChannelAccess() const;
+    bool GetEnablePanlinkChannelAccess() const;
 
   protected:
     ///< ChannelAccessManager associated class
@@ -74,7 +74,7 @@ class PanlinkTxop : public QosTxop
         /// Destructor (a virtual method is needed to make this struct polymorphic)
         ~PanLinkEntity() override = default;
 
-        uint32_t waitedSlots{0};  //!< total waited slots
+        uint32_t waitedSlots{0};     //!< total waited slots
         uint32_t nDeferredAccess{0}; //!< deferred access times
     };
 
@@ -88,6 +88,16 @@ class PanlinkTxop : public QosTxop
 
   private:
     std::unique_ptr<LinkEntity> CreateLinkEntity() const override;
+
+    /// TracedCallback for waited slots trace value typedef
+    typedef TracedCallback<uint32_t /* cw */,
+                           uint32_t /* deferred times */,
+                           uint32_t /* waited slots */,
+                           uint32_t /* backoff */,
+                           uint8_t /* linkId */>
+        WaitedSlotsValueTracedCallback;
+
+    WaitedSlotsValueTracedCallback m_waitedSlotsTrace; //!< waited slots trace value
 };
 
 } // namespace ns3

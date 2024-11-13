@@ -46,7 +46,10 @@ class PanlinkStaWifiMac : public StaWifiMac
      */
     Ptr<SensingMac> GetSensingMac() const;
 
-    bool GetEnableChannelAccess() const;
+    /**
+     * Get whether the Panlink channel access strategy is enabled.
+     */
+    bool GetEnablePanlinkChannelAccess() const;
 
   protected:
     friend class SensingMac;
@@ -84,11 +87,16 @@ class PanlinkStaWifiMac : public StaWifiMac
   private:
     std::unique_ptr<LinkEntity> CreateLinkEntity() const override;
 
-    void SetEnableChannelAccess(bool enable);
+    /**
+     * Set whether panlink channel access strategy is supported by MAC.
+     *
+     * \param enable the enable flag
+     */
+    void SetEnablePanlinkChannelAccess(bool enable);
 
     Ptr<SensingMac> m_sensingMac; //!< sensing MAC object
 
-    bool m_enableChannelAccess; //!< enable panlink channel access strategy
+    bool m_panlinkChannelAccess; //!< flag whether panlink channel access strategy is enabled
 };
 
 } // namespace ns3
