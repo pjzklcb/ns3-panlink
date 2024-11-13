@@ -58,16 +58,22 @@ PYBIND11_MODULE(cpp_py_interface, m)
         .def_readwrite("delayReq", &Obs::delayReq)
         .def_readwrite("selfD2lt", &Obs::selfD2lt)
         .def_readwrite("selfChannelUtil", &Obs::selfChannelUtil)
+        .def_readwrite("nAckedMpdus", &Obs::nAckedMpdus)
         .def_readwrite("nBssStas", &Obs::nBssStas)
         .def_readwrite("nObssStas", &Obs::nObssStas)
         .def_readwrite("bssRssi", &Obs::bssRssi)
         .def_readwrite("obssRssi", &Obs::obssRssi)
+        .def_readwrite("apD2lt", &Obs::apD2lt)
+        .def_readwrite("bssD2lt", &Obs::bssD2lt)
         .def_readwrite("otherD2lt", &Obs::otherD2lt)
+        .def_readwrite("apChannelUtil", &Obs::apChannelUtil)
+        .def_readwrite("bssChannelUtil", &Obs::bssChannelUtil)
         .def_readwrite("otherChannelUtil", &Obs::otherChannelUtil);
 
     py::class_<Act>(m, "PyActStruct")
         .def(py::init<>())
-        .def_readwrite("ccaSensitivity", &Act::ccaSensitivity);
+        .def_readwrite("ccaSensitivity", &Act::ccaSensitivity)
+        .def_readwrite("backoff", &Act::backoff);
 
     py::class_<ns3::Ns3AiMsgInterfaceImpl<Obs, Act>::Cpp2PyMsgVector>(m, "PyEnvVector")
         .def("resize",

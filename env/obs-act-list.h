@@ -9,7 +9,6 @@
 #ifndef OBS_ACT_LIST_H
 #define OBS_ACT_LIST_H
 
-
 #include <array>
 #include <cstdint>
 
@@ -22,25 +21,31 @@ struct Obs
     double simTime;
 
     // self
-    std::array<double, 4> thpt;     // actual throughput for different AC
-    std::array<double, 4> thptReq;  // {AC_VO, AC_VI, AC_BE, AC_BK}
+    std::array<double, 4> thpt;    // actual throughput for different AC
+    std::array<double, 4> thptReq; // {AC_VO, AC_VI, AC_BE, AC_BK}
     std::array<double, 4> delay;
     std::array<double, 4> delayReq;
     double selfD2lt;
     double selfChannelUtil;
+    double nAckedMpdus; // number of acked MPDUs
 
     // neighbor
     uint32_t nBssStas;
     uint32_t nObssStas;
     double bssRssi;
     double obssRssi;
+    double apD2lt;
+    double bssD2lt;
     double otherD2lt;
+    double apChannelUtil;
+    double bssChannelUtil;
     double otherChannelUtil;
 };
 
 struct Act
 {
     double ccaSensitivity;
+    double backoff;
 };
 
 #endif // OBS_ACT_LIST_H
