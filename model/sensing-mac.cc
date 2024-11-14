@@ -391,6 +391,23 @@ SensingMac::GetSelfLastTxOk(uint8_t linkId) const
 }
 
 Time
+SensingMac::GetBssLastTxOk(uint8_t linkId) const
+{
+    NS_LOG_FUNCTION(this << linkId);
+
+    Time lastTxOkTime = Seconds(0);
+    for (auto& [_, sta] : m_neighborStaMap)
+    {
+        if (sta.linkId == linkId && (sta.role == ASSOCIATED_AP || sta.role == BSS_STA))
+        {
+            lastTxOkTime = std::max(lastTxOkTime, sta.lastTxOkTime);
+        }
+    }
+
+    return lastTxOkTime;
+}
+
+Time
 SensingMac::GetOtherLastTxOk(uint8_t linkId) const
 {
     NS_LOG_FUNCTION(this << linkId);
@@ -398,7 +415,7 @@ SensingMac::GetOtherLastTxOk(uint8_t linkId) const
     Time lastTxOkTime = Seconds(0);
     for (auto& [_, sta] : m_neighborStaMap)
     {
-        if (sta.linkId == linkId)
+        if (sta.linkId == linkId && sta.role != ASSOCIATED_AP && sta.role != BSS_STA)
         {
             lastTxOkTime = std::max(lastTxOkTime, sta.lastTxOkTime);
         }
@@ -471,6 +488,57 @@ SensingMac::GetSelfChannelUtil(Time period, uint8_t linkId) const
 }
 
 double
+SensingMac::GetBssChannelUtil(Time period, uint8_t linkId) const
+{
+    NS_LOG_FUNCTION(this << period << linkId);
+
+    NS_ASSERT(period > Seconds(0));
+    NS_ASSERT_MSG(period <= m_duration, "Period surpass maximum duration");
+
+    // Get the segements in the period
+    Time left = Simulator::Now() - period;
+    Time right = Simulator::Now();
+    std::vector<std::pair<Time, Time>> segments;
+    for (const auto& [_, sta] : m_neighborStaMap)
+    {
+        if (sta.linkId != linkId || (sta.role != ASSOCIATED_AP && sta.role != BSS_STA))
+        {
+            continue;
+        }
+
+        for (auto [end, duration] : sta.channelUtil)
+        {
+            auto begin = end - duration;
+            if (end <= left)
+            {
+                continue;
+            }
+            segments.emplace_back(std::make_pair(std::max(left, begin), std::min(right, end)));
+        }
+    }
+
+    // Sort the segments by txTime
+    std::sort(segments.begin(), segments.end(), [](const auto& a, const auto& b) {
+        return a.first < b.first;
+    });
+
+    // Calculate channel utilization
+    double channelUtil = 0;
+    Time prevEnd = left;
+    for (const auto& [begin, end] : segments)
+    {
+        if (end <= prevEnd)
+        {
+            continue;
+        }
+        channelUtil += (end - std::max(begin, prevEnd)).GetSeconds();
+        prevEnd = end;
+    }
+
+    return channelUtil / period.GetSeconds();
+}
+
+double
 SensingMac::GetOtherChannelUtil(Time period, uint8_t linkId) const
 {
     NS_LOG_FUNCTION(this << period << linkId);
@@ -484,7 +552,7 @@ SensingMac::GetOtherChannelUtil(Time period, uint8_t linkId) const
     std::vector<std::pair<Time, Time>> segments;
     for (const auto& [_, sta] : m_neighborStaMap)
     {
-        if (sta.linkId != linkId)
+        if (sta.linkId != linkId || sta.role == ASSOCIATED_AP || sta.role == BSS_STA)
         {
             continue;
         }

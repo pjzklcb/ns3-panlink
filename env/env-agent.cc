@@ -204,6 +204,7 @@ EnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, ModuleObs& ob
         env.nBssStas = sensingMac->GetNBssStas(linkId);
         env.nObssStas = sensingMac->GetNObssStas(linkId);
         env.selfChannelUtil = sensingMac->GetSelfChannelUtil(m_period, linkId);
+        env.bssChannelUtil = sensingMac->GetBssChannelUtil(m_period, linkId);
         env.otherChannelUtil = sensingMac->GetOtherChannelUtil(m_period, linkId);
     }
 }

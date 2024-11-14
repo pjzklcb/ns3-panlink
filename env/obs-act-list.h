@@ -34,10 +34,8 @@ struct Obs
     uint32_t nObssStas;
     double bssRssi;
     double obssRssi;
-    double apD2lt;
     double bssD2lt;
     double otherD2lt;
-    double apChannelUtil;
     double bssChannelUtil;
     double otherChannelUtil;
 };

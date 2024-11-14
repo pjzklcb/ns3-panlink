@@ -107,6 +107,12 @@ class SensingMac : public Object
      */
     Time GetSelfLastTxOk(uint8_t linkId) const;
     /**
+     * Get the time of the last successful transmission of STAs within the same BSS on the given link.
+     *
+     * \param linkId the link ID
+     */
+    Time GetBssLastTxOk(uint8_t linkId) const;
+    /**
      * Get the time of the last successful transmission of other STAs on the given link.
      *
      * \param linkId the link ID
@@ -133,6 +139,13 @@ class SensingMac : public Object
      * \param linkId the link ID
      */
     double GetSelfChannelUtil(Time period, uint8_t linkId) const;
+    /**
+     * Get the channel utilization of previous period of STAs within the same BSS on the given link.
+     *
+     * \param period the period of time
+     * \param linkId the link ID
+     */
+    double GetBssChannelUtil(Time period, uint8_t linkId) const;
     /**
      * Get the channel utilization of previous period of other STAs on the given link.
      *
@@ -196,8 +209,7 @@ class SensingMac : public Object
     struct SelfLinkInfo
     {
         Time lastTxOkTime;
-        std::map<uint64_t /* UID */, std::pair<Time /* Tx Begin */, Time /* Tx End */>>
-            channelUtil;
+        std::map<uint64_t /* UID */, std::pair<Time /* Tx Begin */, Time /* Tx End */>> channelUtil;
     };
 
     /**

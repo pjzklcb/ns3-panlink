@@ -9,6 +9,7 @@
 #include "channel-access-env-agent.h"
 
 #include "ns3/panlink-txop.h"
+#include "ns3/simulator.h"
 
 namespace ns3
 {
@@ -52,14 +53,16 @@ ChannelAccessEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, 
 
     EnvAgent::GetEnvObs(msgInterface, obs);
 
+    const auto now = Simulator::Now();
+
     auto& env = msgInterface->GetCpp2PyVector()->at(m_memoryId);
     env.agentType = m_type;
 
     // Get obs from sensing MAC
-    // auto sensingMac = GetSensingMac();
-    // auto linkId = obs.linkId;
-    // env.bssRssi = sensingMac->GetMinBssRssi(linkId);
-    // env.obssRssi = sensingMac->GetMaxObssRssi(linkId);
+    auto sensingMac = GetSensingMac();
+    env.selfD2lt = (now - sensingMac->GetSelfLastTxOk(obs.linkId)).ToDouble(Time::MS);
+    env.bssD2lt = (now - sensingMac->GetBssLastTxOk(obs.linkId)).ToDouble(Time::MS);
+    env.otherD2lt = (now - sensingMac->GetOtherLastTxOk(obs.linkId)).ToDouble(Time::MS);
 }
 
 void
@@ -70,17 +73,18 @@ ChannelAccessEnvAgent::SetEnvAct(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, 
     auto& act = msgInterface->GetPy2CppVector()->at(m_memoryId);
     double newBackoff = act.backoff;
 
-    auto& caObs = static_cast<ChannelAccessObs&>(obs);
-    auto txop = StaticCast<PanlinkTxop>(GetWifiMac()->GetQosTxop(caObs.ac));
-    if (txop->GetBackoffSlots(caObs.linkId) != 0)
+    AcIndex ac = static_cast<ChannelAccessObs&>(obs).ac;
+    auto txop = StaticCast<PanlinkTxop>(GetWifiMac()->GetQosTxop(ac));
+    if (txop->GetBackoffSlots(obs.linkId) != 0)
     {
-        NS_LOG_DEBUG("reset backoff from " << txop->GetBackoffSlots(caObs.linkId) << " to " << newBackoff << " slots");
+        NS_LOG_DEBUG("reset backoff from " << txop->GetBackoffSlots(obs.linkId) << " to "
+                                           << newBackoff << " slots");
     }
     else
     {
         NS_LOG_DEBUG("start backoff=" << newBackoff << " slots");
     }
-    txop->SetBackoffSlots(newBackoff, caObs.linkId);
+    txop->SetBackoffSlots(newBackoff, obs.linkId);
 }
 
 } // namespace ns3
