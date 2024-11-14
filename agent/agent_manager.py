@@ -5,7 +5,7 @@
 # Author: Pan Jinzhe <pjzklcb@gmail.com>
 
 import json
-from rl_agent import AgentType, RlAgent
+from rl_agent import RlAgent
 from cca_rl_agent import CcaRlAgent
 
 class AgentManager:

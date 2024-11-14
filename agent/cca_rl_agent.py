@@ -5,7 +5,8 @@
 # Author: Pan Jinzhe <pjzklcb@gmail.com>
 
 import matplotlib.pyplot as plt
-from rl_agent import AgentType, RlAgent
+from agent_utils import AgentType, AcIndex
+from rl_agent import RlAgent
 from models.ddqn import DDQN
 
 
@@ -23,11 +24,11 @@ class CcaRlAgent(RlAgent):
     def get_obs(self, msg_interface):
         env = msg_interface.GetCpp2PyVector()[self.memory_id]
         self.sim_time = env.simTime
-        ac = 2  # AC_BE
-        thpt_req = env.thptReq[ac]  # in Mbps
-        thpt = env.thpt[ac]          
-        delay_req = env.delayReq[ac]    # in ms
-        delay = env.delay[ac]
+        ac = AcIndex.AC_BE
+        thpt_req = env.thptReq[ac.value]  # in Mbps
+        thpt = env.thpt[ac.value]          
+        delay_req = env.delayReq[ac.value]    # in ms
+        delay = env.delay[ac.value]
         n_bss_stas = env.nBssStas
         n_obss_stas = env.nObssStas
         min_bss_rssi = env.bssRssi
