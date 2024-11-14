@@ -21,6 +21,7 @@ struct Obs
     double simTime;
 
     // self
+    uint8_t ac;
     std::array<double, 4> thpt;    // actual throughput for different AC
     std::array<double, 4> thptReq; // {AC_BE, AC_BK, AC_VI, AC_VO}
     std::array<double, 4> delay;
@@ -28,7 +29,6 @@ struct Obs
     double selfD2lt;
     double selfChannelUtil;
     double ackRatio; // ratio of acked MPDUs
-    uint8_t ac;
     uint32_t cw;
     uint32_t nDeferredAccess;
     uint32_t waitedSlots;

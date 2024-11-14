@@ -149,6 +149,7 @@ EnvAgentManager::EnvInfoExchange(uint32_t nodeId, AgentType type, EnvAgent::Modu
         Ns3AiMsgInterface::Get()->GetInterface<Obs, Act>();
 
     auto agent = GetEnvAgent(nodeId, type);
+    NS_ABORT_MSG_IF(agent == nullptr, "Env agent not found");
 
     msgInterface->CppSendBegin();
     agent->GetEnvObs(msgInterface, obs);
