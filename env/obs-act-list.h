@@ -22,12 +22,16 @@ struct Obs
 
     // self
     std::array<double, 4> thpt;    // actual throughput for different AC
-    std::array<double, 4> thptReq; // {AC_VO, AC_VI, AC_BE, AC_BK}
+    std::array<double, 4> thptReq; // {AC_BE, AC_BK, AC_VI, AC_VO}
     std::array<double, 4> delay;
     std::array<double, 4> delayReq;
     double selfD2lt;
     double selfChannelUtil;
-    double nAckedMpdus; // number of acked MPDUs
+    double ackRatio; // ratio of acked MPDUs
+    uint8_t ac;
+    uint32_t cw;
+    uint32_t nDeferredAccess;
+    uint32_t waitedSlots;
 
     // neighbor
     uint32_t nBssStas;

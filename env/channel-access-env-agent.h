@@ -36,6 +36,9 @@ class ChannelAccessEnvAgent : public EnvAgent
     struct ChannelAccessObs : public EnvAgent::ModuleObs
     {
         AcIndex ac;
+        uint32_t cw;
+        uint32_t nDeferredAccess;
+        uint32_t waitedSlots;
     };
 
     void GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, ModuleObs& obs) override;

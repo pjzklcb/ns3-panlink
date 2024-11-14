@@ -63,6 +63,14 @@ ChannelAccessEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, 
     env.selfD2lt = (now - sensingMac->GetSelfLastTxOk(obs.linkId)).ToDouble(Time::MS);
     env.bssD2lt = (now - sensingMac->GetBssLastTxOk(obs.linkId)).ToDouble(Time::MS);
     env.otherD2lt = (now - sensingMac->GetOtherLastTxOk(obs.linkId)).ToDouble(Time::MS);
+    env.ackRatio = sensingMac->GetAckedMpduRatio(obs.linkId);
+
+    // Get module obs
+    auto& channelAccessObs = static_cast<ChannelAccessObs&>(obs);
+    env.ac = static_cast<uint8_t>(channelAccessObs.ac);
+    env.cw = channelAccessObs.cw;
+    env.nDeferredAccess = channelAccessObs.nDeferredAccess;
+    env.waitedSlots = channelAccessObs.waitedSlots;
 }
 
 void

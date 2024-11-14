@@ -10,8 +10,8 @@
 
 #include "panlink-sta-wifi-mac.h"
 
-#include "ns3/env-agent-manager.h"
 #include "ns3/channel-access-env-agent.h"
+#include "ns3/env-agent-manager.h"
 
 namespace ns3
 {
@@ -103,18 +103,22 @@ PanlinkTxop::GenerateBackoff(uint8_t linkId)
     // trace last access's total number of waited slots as equivalent backoff
     m_backoffTrace(link.waitedSlots, linkId);
 
-    // uint32_t backoff = m_rng->GetInteger(0, GetCw(linkId));
-    auto obs = ChannelAccessEnvAgent::ChannelAccessObs();
-    obs.linkId = linkId;
-    obs.ac = GetAccessCategory();
-
-    uint32_t nodeId = m_mac->GetDevice()->GetNode()->GetId();
-    EnvAgentManager::Get()->EnvInfoExchange(nodeId, RL_CHANNEL_ACCESS, obs);
-
     // reset access-related values
     link.backoffStart = Simulator::Now();
     link.nDeferredAccess = 0;
     link.waitedSlots = 0;
+    // uint32_t backoff = m_rng->GetInteger(0, GetCw(linkId));
+
+    auto obs = ChannelAccessEnvAgent::ChannelAccessObs();
+    obs.linkId = linkId;
+    obs.ac = GetAccessCategory();
+    obs.cw = link.cw;
+    obs.nDeferredAccess = 0;
+    obs.waitedSlots = 0;
+
+    uint32_t nodeId = m_mac->GetDevice()->GetNode()->GetId();
+    EnvAgentManager::Get()->EnvInfoExchange(nodeId, RL_CHANNEL_ACCESS, obs);
+
     m_waitedSlotsTrace(link.nDeferredAccess, link.waitedSlots, link.backoffSlots, linkId);
 }
 
@@ -141,7 +145,18 @@ PanlinkTxop::GenerateNewBackoff(uint8_t linkId)
         auto& link = GetLink(linkId);
 
         link.nDeferredAccess += 1;
-        link.backoffSlots = m_rng->GetInteger(0, link.cw - link.waitedSlots);
+        // link.backoffSlots = m_rng->GetInteger(0, link.cw - link.waitedSlots);
+        
+        auto obs = ChannelAccessEnvAgent::ChannelAccessObs();
+        obs.linkId = linkId;
+        obs.ac = GetAccessCategory();
+        obs.cw = link.cw;
+        obs.nDeferredAccess = link.nDeferredAccess;
+        obs.waitedSlots = link.waitedSlots;
+
+        uint32_t nodeId = m_mac->GetDevice()->GetNode()->GetId();
+        EnvAgentManager::Get()->EnvInfoExchange(nodeId, RL_CHANNEL_ACCESS, obs);
+
         NS_LOG_DEBUG("this access has deferred "
                      << link.nDeferredAccess << " times, waited " << link.waitedSlots
                      << " slots, and new backoff=" << link.backoffSlots);
