@@ -8,6 +8,8 @@
 
 #include "channel-access-env-agent.h"
 
+#include "ns3/panlink-txop.h"
+
 namespace ns3
 {
 
@@ -65,12 +67,20 @@ ChannelAccessEnvAgent::SetEnvAct(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, 
 {
     NS_LOG_FUNCTION(this);
 
-    // auto& act = msgInterface->GetPy2CppVector()->at(m_memoryId);
-    // double newBackoff = act.backoff;
+    auto& act = msgInterface->GetPy2CppVector()->at(m_memoryId);
+    double newBackoff = act.backoff;
 
-    // auto phy = GetWifiMac()->GetWifiPhy();
-    // phy->SetCcaSensitivityThreshold(newCca);
-    // phy->SetPreambleDetectionModel(preambleDetectionModel);
+    auto& caObs = static_cast<ChannelAccessObs&>(obs);
+    auto txop = StaticCast<PanlinkTxop>(GetWifiMac()->GetQosTxop(caObs.ac));
+    if (txop->GetBackoffSlots(caObs.linkId) != 0)
+    {
+        NS_LOG_DEBUG("reset backoff from " << txop->GetBackoffSlots(caObs.linkId) << " to " << newBackoff << " slots");
+    }
+    else
+    {
+        NS_LOG_DEBUG("start backoff=" << newBackoff << " slots");
+    }
+    txop->SetBackoffSlots(newBackoff, caObs.linkId);
 }
 
 } // namespace ns3

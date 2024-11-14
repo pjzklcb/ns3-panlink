@@ -10,6 +10,7 @@
 
 #include "panlink-sta-wifi-mac.h"
 
+#include "ns3/env-agent-manager.h"
 #include "ns3/channel-access-env-agent.h"
 
 namespace ns3
@@ -57,10 +58,16 @@ PanlinkTxop::GetLink(uint8_t linkId) const
     return static_cast<PanLinkEntity&>(Txop::GetLink(linkId));
 }
 
-uint32_t
-PanlinkTxop::GetWaitedSlots(uint8_t linkId) const
+void
+PanlinkTxop::SetBackoffSlots(uint32_t backoff, uint8_t linkId)
 {
-    return GetLink(linkId).waitedSlots;
+    GetLink(linkId).backoffSlots = backoff;
+}
+
+uint32_t
+PanlinkTxop::GetBackoffSlots(uint8_t linkId) const
+{
+    return GetLink(linkId).backoffSlots;
 }
 
 uint32_t
@@ -96,17 +103,19 @@ PanlinkTxop::GenerateBackoff(uint8_t linkId)
     // trace last access's total number of waited slots as equivalent backoff
     m_backoffTrace(link.waitedSlots, linkId);
 
-    // if (GetEnableChannelAccess())
-    // {
-    //     GenerateNewBackoff(linkId);
-    // }
-    uint32_t backoff = m_rng->GetInteger(0, GetCw(linkId));
+    // uint32_t backoff = m_rng->GetInteger(0, GetCw(linkId));
+    auto obs = ChannelAccessEnvAgent::ChannelAccessObs();
+    obs.linkId = linkId;
+    obs.ac = GetAccessCategory();
+
+    uint32_t nodeId = m_mac->GetDevice()->GetNode()->GetId();
+    EnvAgentManager::Get()->EnvInfoExchange(nodeId, RL_CHANNEL_ACCESS, obs);
 
     // reset access-related values
-    StartBackoffNow(backoff, linkId);
+    link.backoffStart = Simulator::Now();
     link.nDeferredAccess = 0;
     link.waitedSlots = 0;
-    m_waitedSlotsTrace(link.nDeferredAccess, link.waitedSlots, backoff, linkId);
+    m_waitedSlotsTrace(link.nDeferredAccess, link.waitedSlots, link.backoffSlots, linkId);
 }
 
 void

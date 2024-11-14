@@ -66,6 +66,15 @@ class EnvAgentManager : public Singleton<EnvAgentManager>
      */
     void ScheduleInitInfoExchange();
 
+    /**
+     * Execute information exchange for the specified agent.
+     *
+     * \param nodeId the node ID
+     * \param type the type of the agent
+     * \param obs the obs from the functional module
+     */
+    void EnvInfoExchange(uint32_t nodeId, AgentType type, EnvAgent::ModuleObs& obs);
+
   private:
     /**
      * Schedule an information exchange for the specified agent.
@@ -75,15 +84,6 @@ class EnvAgentManager : public Singleton<EnvAgentManager>
      * \param period the info exchange period of the agent
      */
     void ScheduleInfoExchange(uint32_t nodeId, AgentType type, Time period);
-
-    /**
-     * Execute information exchange for the specified agent.
-     *
-     * \param nodeId the node ID
-     * \param type the type of the agent
-     * \param obs the obs from the functional module
-     */
-    void DoEnvInfoExchange(uint32_t nodeId, AgentType type, EnvAgent::ModuleObs& obs);
 
     std::map<uint32_t /* Node ID */, uint32_t /* memory ID */> m_memoryMap;
     std::map<uint32_t /* Node ID */, std::map<AgentType, Ptr<EnvAgent>>> m_agentMap;

@@ -106,6 +106,9 @@ class EnvAgent : public Object
      */
     struct ModuleObs
     {
+        /// Destructor (a virtual method is needed to make this struct polymorphic)
+        virtual ~ModuleObs() = default;
+        
         uint8_t linkId{0};
     };
 

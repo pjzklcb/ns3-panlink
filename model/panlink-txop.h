@@ -30,11 +30,19 @@ class PanlinkTxop : public QosTxop
     ~PanlinkTxop() override;
 
     /**
-     * Get the number of waited slots of the given link by far.
+     * Set the backoff value of the given link.
+     *
+     * \param backoff the new backoff
+     * \param linkId the link ID
+     */
+    void SetBackoffSlots(uint32_t backoff, uint8_t linkId);
+
+    /**
+     * Get the backoff value of the given link.
      *
      * \param linkId the link ID
      */
-    uint32_t GetWaitedSlots(uint8_t linkId) const;
+    uint32_t GetBackoffSlots(uint8_t linkId) const;
 
     /**
      * Get the times of deferred access on the given link by far.

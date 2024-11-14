@@ -134,14 +134,14 @@ EnvAgentManager::ScheduleInfoExchange(uint32_t nodeId, AgentType type, Time peri
     NS_LOG_FUNCTION(this << nodeId << type << period);
 
     auto obs = EnvAgent::ModuleObs();
-    DoEnvInfoExchange(nodeId, type, obs);
+    EnvInfoExchange(nodeId, type, obs);
 
     // Periodically trigger information exchange
     Simulator::Schedule(period, &EnvAgentManager::ScheduleInfoExchange, this, nodeId, type, period);
 }
 
 void
-EnvAgentManager::DoEnvInfoExchange(uint32_t nodeId, AgentType type, EnvAgent::ModuleObs& obs)
+EnvAgentManager::EnvInfoExchange(uint32_t nodeId, AgentType type, EnvAgent::ModuleObs& obs)
 {
     NS_LOG_FUNCTION(this << nodeId << type);
 
