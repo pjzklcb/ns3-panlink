@@ -73,8 +73,8 @@ PanlinkChannelAccessManager::DoRestoreAccessIfNeeded()
         influence the update of backoffStart in UpdateBackoff method. */
         auto expectedRestoreDelay = accessGrant - now + TimeStep(1);
 
-        if (m_accessRestore.IsPending() &&
-            Simulator::GetDelayLeft(m_accessRestore) < expectedRestoreDelay)
+        // Always set to the new access grant time as NAV may reset
+        if (m_accessRestore.IsPending())
         {
             m_accessRestore.Cancel();
         }
