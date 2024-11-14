@@ -107,7 +107,8 @@ class SensingMac : public Object
      */
     Time GetSelfLastTxOk(uint8_t linkId) const;
     /**
-     * Get the time of the last successful transmission of STAs within the same BSS on the given link.
+     * Get the time of the last successful transmission of STAs within the same BSS on the given
+     * link.
      *
      * \param linkId the link ID
      */
@@ -153,6 +154,13 @@ class SensingMac : public Object
      * \param linkId the link ID
      */
     double GetOtherChannelUtil(Time period, uint8_t linkId) const;
+
+    /**
+     * Get the ratio of acked MPDUs of the last transmission.
+     * 
+     * @param linkId the link ID
+     */
+    double GetAckedMpduRatio(uint8_t linkId) const;
 
     /**
      * Trace the packet that has been enqueued to the given AC MAC queue.
@@ -255,9 +263,11 @@ class SensingMac : public Object
     Ptr<WifiMac> m_mac; //!< associated MAC
     Time m_duration;    //!< maximum duration of the data stored
     std::map<uint64_t /* UID */, SelfPacketInfo> m_packetMap; //!< packets sent by this STA
-    std::map<uint8_t, SelfLinkInfo> m_linkMap; //!< each link's channel utilization of this STA
+    std::map<uint8_t /* link ID */, SelfLinkInfo>
+        m_linkMap; //!< each link's channel utilization of this STA
     std::unordered_map<Mac48Address, NeighborStaInfo, WifiAddressHash>
         m_neighborStaMap; //!< channel utilization of neighbor STAs
+    std::map<uint8_t, std::vector<uint64_t>> m_pendingPackets; //!< pending packets
 };
 
 } // namespace ns3

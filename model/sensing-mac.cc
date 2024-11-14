@@ -52,6 +52,7 @@ SensingMac::DoInitialize()
     for (uint8_t linkId = 0; linkId < m_mac->GetNLinks(); ++linkId)
     {
         m_linkMap[linkId] = SelfLinkInfo();
+        m_pendingPackets[linkId] = std::vector<uint64_t>();
     }
 }
 
@@ -219,6 +220,16 @@ SensingMac::NotifyPhyTxBegin(std::string context, Ptr<const Packet> p, double tx
         it->second.linkId = linkId;
         it->second.txCounter++;
         it->second.txPowerW = txPowerW;
+
+        auto lastPacketTxTime = (*m_linkMap[linkId].channelUtil.rbegin()).second;
+        if (lastPacketTxTime.first != Simulator::Now())
+        {
+            m_pendingPackets[linkId] = {p->GetUid()};
+        }
+        else
+        {
+            m_pendingPackets[linkId].emplace_back(p->GetUid());
+        }
     }
 
     m_linkMap[linkId].channelUtil[p->GetUid()] = {Simulator::Now(), Seconds(0)};
@@ -587,6 +598,25 @@ SensingMac::GetOtherChannelUtil(Time period, uint8_t linkId) const
     }
 
     return channelUtil / period.GetSeconds();
+}
+
+double 
+SensingMac::GetAckedMpduRatio(uint8_t linkId) const
+{
+    NS_LOG_FUNCTION(this << linkId);
+
+    double nAckedMpdus = 0;
+    for (const auto& uid : m_pendingPackets.at(linkId))
+    {   
+        auto it = m_packetMap.find(uid);
+        NS_ASSERT(it == m_packetMap.end());
+        if (it->second.ackedTime != Seconds(0))
+        {
+            nAckedMpdus++;
+        }
+    }
+
+    return nAckedMpdus / m_pendingPackets.at(linkId).size();
 }
 
 } // namespace ns3
