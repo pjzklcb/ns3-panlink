@@ -432,10 +432,13 @@ class PlotResults(object):
         idle_time = 0
         util_time = 0
         n_collisions = {id: 0 for id in self.target_nodes}
+        n_transmits = {id: 0 for id in self.target_nodes}
         prev_start, prev_end = -1, 0
         current_events = []
         for event in events:
-            start, end, _ = event
+            start, end, node_id = event
+            if node_id in n_transmits:
+                n_transmits[node_id] += 1
             if prev_start <= start < prev_end:
                 # if overlapping
                 current_events.append(event)
@@ -460,13 +463,16 @@ class PlotResults(object):
         print('idle rate = {}%'.format(idle_rate))
         print('util rate = {}%'.format(util_rate))
         for id, n in n_collisions.items():
-            print('node-{} collides {} times'.format(id, n))
+            collision_rate = round(n*100 / n_transmits[id], 2)
+            print('node-{} transmits {} times, collides {} times, collision rate={}%'.format(
+                id, n_transmits[id], n, collision_rate))
         # write to txt
         with open(self.result_dir + "figures/channel_load.txt", 'w') as f:
             f.write('idle rate = {}%\n'.format(idle_rate))
             f.write('util rate = {}%\n'.format(util_rate))
             for id, n in n_collisions.items():
-                f.write('node-{} collides {} times\n'.format(id, n))
+                f.write('node-{} transmits {} times, collides {} times, collision rate={}%'.format(
+                id, n_transmits[id], n, collision_rate))
 
         # plot channel load in each interval
         for left, right in intervals:
