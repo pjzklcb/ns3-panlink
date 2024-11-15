@@ -221,8 +221,8 @@ SensingMac::NotifyPhyTxBegin(std::string context, Ptr<const Packet> p, double tx
         it->second.txCounter++;
         it->second.txPowerW = txPowerW;
 
-        auto lastPacketTxTime = (*m_linkMap[linkId].channelUtil.rbegin()).second;
-        if (lastPacketTxTime.first != Simulator::Now())
+        if (m_linkMap[linkId].channelUtil.size() == 0 ||
+            (*m_linkMap[linkId].channelUtil.rbegin()).second.first != Simulator::Now())
         {
             m_pendingPackets[linkId] = {p->GetUid()};
         }
@@ -600,14 +600,14 @@ SensingMac::GetOtherChannelUtil(Time period, uint8_t linkId) const
     return channelUtil / period.GetSeconds();
 }
 
-double 
+double
 SensingMac::GetAckedMpduRatio(uint8_t linkId) const
 {
     NS_LOG_FUNCTION(this << linkId);
 
     double nAckedMpdus = 0;
     for (const auto& uid : m_pendingPackets.at(linkId))
-    {   
+    {
         auto it = m_packetMap.find(uid);
         NS_ASSERT(it == m_packetMap.end());
         if (it->second.ackedTime != Seconds(0))
@@ -616,7 +616,9 @@ SensingMac::GetAckedMpduRatio(uint8_t linkId) const
         }
     }
 
-    return nAckedMpdus / m_pendingPackets.at(linkId).size();
+    return (m_pendingPackets.at(linkId).size() == 0)
+               ? 0
+               : nAckedMpdus / m_pendingPackets.at(linkId).size();
 }
 
 } // namespace ns3
