@@ -61,8 +61,8 @@ EnvAgentManager::Install(Ptr<Node> node, std::vector<AgentInfo> agentList)
                        "Period",
                        TimeValue(agentInfo.m_period));
         m_agentMap[node->GetId()][type] = helper.Create(node);
-        std::cout << "Node-" << node->GetId() << " installs an agent with type=" << type
-                  << std::endl;
+        std::cout << "Node-" << node->GetId() << " installs an agent "
+                  << helper.GetAgentName(type).substr(5) << std::endl;
     }
 }
 
