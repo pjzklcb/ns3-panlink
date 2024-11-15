@@ -34,22 +34,6 @@ EnvAgent::GetTypeId()
                           UintegerValue(0),
                           MakeUintegerAccessor(&EnvAgent::GetMemoryId, &EnvAgent::SetMemoryId),
                           MakeUintegerChecker<uint32_t>())
-            .AddAttribute(
-                "AgentType",
-                "The type of this env agent.",
-                TypeId::ATTR_GET | TypeId::ATTR_CONSTRUCT, // prevent setting after construction
-                EnumValue<AgentType>(NO_RL),
-                MakeEnumAccessor<AgentType>(&EnvAgent::GetAgentType, &EnvAgent::SetAgentType),
-                MakeEnumChecker<AgentType>(NO_RL,
-                                           "NO_RL",
-                                           RL_CCA_SENSITIVITY,
-                                           "CCA_SENSITIVITY",
-                                           RL_CHANNEL_ACCESS,
-                                           "CHANNEL_ACCESS",
-                                           RL_RATE_CONTROL,
-                                           "RATE_CONTROL",
-                                           RL_AGGREGATION,
-                                           "AGGREGATION"))
             .AddAttribute("Period",
                           "The interaction period of this env agent (0 for trigger-based).",
                           TimeValue(Seconds(0)),
@@ -59,7 +43,8 @@ EnvAgent::GetTypeId()
 }
 
 EnvAgent::EnvAgent()
-    : m_node(nullptr),
+    : m_type(NO_RL),
+      m_node(nullptr),
       m_memoryId(0),
       m_counter(0)
 {
@@ -71,14 +56,6 @@ EnvAgent::~EnvAgent()
     NS_LOG_FUNCTION(this);
 }
 
-EnvAgent::EnvAgent(Ptr<Node> node, uint32_t memoryId)
-    : m_node(node),
-      m_memoryId(memoryId),
-      m_counter(0)
-{
-    NS_LOG_FUNCTION(this);
-}
-
 void
 EnvAgent::DoDispose()
 {
@@ -86,13 +63,6 @@ EnvAgent::DoDispose()
 
     m_node = nullptr;
     Object::DoDispose();
-}
-
-void
-EnvAgent::SetAgentType(AgentType type)
-{
-    NS_LOG_FUNCTION(this << type);
-    m_type = type;
 }
 
 void

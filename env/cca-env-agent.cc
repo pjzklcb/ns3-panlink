@@ -32,19 +32,12 @@ CcaEnvAgent::GetTypeId()
 CcaEnvAgent::CcaEnvAgent()
 {
     NS_LOG_FUNCTION(this);
+    m_type = RL_CCA_SENSITIVITY;
 }
 
 CcaEnvAgent::~CcaEnvAgent()
 {
     NS_LOG_FUNCTION(this);
-}
-
-CcaEnvAgent::CcaEnvAgent(Ptr<Node> node, uint32_t memoryId)
-    : EnvAgent(node, memoryId)
-{
-    NS_LOG_FUNCTION(this);
-
-    m_type = RL_CCA_SENSITIVITY;
 }
 
 void

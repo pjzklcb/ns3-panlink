@@ -31,8 +31,6 @@ class ChannelAccessEnvAgent : public EnvAgent
     ChannelAccessEnvAgent();
     ~ChannelAccessEnvAgent() override;
 
-    ChannelAccessEnvAgent(Ptr<Node> node, uint32_t memoryId);
-
     struct ChannelAccessObs : public EnvAgent::ModuleObs
     {
         AcIndex ac;

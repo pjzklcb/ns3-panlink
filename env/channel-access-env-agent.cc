@@ -31,19 +31,12 @@ ChannelAccessEnvAgent::GetTypeId()
 ChannelAccessEnvAgent::ChannelAccessEnvAgent()
 {
     NS_LOG_FUNCTION(this);
+    m_type = RL_CHANNEL_ACCESS;
 }
 
 ChannelAccessEnvAgent::~ChannelAccessEnvAgent()
 {
     NS_LOG_FUNCTION(this);
-}
-
-ChannelAccessEnvAgent::ChannelAccessEnvAgent(Ptr<Node> node, uint32_t memoryId)
-    : EnvAgent(node, memoryId)
-{
-    NS_LOG_FUNCTION(this);
-
-    m_type = RL_CHANNEL_ACCESS;
 }
 
 void

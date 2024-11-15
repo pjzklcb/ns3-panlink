@@ -43,14 +43,6 @@ class EnvAgent : public Object
     EnvAgent();
     ~EnvAgent() override;
 
-    /**
-     * EnvAgent must bind to a node and specify the corresponding memory ID.
-     *
-     * \param node the bound node
-     * \param memoryId the memory ID
-     */
-    EnvAgent(Ptr<Node> node, uint32_t memoryId);
-
     // Delete copy constructor and assignment operator to avoid misuse
     EnvAgent(const EnvAgent&) = delete;
     EnvAgent& operator=(const EnvAgent&) = delete;
@@ -126,13 +118,6 @@ class EnvAgent : public Object
 
   protected:
     void DoDispose() override;
-
-    /**
-     * Set the type of this env agent. (Cannot change after construct)
-     *
-     * \param type the type of this env agent
-     */
-    void SetAgentType(AgentType type);
 
     AgentType m_type;    //!< the type of this env agent
     Ptr<Node> m_node;    //!< the bound node
