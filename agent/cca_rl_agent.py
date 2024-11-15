@@ -15,7 +15,7 @@ class CcaRlAgent(RlAgent):
         super().__init__(node_id, memory_id)
         self.agent_type = AgentType.RL_CCA_SENSITIVITY
         
-        state_size = 7
+        state_size = 6
         action_size = (-62) - (-82) + 1
         self.model = DDQN(state_size, action_size)
         self.new_cca = -82
@@ -34,9 +34,13 @@ class CcaRlAgent(RlAgent):
         min_bss_rssi = env.bssRssi
         max_obss_rssi = env.obssRssi
 
-        obs = [ac, thpt_req, thpt, delay_req, delay, n_bss_stas, n_obss_stas, min_bss_rssi, max_obss_rssi]
+        obs = [n_bss_stas, n_obss_stas, thpt_req, thpt, delay_req, delay, min_bss_rssi, max_obss_rssi]
         if self.show_log:
-            print("Recv obs: [" + ' '.join('{:.4f}'.format(x) for x in obs) + "]")
+            print("At {:6f}s, n_bss_stas={}, n_obss_stas={}, \n \
+                  ac={}, thpt_req/thpt={:.4f}/{:.4f} Mbps, delay_req/delay={:.3f}/{:.3f} ms, \n \
+                  min_bss_rssi={:.2f}dBm, max_obss_rssi={:.2f}dBm".format(
+                self.sim_time, n_bss_stas, n_obss_stas, ac.name, thpt_req, thpt, delay_req, delay, 
+                min_bss_rssi, max_obss_rssi))
         
         self.choose_action(obs)
 
@@ -44,13 +48,13 @@ class CcaRlAgent(RlAgent):
         msg_interface.GetPy2CppVector()[self.memory_id].ccaSensitivity = self.new_cca
 
     def choose_action(self, obs):
-        ac, thpt_req, thpt, delay_req, delay, n_bss_stas, n_obss_stas, min_bss_rssi, max_obss_rssi = obs
+        n_bss_stas, n_obss_stas, thpt_req, thpt, delay_req, delay, min_bss_rssi, max_obss_rssi = obs
         p = thpt/thpt_req if thpt_req else 0
         d = delay/delay_req if thpt_req else 1
         min_rssi = min_bss_rssi+82 if min_bss_rssi else 0
         max_rssi = max_obss_rssi+82
 
-        next_state = [ac, p, d, n_bss_stas, n_obss_stas, min_rssi, max_rssi]
+        next_state = [p, d, n_bss_stas, n_obss_stas, min_rssi, max_rssi]
         if self.state:
             # caculate reward
             r_thpt = min(0, p-1)

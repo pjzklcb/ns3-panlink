@@ -70,32 +70,41 @@ class DQN:
     def update_target_network(self):
         self.target_net.load_state_dict(self.eval_net.state_dict())
 
-    def choose_action(self, state):
+    def choose_action(self, state, action_mask=None):
+        if action_mask is None:
+            action_mask = [True]*self.action_size
+
         if random.random() > self.epsilon: # greedy
             with torch.no_grad():
                 state = torch.FloatTensor(state).unsqueeze(0)
+                action_mask = torch.BoolTensor(action_mask).unsqueeze(0)
                 q_values = self.eval_net(state)
+                q_values[~action_mask] = -float('inf') # mask out illegal actions
                 return q_values.max(1)[1].item()
         else:
-            return random.randrange(self.action_size)
+            valid_actions = np.where(action_mask)[0]
+            return random.choice(valid_actions)
     
-    def store_transition(self, state, action, reward, next_state):
-        self.memory.push((state, action, reward, next_state))
+    def store_transition(self, state, action, reward, next_state, action_mask=None):
+        if action_mask is None:
+            action_mask = [True]*self.action_size
+        self.memory.push((state, action, reward, next_state, action_mask))
 
     def learn(self):
         if len(self.memory) < BATCH_SIZE:
             return
 
         minibatch = self.memory.sample(BATCH_SIZE)
-        s, a, r, s_ = zip(*minibatch)
+        s, a, r, s_, mask = zip(*minibatch)
 
         s = torch.FloatTensor(s)
         a = torch.LongTensor(a).unsqueeze(1)
         r = torch.FloatTensor(r).unsqueeze(1)
         s_ = torch.FloatTensor(s_)
+        mask = torch.BoolTensor(mask)
 
         q_values = self.eval_net(s).gather(1, a)
-        next_q_values = self.target_net(s_).max(1, True)[0].detach()
+        next_q_values = self.target_net(s_).max(1, True)[0].detach()    # assume no mask for next action
         target_q_values = r + GAMMA * next_q_values
 
         loss = nn.MSELoss()(q_values, target_q_values)
@@ -128,15 +137,16 @@ class DDQN(DQN):
             return
 
         minibatch = self.memory.sample(BATCH_SIZE)
-        s, a, r, s_ = zip(*minibatch)
+        s, a, r, s_, mask = zip(*minibatch)
 
         s = torch.FloatTensor(s)
         a = torch.LongTensor(a).unsqueeze(1)
         r = torch.FloatTensor(r).unsqueeze(1)
         s_ = torch.FloatTensor(s_)
+        mask = torch.BoolTensor(mask)
 
         q_values = self.eval_net(s).gather(1, a)
-        a_ = self.eval_net(s_).max(1, True)[1]
+        a_ = self.eval_net(s_).max(1, True)[1]  # assume no mask for next action
         next_q_values = self.target_net(s_).gather(1, a_).detach()
         target_q_values = r + GAMMA * next_q_values
 
