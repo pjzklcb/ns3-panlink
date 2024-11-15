@@ -207,7 +207,8 @@ class PlotResults(object):
                 for time, backoff in self.backoff_map[node_id][ac]:
                     time_list.append(time)
                     backoff_list.append(backoff)
-                subfig.scatter(time_list, backoff_list, color="r", marker='.', label="backoff")
+                subfig.scatter(time_list, backoff_list, color="r", marker='.', s=8, alpha=0.5,
+                               label='average backoff={:.2f}'.format(np.mean(backoff_list)))
                 
                 subfig.legend()
                 subfig.set_yscale('log', base=2)

@@ -129,5 +129,5 @@ if __name__ == '__main__':
         print("Finally exiting...")
         print("Time cost: {}min {}s, Python time cost: {}s".format(
             time_cost // 60, time_cost % 60, py_time_cost))
-        PlotResults(timestamp, target_nodes=[0, 1]).do_plot()
+        PlotResults(timestamp, target_nodes=[0, 1, 2, 3, 4]).do_plot()
         del exp

@@ -116,8 +116,8 @@ class ChannelAccessRlAgent(RlAgent):
 
         y1, y2 = zip(*self.backoff_log)
         plt.figure()
-        plt.scatter(range(len(y1)), y1, c='b', marker='+', markersize=3)
-        plt.scatter(range(len(y2)), y2, c='r', marker='o', markersize=3)
+        plt.scatter(range(len(y1)), y1, c='b', marker='+', s=8)
+        plt.scatter(range(len(y2)), y2, c='r', marker='o', s=8, alpha=0.5)
         plt.xlabel('Step number')
         plt.ylabel('Backoff')
         plt.savefig('{}/node_{}_action_channel_access.png'.format(save_dir, self.node_id))

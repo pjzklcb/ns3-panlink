@@ -98,8 +98,8 @@
             ],
             "agents": [
                 {
-                    "type": "cca_sensitivity",
-                    "period": 0.05
+                    "type": "channel_access",
+                    "period": 0.0
                 }
             ]
         },
