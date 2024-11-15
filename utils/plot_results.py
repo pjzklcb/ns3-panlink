@@ -450,7 +450,8 @@ class PlotResults(object):
                     for s, e, id in current_events:
                         assert id not in collision_nodes, "hidden node may cause the problem"
                         collision_nodes.add(id)
-                        n_collisions[id] += 1
+                        if id in n_collisions:
+                            n_collisions[id] += 1
                 current_events = [event]
                 prev_start, prev_end = start, end
 
@@ -518,5 +519,5 @@ class PlotResults(object):
         
 
 if __name__ == '__main__':
-    timestamp = "1731660708"
+    timestamp = "1731663896"
     PlotResults(timestamp, target_nodes=[0,1,2,3,4]).do_plot()
