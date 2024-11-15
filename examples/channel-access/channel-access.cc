@@ -96,10 +96,9 @@ main(int argc, char* argv[])
     if (verbose)
     {
         LogComponentEnableAll(LOG_PREFIX_ALL);
-        LogComponentEnable("Txop", LOG_LEVEL_ALL);
-        LogComponentEnable("PanlinkTxop", LOG_LEVEL_ALL);
-        LogComponentEnable("ChannelAccessManager", LOG_LEVEL_ALL);
-        LogComponentEnable("PanlinkChannelAccessManager", LOG_LEVEL_ALL);
+        LogComponentEnable("SensingMac", LOG_LEVEL_ALL);
+        LogComponentEnable("EnvAgentManager", LOG_LEVEL_ALL);
+        LogComponentEnable("ChannelAccessEnvAgent", LOG_LEVEL_ALL);
     }
 
     WifiHelper g_wifiHelper;
@@ -241,6 +240,15 @@ main(int argc, char* argv[])
                                              "RtsCtsTxDurationThresh",
                                              TimeValue(MilliSeconds(1.0)));
 
+        bool enableChannelAccess = false;
+        for (const auto& agent : node.m_agents)
+        {
+            if (agent.m_type == AgentType::RL_CHANNEL_ACCESS)
+            {
+                enableChannelAccess = true;
+            }
+        }
+
         if (node.m_type == "PO")
         {
             g_macHelper.SetType("ns3::PanlinkApWifiMac",
@@ -255,7 +263,7 @@ main(int argc, char* argv[])
                                 "Ssid",
                                 SsidValue(ssid),
                                 "EnablePanlinkChannelAccess",
-                                BooleanValue(false));
+                                BooleanValue(enableChannelAccess));
         }
         else if (node.m_type == "AP")
         {
