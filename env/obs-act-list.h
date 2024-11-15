@@ -47,7 +47,7 @@ struct Obs
 struct Act
 {
     double ccaSensitivity;
-    double backoff;
+    uint32_t backoff;
 };
 
 #endif // OBS_ACT_LIST_H

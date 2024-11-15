@@ -609,7 +609,7 @@ SensingMac::GetAckedMpduRatio(uint8_t linkId) const
     for (const auto& uid : m_pendingPackets.at(linkId))
     {
         auto it = m_packetMap.find(uid);
-        NS_ASSERT(it == m_packetMap.end());
+        NS_ASSERT(it != m_packetMap.end());
         if (it->second.ackedTime != Seconds(0))
         {
             nAckedMpdus++;

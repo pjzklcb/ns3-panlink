@@ -159,23 +159,24 @@ EnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, ModuleObs& ob
     env.simTime = now.GetSeconds();
 
     // Get obs from sensing MAC if it exists
+    Time period = (m_period == Seconds(0)) ? Seconds(0.05) : m_period;
     if (auto sensingMac = GetSensingMac())
     {
         auto linkId = obs.linkId;
         int i = 0;
         for (const auto& aci : {AC_BE, AC_BK, AC_VI, AC_VO})
         {
-            env.thptReq[i] = sensingMac->GetThptReq(m_period, aci);
-            env.thpt[i] = sensingMac->GetThpt(m_period, aci);
+            env.thptReq[i] = sensingMac->GetThptReq(period, aci);
+            env.thpt[i] = sensingMac->GetThpt(period, aci);
             env.delayReq[i] = 30; // ms
-            env.delay[i] = sensingMac->GetDelay(m_period, aci);
+            env.delay[i] = sensingMac->GetDelay(period, aci);
             i++;
         }
         env.nBssStas = sensingMac->GetNBssStas(linkId);
         env.nObssStas = sensingMac->GetNObssStas(linkId);
-        env.selfChannelUtil = sensingMac->GetSelfChannelUtil(m_period, linkId);
-        env.bssChannelUtil = sensingMac->GetBssChannelUtil(m_period, linkId);
-        env.otherChannelUtil = sensingMac->GetOtherChannelUtil(m_period, linkId);
+        env.selfChannelUtil = sensingMac->GetSelfChannelUtil(period, linkId);
+        env.bssChannelUtil = sensingMac->GetBssChannelUtil(period, linkId);
+        env.otherChannelUtil = sensingMac->GetOtherChannelUtil(period, linkId);
     }
 }
 
