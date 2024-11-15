@@ -59,6 +59,7 @@ main(int argc, char* argv[])
     CommandLine cmd(__FILE__);
     cmd.AddValue("timestamp", "The timestamp for this example to run", timestamp);
     cmd.AddValue("seed", "The random seed for this example to run", seed);
+    cmd.AddValue("config", "The config file of panlink network", panlinkConfig);
     cmd.AddValue("simulationTime", "Total simulation time", simulationTime);
     cmd.AddValue("enableIntf", "Enable interference", enableIntf);
     cmd.AddValue("frequency",
@@ -254,7 +255,7 @@ main(int argc, char* argv[])
                                 "Ssid",
                                 SsidValue(ssid),
                                 "EnablePanlinkChannelAccess",
-                                BooleanValue(true));
+                                BooleanValue(false));
         }
         else if (node.m_type == "AP")
         {

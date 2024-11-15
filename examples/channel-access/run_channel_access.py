@@ -36,11 +36,11 @@ if __name__ == '__main__':
                         default=11, help="random seed")
     parser.add_argument('--ns3_seed', type=int,
                         default=11, help='random seed for ns-3')
-    parser.add_argument('--duration', type=float,
-                        default=5, help='duration of the experiment')
-    parser.add_argument('--use_rl', action='store_true',
-                        help='whether to use rl')
-    parser.add_argument('--use_intf', action='store_true',
+    parser.add_argument('--config', type=str,
+                        default='config_channel_access.json', help='config file for panlink network')
+    parser.add_argument('--simulation_time', type=float,
+                        default=5, help='total simulation time of ns-3')
+    parser.add_argument('--enable_intf', action='store_true',
                         help='whether to enable interference')
     parser.add_argument('--pcap', action='store_true',
                         help='whether to enable pcap')
@@ -56,14 +56,15 @@ if __name__ == '__main__':
 
     # register agents
     agent_manager = AgentManager()
-    n_vec_size = agent_manager.register_agents(os.path.join(config_dir, 'config_channel_access.json'))
+    n_vec_size = agent_manager.register_agents(os.path.join(config_dir, args.config))
     
     # create and save ns3 settings
     ns3_settings = {
         'timestamp': timestamp,
         'seed': args.ns3_seed,
-        'simulationTime': args.duration,
-        'enableIntf': args.use_intf,
+        'config': os.path.join(config_dir, args.config),
+        'simulationTime': args.simulation_time,
+        'enableIntf': args.enable_intf,
         'pcap': args.pcap,
         'stats': args.stats,
         "verbose": args.ns3_log
