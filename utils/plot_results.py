@@ -55,7 +55,7 @@ class PlotResults(object):
     def do_plot(self):
         self.plot_position()
         self.process_csv_files()
-        # self.plot_channel_load([[3.0, 3.5], [0.0, 6.0]])
+        self.plot_channel_load([[3.0,3.5], [4.6,4.7]])
     
     def plot_position(self):
         plt.figure()
@@ -228,7 +228,7 @@ class PlotResults(object):
             for row in reader:
                 # parse packet info
                 uid = int(row[0])
-                phy_tx_time = [float(x)*1e-3 for x in row[13:15]]
+                phy_tx_time = [float(x)*1e-3 for x in row[13:15]]   # in seconds
                 if uid not in packet_map:
                     size, port, burst_seq, frag_seq, tx_counter = [int(x) for x in row[1:6]]
                     tx_power = float(row[6])
@@ -426,9 +426,48 @@ class PlotResults(object):
         plt.close()
 
     def plot_channel_load(self, intervals = [[3.0, 3.5]]):
-        events = list(self.channel_load)
+        events = list(self.channel_load) + [(self.sim_time, self.sim_time, 0)] # add a dummy event at end
         events.sort(key=lambda x: x[0])  # sort by start time
 
+        idle_time = 0
+        util_time = 0
+        n_collisions = {id: 0 for id in self.target_nodes}
+        prev_start, prev_end = -1, 0
+        current_events = []
+        for event in events:
+            start, end, _ = event
+            if prev_start <= start < prev_end:
+                # if overlapping
+                current_events.append(event)
+                prev_end = max(prev_end, end)
+            else:
+                idle_time += start - prev_end
+                # handle the previous collision
+                if len(current_events) == 1:
+                    util_time += prev_end - prev_start
+                elif len(current_events) > 1:
+                    collision_nodes = set()
+                    for s, e, id in current_events:
+                        assert id not in collision_nodes, "hidden node may cause the problem"
+                        collision_nodes.add(id)
+                        n_collisions[id] += 1
+                current_events = [event]
+                prev_start, prev_end = start, end
+
+        idle_rate = round(idle_time*100 / self.sim_time, 2)
+        util_rate = round(util_time*100 / self.sim_time, 2)
+        print('idle rate = {}%'.format(idle_rate))
+        print('util rate = {}%'.format(util_rate))
+        for id, n in n_collisions.items():
+            print('node-{} collides {} times'.format(id, n))
+        # write to txt
+        with open(self.result_dir + "figures/channel_load.txt", 'w') as f:
+            f.write('idle rate = {}%\n'.format(idle_rate))
+            f.write('util rate = {}%\n'.format(util_rate))
+            for id, n in n_collisions.items():
+                f.write('node-{} collides {} times\n'.format(id, n))
+
+        # plot channel load in each interval
         for left, right in intervals:
             idle_time = 0
             util_time = 0
@@ -436,7 +475,7 @@ class PlotResults(object):
 
             plt.figure()
             prev_start, prev_end = -1, left
-            collisions = []
+            current_events = []
             for event in events:
                 start, end, _ = event
                 if end < left:
@@ -444,28 +483,23 @@ class PlotResults(object):
 
                 if prev_start <= start < prev_end:
                     # if overlapping
-                    collisions.append(event)
+                    current_events.append(event)
                     prev_end = max(prev_end, end)
                 else:
-                    # handle the previous collision
                     idle_time += max(min(start, right), left) - min(prev_end, right)
-                    if len(collisions) == 1:
+                    # handle the previous collision
+                    if len(current_events) == 1:
                         util_time += min(prev_end, right) - max(prev_start, left)
-                        prev_id = collisions[0][2]
+                        prev_id = current_events[0][2]
                         plt.plot([max(prev_start, left), min(prev_end, right)], [prev_id, prev_id], 'b', linewidth=2.0)
-                    elif len(collisions) > 1:
+                    elif len(current_events) > 1:
                         n_collisions += 1
                         plt.plot([max(prev_start, left), max(prev_start, left)], [0, self.n_nodes], 'g', alpha=0.5)
-                        node_set = set()    # check if one node collides with itself
-                        for s, e, id in collisions:
-                            node_set.add(id)
+                        for s, e, id in current_events:
                             plt.plot([max(s, left), min(e, right)], [id, id], 'm', linewidth=2.0)
-                        assert len(node_set) == len(collisions), "one node collides with itself"
-
                     prev_start, prev_end = start, end
-                    collisions = [event]
-
-                if start > right:   # assume the first out of interval event does not collide
+                    current_events = [event]
+                if start > right:
                     break
 
             idle_rate = round(idle_time*100 / (right - left), 2)
@@ -484,5 +518,5 @@ class PlotResults(object):
         
 
 if __name__ == '__main__':
-    timestamp = "1730253349"
-    PlotResults(timestamp, target_nodes=[0,1]).do_plot()
+    timestamp = "1731660708"
+    PlotResults(timestamp, target_nodes=[0,1,2,3,4]).do_plot()
