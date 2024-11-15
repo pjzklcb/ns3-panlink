@@ -96,7 +96,7 @@ class ChannelAccessRlAgent(RlAgent):
         self.action = self.model.choose_action(next_state, self.action_mask)
         self.action_log.append(self.action)
         
-        self.backoff = self.action * scale + random.randint(0, scale-1) if scale > 1 else self.action
+        self.backoff = int(self.action * scale + random.randint(0, scale-1)) if scale > 1 else self.action
         self.backoff_log.append((cw - b, self.backoff))
         if self.show_log:
             print("New Backoff={} from [0, {}-{}]".format(self.backoff, cw, b))
