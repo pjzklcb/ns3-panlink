@@ -49,9 +49,9 @@ main(int argc, char* argv[])
     int gi = 800;
 
     std::string configPath = "contrib/panlink/configs/";
-    std::string panlinkConfig = configPath + "config_cca.json";
-    std::string intfConfig = configPath + "config_intf.json";
-    std::string appConfig = configPath + "app_dict.json";
+    std::string configPanlink = configPath + "panlink_cca.json";
+    std::string configIntf = configPath + "intf_test1.json";
+    std::string configApp = configPath + "app_dict.json";
     bool pcap = false;
     bool stats = false;
     bool verbose = false;
@@ -59,7 +59,8 @@ main(int argc, char* argv[])
     CommandLine cmd(__FILE__);
     cmd.AddValue("timestamp", "The timestamp for this example to run", timestamp);
     cmd.AddValue("seed", "The random seed for this example to run", seed);
-    cmd.AddValue("config", "The config file of panlink network", panlinkConfig);
+    cmd.AddValue("configPanlink", "The config file of panlink network", configPanlink);
+    cmd.AddValue("configIntf", "The config file of interference", configIntf);
     cmd.AddValue("simulationTime", "Total simulation time", simulationTime);
     cmd.AddValue("enableIntf", "Enable interference", enableIntf);
     cmd.AddValue("frequency",
@@ -119,8 +120,8 @@ main(int argc, char* argv[])
     //                     Read Configuration Files                     ||
     //==================================================================//
     std::cout << "Reading configuration files..." << std::endl;
-    std::vector<PanlinkNodeInfo> g_panlinkInfo = ReadNodesFromJson(panlinkConfig);
-    g_appInstaller.ReadAppDictFromJson(appConfig);
+    std::vector<PanlinkNodeInfo> g_panlinkInfo = ReadNodesFromJson(configPanlink);
+    g_appInstaller.ReadAppDictFromJson(configApp);
 
     //==================================================================//
     //                      Configure Wi-Fi Stack                       ||
@@ -239,6 +240,15 @@ main(int argc, char* argv[])
                                              "RtsCtsTxDurationThresh",
                                              TimeValue(MilliSeconds(1.0)));
 
+        bool enableChannelAccess = false;
+        for (const auto& agent : node.m_agents)
+        {
+            if (agent.m_type == AgentType::RL_CHANNEL_ACCESS)
+            {
+                enableChannelAccess = true;
+            }
+        }
+
         if (node.m_type == "PO")
         {
             g_macHelper.SetType("ns3::PanlinkApWifiMac",
@@ -249,7 +259,11 @@ main(int argc, char* argv[])
         }
         else if (node.m_type == "PC")
         {
-            g_macHelper.SetType("ns3::PanlinkStaWifiMac", "Ssid", SsidValue(ssid));
+            g_macHelper.SetType("ns3::PanlinkStaWifiMac",
+                                "Ssid",
+                                SsidValue(ssid),
+                                "EnablePanlinkChannelAccess",
+                                BooleanValue(enableChannelAccess));
         }
         else if (node.m_type == "AP")
         {
@@ -316,7 +330,7 @@ main(int argc, char* argv[])
         std::cout << "Deploying interference..." << std::endl;
 
         IntfDeployer intfDeployer;
-        intfDeployer.ReadIntfConfigFile(intfConfig);
+        intfDeployer.ReadIntfConfigFile(configIntf);
         intfDeployer.DeployInterference(g_wifiHelper,
                                         g_phyHelper,
                                         g_inetHelper,

@@ -49,9 +49,9 @@ main(int argc, char* argv[])
     int gi = 800;
 
     std::string configPath = "contrib/panlink/configs/";
-    std::string panlinkConfig = configPath + "config_channel_access.json";
-    std::string intfConfig = configPath + "config_intf.json";
-    std::string appConfig = configPath + "app_dict.json";
+    std::string configPanlink = configPath + "panlink_channel_access.json";
+    std::string configIntf = configPath + "intf_test1.json";
+    std::string configApp = configPath + "app_dict.json";
     bool pcap = false;
     bool stats = false;
     bool verbose = false;
@@ -59,7 +59,8 @@ main(int argc, char* argv[])
     CommandLine cmd(__FILE__);
     cmd.AddValue("timestamp", "The timestamp for this example to run", timestamp);
     cmd.AddValue("seed", "The random seed for this example to run", seed);
-    cmd.AddValue("config", "The config file of panlink network", panlinkConfig);
+    cmd.AddValue("configPanlink", "The config file of panlink network", configPanlink);
+    cmd.AddValue("configIntf", "The config file of interference", configIntf);
     cmd.AddValue("simulationTime", "Total simulation time", simulationTime);
     cmd.AddValue("enableIntf", "Enable interference", enableIntf);
     cmd.AddValue("frequency",
@@ -120,8 +121,8 @@ main(int argc, char* argv[])
     //                     Read Configuration Files                     ||
     //==================================================================//
     std::cout << "Reading configuration files..." << std::endl;
-    std::vector<PanlinkNodeInfo> g_panlinkInfo = ReadNodesFromJson(panlinkConfig);
-    g_appInstaller.ReadAppDictFromJson(appConfig);
+    std::vector<PanlinkNodeInfo> g_panlinkInfo = ReadNodesFromJson(configPanlink);
+    g_appInstaller.ReadAppDictFromJson(configApp);
 
     //==================================================================//
     //                      Configure Wi-Fi Stack                       ||
@@ -330,7 +331,7 @@ main(int argc, char* argv[])
         std::cout << "Deploying interference..." << std::endl;
 
         IntfDeployer intfDeployer;
-        intfDeployer.ReadIntfConfigFile(intfConfig);
+        intfDeployer.ReadIntfConfigFile(configIntf);
         intfDeployer.DeployInterference(g_wifiHelper,
                                         g_phyHelper,
                                         g_inetHelper,
