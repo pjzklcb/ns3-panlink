@@ -46,6 +46,8 @@ EnvAgentHelper::GetAgentName(AgentType type) const
         return "ns3::EnvAgent";
     case AgentType::RL_CCA_SENSITIVITY:
         return "ns3::CcaEnvAgent";
+    case AgentType::RL_CHANNEL_ACCESS:
+        return "ns3::ChannelAccessEnvAgent";
     default:
         NS_ABORT_MSG("Unrecognized agent type");
         break;

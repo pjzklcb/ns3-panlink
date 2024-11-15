@@ -4,6 +4,7 @@
 #
 # Author: Pan Jinzhe <pjzklcb@gmail.com>
 
+import math
 import matplotlib.pyplot as plt
 import random
 from agent_utils import AgentType, AcIndex
@@ -16,10 +17,11 @@ class ChannelAccessRlAgent(RlAgent):
         self.agent_type = AgentType.RL_CHANNEL_ACCESS
         
         state_size = 15
-        action_size = 16
-        self.model = DDQN(state_size, action_size)
+        self.action_size = 16
+        self.model = DDQN(state_size, self.action_size)
         self.backoff = 0
         self.backoff_log = []
+        self.action_mask = [True]*self.action_size
 
     def get_obs(self, msg_interface):
         env = msg_interface.GetCpp2PyVector()[self.memory_id]
@@ -44,8 +46,8 @@ class ChannelAccessRlAgent(RlAgent):
 
         if self.show_log:
             print("At {:6f}s, n_bss_stas={}, n_obss_stas={}, \n \
-                  ac={}, thpt_req/thpt={:.4f}/{:.4f} Mbps, delay_req/delay={:.4f}/{:.4f} ms, \n \
-                  self_d2lt={:.2f}ms, bss_d2lt={:.2f}ms, other_d2lt={:.2f}ms, \n \
+                  ac={}, thpt_req/thpt={:.4f}/{:.4f} Mbps, delay_req/delay={:.3f}/{:.3f} ms, \n \
+                  self_d2lt={:.3f}ms, bss_d2lt={:.3f}ms, other_d2lt={:.3f}ms, \n \
                   self_channel_util={:.4f}, bss_channel_util={:.4f}, other_channel_util={:.4f}, \n \
                   ack_ratio={:.4f}, cw={}, n_deferred_access={}, n_waited_slot={}".format(
                 self.sim_time, n_bss_stas, n_obss_stas, ac.name, thpt_req, thpt, delay_req, delay, 
@@ -56,7 +58,7 @@ class ChannelAccessRlAgent(RlAgent):
         self.choose_action(env)
 
     def set_action(self, msg_interface):
-        msg_interface.GetPy2CppVector()[self.memory_id].ccaSensitivity = self.new_cca
+        msg_interface.GetPy2CppVector()[self.memory_id].backoff = self.backoff
 
     def choose_action(self, obs):
         # process the obs
@@ -65,6 +67,7 @@ class ChannelAccessRlAgent(RlAgent):
         p = obs.thpt[obs.ac]/obs.thptReq[obs.ac] if obs.thptReq[obs.ac] else 0
         d = obs.delay[obs.ac]/obs.delayReq[obs.ac] if obs.thptReq[obs.ac] else 1
         sum = obs.selfD2lt + obs.bssD2lt + obs.otherD2lt
+        sum = sum if sum else 1
         d_s, d_b, d_o = obs.selfD2lt/sum, obs.bssD2lt/sum, obs.otherD2lt/sum
         u_s, u_b, u_o = obs.selfChannelUtil, obs.bssChannelUtil, obs.otherChannelUtil
         r = obs.ackRatio
@@ -77,17 +80,22 @@ class ChannelAccessRlAgent(RlAgent):
             # caculate reward
             r_thpt = min(0, p-1)
             r_delay = -5 if d == 0 else 1-d
-            r_acked = r > 0
+            r_acked = 1 if r > 0 else -1
             reward = r_thpt + r_delay + r_acked
             self.reward_log.append(reward)
-            self.model.store_transition(self.state, self.action, reward, next_state)
+            self.model.store_transition(self.state, self.action, reward, next_state, self.action_mask)
             if self.enable_learning:
                 self.model.learn()
 
+        # get action mask
+        scale = (cw + 1) / self.action_size
+        valid_size = math.floor((cw + 1 - b) / scale) if scale > 1 else cw + 1 - b
+        self.action_mask = [True]*valid_size + [False]*(self.action_size - valid_size)
+
         # choose action
-        self.action = self.model.choose_action(next_state)
+        self.action = self.model.choose_action(next_state, self.action_mask)
         self.action_log.append(self.action)
-        scale = (cw+1)/16
+        
         self.backoff = self.action * scale + random.randint(0, scale-1) if scale > 1 else self.action
         self.backoff_log.append((cw - b, self.backoff))
         if self.show_log:
@@ -108,7 +116,7 @@ class ChannelAccessRlAgent(RlAgent):
 
         y1, y2 = zip(*self.backoff_log)
         plt.figure()
-        plt.scatter(range(len(y1)), y1, c='b', marker='-', markersize=3)
+        plt.scatter(range(len(y1)), y1, c='b', marker='+', markersize=3)
         plt.scatter(range(len(y2)), y2, c='r', marker='o', markersize=3)
         plt.xlabel('Step number')
         plt.ylabel('Backoff')

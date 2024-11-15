@@ -7,6 +7,7 @@
 import json
 from rl_agent import RlAgent
 from cca_rl_agent import CcaRlAgent
+from channel_access_rl_agent import ChannelAccessRlAgent
 
 class AgentManager:
     def __init__(self):
@@ -22,7 +23,7 @@ class AgentManager:
             return CcaRlAgent(node_id, memory_id)
         elif agent_type in {"channel access", "channel-access", "channel_access",
                             "Channel Access", "Channel-Access", "Channel_Access"}:
-            pass
+            return ChannelAccessRlAgent(node_id, memory_id)
         elif agent_type in {"rate control", "rate_control", "rate-control",
                              "Rate Control", "Rate_Control", "Rate-Control"}:
             pass
