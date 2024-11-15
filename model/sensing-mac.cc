@@ -201,7 +201,6 @@ SensingMac::NotifyEdcaEnqueue(std::string ac, Ptr<const WifiMpdu> item)
     auto [it, inserted] = m_packetMap.try_emplace(uid);
     NS_ABORT_MSG_IF(!inserted, "Packet with uid=" << uid << " already exists");
 
-    it->second.uid = uid;
     it->second.packetSize = item->GetPacketSize();
     it->second.ac = StringToAcIndex(ac);
     it->second.enqueueTime = Simulator::Now();
@@ -214,8 +213,7 @@ SensingMac::NotifyPhyTxBegin(std::string context, Ptr<const Packet> p, double tx
     NS_LOG_FUNCTION(this << context << p << txPowerW);
 
     auto linkId = static_cast<uint8_t>(std::stoi(context));
-    auto it = m_packetMap.find(p->GetUid());
-    if (it != m_packetMap.end())
+    if (auto it = m_packetMap.find(p->GetUid()); it != m_packetMap.end())
     {
         it->second.linkId = linkId;
         it->second.txCounter++;
@@ -267,10 +265,9 @@ SensingMac::NotifyAckedMpdu(Ptr<const WifiMpdu> mpdu)
 
     auto uid = mpdu->GetPacket()->GetUid();
     auto it = m_packetMap.find(uid);
-    NS_ABORT_MSG_IF(it == m_packetMap.cend(), "Packet with uid=" << uid << " not found");
+    NS_ABORT_MSG_IF(it == m_packetMap.end(), "Packet with uid=" << uid << " not found");
 
     it->second.ackedTime = Simulator::Now();
-
     m_linkMap[it->second.linkId].lastTxOkTime = Simulator::Now();
 }
 

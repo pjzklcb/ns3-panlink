@@ -200,7 +200,6 @@ class SensingMac : public Object
      */
     struct SelfPacketInfo
     {
-        uint64_t uid;
         uint32_t packetSize;
         AcIndex ac;
         uint8_t linkId;
