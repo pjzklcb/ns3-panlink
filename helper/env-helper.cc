@@ -67,21 +67,16 @@ EnvHelper::InitEnvMonitor(const NodeContainer& nodes,
 }
 
 void
-EnvHelper::InitEnvAgentManager(std::vector<PanlinkNodeInfo> panlinkInfo)
+EnvHelper::InitEnvAgentManager(AgentMap map)
 {
     NS_LOG_FUNCTION(this);
 
     // Create EnvAgentManager instance
     auto agentManager = EnvAgentManager::Get();
 
-    for (auto node : panlinkInfo)
+    for (auto [nodeId, agents] : map)
     {
-        if (node.m_type == "AP" or node.m_type == "STA")
-        {
-            std::cout << "Node-" << node.m_id << " is " << node.m_type << std::endl;
-            continue;
-        }
-        agentManager->Install(NodeList::GetNode(node.m_id), node.m_agents);
+        agentManager->Install(NodeList::GetNode(nodeId), agents);
     }
 }
 

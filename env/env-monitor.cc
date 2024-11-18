@@ -142,8 +142,8 @@ EnvMonitor::ConnectMacTrace()
         std::string ac = AcIndexToString(aci);
 
         // Trace Waited Slots update
-        Config::Connect(prefix + ac + "_Txop/WaitedSlotsTrace",
-                        MakeCallback(&EnvMonitor::NotifyWaitedSlotsUpdate, this));
+        Config::ConnectFailSafe(prefix + ac + "_Txop/WaitedSlotsTrace",
+                                MakeCallback(&EnvMonitor::NotifyWaitedSlotsUpdate, this));
     }
 }
 

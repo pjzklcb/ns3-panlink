@@ -119,7 +119,7 @@ AppInstaller::ParseRandomVariableStream(const rapidjson::Value& item)
         }
         std::string key = SnakeToCamel(it->name.GetString());
         std::string value = std::to_string(it->value.GetDouble());
-        std::cout << ss.str() << std::endl;
+        ss << key << "=" << value << "|";
     }
 
     ss.seekp(-1, std::ios_base::end);

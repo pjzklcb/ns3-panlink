@@ -12,6 +12,10 @@
 #include "ns3/env-utils.h"
 #include "ns3/wifi-module.h"
 
+#include <rapidjson/document.h>
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>
+
 namespace ns3
 {
 
@@ -32,7 +36,7 @@ typedef std::map<uint32_t /* src node id */, std::vector<SrcApp>> SrcAppMap;
 
 /**
  * Converts a string from snake_case to CamelCase.
- * 
+ *
  * @param str the string to convert
  */
 std::string SnakeToCamel(const std::string& str);
@@ -46,33 +50,18 @@ struct AgentInfo
     Time m_period{Seconds(0)};
 };
 
-/**
- * The information of a node specified in the configuration file.
- */
-struct PanlinkNodeInfo
-{
-    uint32_t m_id;
-    uint32_t m_bssIdx;
-    std::string m_type; // PO, PC, AP or STA
-    double m_xPosition;
-    double m_yPosition;
-    double m_zPosition;
-    uint32_t m_channel;
-    uint32_t m_bandwidth;
-    std::vector<SrcApp> m_applications; // application type
-    std::vector<AgentInfo> m_agents;
-};
+typedef std::map<uint32_t /* src node id */, std::vector<AgentInfo>> AgentMap;
 
 /**
  * @param filename the name of the JSON file
- * @return Panlink nodes configured in the JSON
+ * @return Panlink nodes info configured in the JSON
  */
-std::vector<PanlinkNodeInfo> ReadNodesFromJson(std::string filename);
+rapidjson::Document ReadPanlinkFromJson(std::string filename);
 
 /**
  * Get the Type of Service of the specified AC Index.
  * Check qos-utils.h
- * 
+ *
  * @param ac the AC string {AC_BE:0x70, AC_BK:0x28, AC_VI:0xb8, AC_VO:0xc0}
  * @return the ToS
  */

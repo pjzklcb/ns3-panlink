@@ -113,6 +113,7 @@ main(int argc, char* argv[])
     Ipv4InterfaceContainer g_interfaces;
     SrcAppMap g_srcAppMap;
     AppInstaller g_appInstaller;
+    AgentMap g_agentMap;
     TopologyRecorder g_recorder;
 
     g_mobilityHelper.SetMobilityModel("ns3::ConstantPositionMobilityModel");
@@ -121,7 +122,7 @@ main(int argc, char* argv[])
     //                     Read Configuration Files                     ||
     //==================================================================//
     std::cout << "Reading configuration files..." << std::endl;
-    std::vector<PanlinkNodeInfo> g_panlinkInfo = ReadNodesFromJson(configPanlink);
+    const auto& g_panlinkInfo = ReadPanlinkFromJson(configPanlink);
     g_appInstaller.ReadAppProfileFromJson(configApp);
 
     //==================================================================//
@@ -215,20 +216,23 @@ main(int argc, char* argv[])
     //==================================================================//
     //                       Deploy Panlink Nodes                       ||
     //==================================================================//
-    std::cout << "Deploying " << g_panlinkInfo.size() << " nodes..." << std::endl;
+    std::cout << "Deploying " << g_panlinkInfo["nodes"].Size() << " nodes..." << std::endl;
 
     NodeContainer panlinkNodes;
     NetDeviceContainer panlinkDevices;
     Ipv4InterfaceContainer panlinkInterfaces;
     Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator>();
 
-    panlinkNodes.Create(g_panlinkInfo.size());
+    panlinkNodes.Create(g_panlinkInfo["nodes"].Size());
     Ssid ssid = Ssid("panlink");
-    for (uint32_t i = 0; i < g_panlinkInfo.size(); i++)
+    uint32_t apId = 0;
+    for (const auto& node : g_panlinkInfo["nodes"].GetArray())
     {
-        auto& node = g_panlinkInfo[i];
-        uint32_t channel = node.m_channel;
-        uint32_t bandwidth = node.m_bandwidth;
+        uint32_t nodeId = node["id"].GetUint();
+        std::string nodeType = node["type"].GetString();
+
+        uint32_t channel = node["channel"].GetUint();
+        uint32_t bandwidth = node["bandwidth"].GetUint();
         std::string channelStr("{" + std::to_string(channel) + ", " + std::to_string(bandwidth) +
                                ", " + freqStr + ", 0}");
 
@@ -241,24 +245,40 @@ main(int argc, char* argv[])
                                              "RtsCtsTxDurationThresh",
                                              TimeValue(MilliSeconds(1.0)));
 
+        // parse agents
         bool enableChannelAccess = false;
-        for (const auto& agent : node.m_agents)
+        g_agentMap[nodeId] = std::vector<AgentInfo>();
+        for (auto& agent : node["agents"].GetArray())
         {
-            if (agent.m_type == AgentType::RL_CHANNEL_ACCESS)
+            std::string agentType = agent["type"].GetString();
+            double period = agent["period"].GetDouble();
+            AgentType type = NO_RL;
+            if (agentType == "cca")
             {
+                type = RL_CCA_SENSITIVITY;
+            }
+            else if (agentType == "channel_access")
+            {
+                type = RL_CHANNEL_ACCESS;
                 enableChannelAccess = true;
             }
+            else
+            {
+                NS_LOG_ERROR("Unknown agent type: " << agent.GetString());
+            }
+            g_agentMap[nodeId].push_back({type, Seconds(period)});
         }
 
-        if (node.m_type == "PO")
+        if (nodeType == "PanlinkAP")
         {
             g_macHelper.SetType("ns3::PanlinkApWifiMac",
                                 "Ssid",
                                 SsidValue(ssid),
                                 "EnableBeaconJitter",
                                 BooleanValue(true));
+            apId = nodeId;
         }
-        else if (node.m_type == "PC")
+        else if (nodeType == "PanlinkSTA")
         {
             g_macHelper.SetType("ns3::PanlinkStaWifiMac",
                                 "Ssid",
@@ -266,17 +286,20 @@ main(int argc, char* argv[])
                                 "EnablePanlinkChannelAccess",
                                 BooleanValue(enableChannelAccess));
         }
-        else if (node.m_type == "AP")
+        else if (nodeType == "AP")
         {
             g_macHelper.SetType("ns3::ApWifiMac",
                                 "Ssid",
                                 SsidValue(ssid),
                                 "EnableBeaconJitter",
                                 BooleanValue(true));
+            g_agentMap[nodeId] = std::vector<AgentInfo>();
+            apId = nodeId;
         }
-        else if (node.m_type == "STA")
+        else if (nodeType == "STA")
         {
             g_macHelper.SetType("ns3::StaWifiMac", "Ssid", SsidValue(ssid));
+            g_agentMap[nodeId] = std::vector<AgentInfo>();
         }
         else
         {
@@ -285,29 +308,42 @@ main(int argc, char* argv[])
 
         g_phyHelper.Set("ChannelSettings", StringValue(channelStr));
 
-        panlinkDevices.Add(g_wifiHelper.Install(g_phyHelper, g_macHelper, panlinkNodes.Get(i)));
+        panlinkDevices.Add(
+            g_wifiHelper.Install(g_phyHelper, g_macHelper, panlinkNodes.Get(nodeId)));
 
         /* Config position */
-        positionAlloc->Add(Vector(node.m_xPosition, node.m_yPosition, node.m_zPosition));
-        g_recorder.Add(panlinkNodes.Get(0)->GetId(), // TODO: may not be AP
-                       panlinkNodes.Get(i)->GetId(),
-                       node.m_type,
-                       node.m_xPosition,
-                       node.m_yPosition);
+        positionAlloc->Add(Vector(node["position"]["x"].GetDouble(),
+                                  node["position"]["y"].GetDouble(),
+                                  node["position"]["z"].GetDouble()));
+        g_recorder.Add(apId,
+                       panlinkNodes.Get(nodeId)->GetId(),
+                       nodeType,
+                       node["position"]["x"].GetDouble(),
+                       node["position"]["y"].GetDouble());
 
         /* Record applications */
-        if (node.m_applications.size() != 0)
+        g_srcAppMap[nodeId] = std::vector<SrcApp>();
+        uint32_t port = 50000;
+        for (const auto& app : node["applications"].GetArray())
         {
-            g_srcAppMap[node.m_id] = std::vector<SrcApp>();
-            for (auto& app : node.m_applications)
+            SrcApp srcApp = {app["name"].GetString(),
+                             app["dst"].GetUint(),
+                             ++port, // port number
+                             StringToAcIndex(app["qos"].GetString()),
+                             app["start_time"].GetDouble(),
+                             app["end_time"].GetDouble()};
+
+            if (app["dst"].GetUint() == nodeId || app["dst"].GetUint() > panlinkNodes.GetN() - 1)
             {
-                if (app.m_dst == node.m_id || app.m_dst > panlinkNodes.GetN() - 1)
-                {
-                    NS_ABORT_MSG("Invalid application destination node ID!");
-                }
-                g_srcAppMap[node.m_id].emplace_back(app);
+                NS_ABORT_MSG("Invalid application destination node ID!");
             }
+            g_srcAppMap[nodeId].emplace_back(srcApp);
         }
+
+        std::cout << "Node ID: " << nodeId << ", Node type: " << nodeType << ", Position: ("
+                  << node["position"]["x"].GetDouble() << ", " << node["position"]["y"].GetDouble()
+                  << ", " << node["position"]["z"].GetDouble() << "), Channel: " << channel
+                  << ", Bandwidth: " << bandwidth << std::endl;
     }
 
     /* Install mobility */
@@ -374,8 +410,8 @@ main(int argc, char* argv[])
     /* Create pcap file */
     if (pcap)
     {
-        // g_phyHelper.EnablePcap(resultDir + g_panlinkInfo[0].m_type, panlinkDevices.Get(0));
-        g_phyHelper.EnablePcap(resultDir + g_panlinkInfo[1].m_type, panlinkDevices.Get(1));
+        // g_phyHelper.EnablePcap(resultDir + "node-", panlinkDevices.Get(0));
+        g_phyHelper.EnablePcap(resultDir + "node-", panlinkDevices.Get(1));
         // g_phyHelper.EnablePcap(resultDir + "node-", g_devices.Get(3));
     }
 
@@ -385,7 +421,7 @@ main(int argc, char* argv[])
     std::cout << "Installing agents..." << std::endl;
     EnvHelper envHelper(timestamp);
     envHelper.InitEnvMonitor(g_nodes, g_devices, g_interfaces, g_srcAppMap);
-    envHelper.InitEnvAgentManager(g_panlinkInfo);
+    envHelper.InitEnvAgentManager(g_agentMap);
     envHelper.ScheduleInitInfoExchange(Seconds(0.1));
 
     //==================================================================//

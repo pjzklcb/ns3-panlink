@@ -71,14 +71,14 @@ class PlotResults(object):
                 node_id = int(node_info["id"])
                 node_type = node_info["type"]
                 x, y = float(node_info["loc_x"]), float(node_info["loc_y"])
-                if node_type == "PO":
+                if node_type == "PanlinkAP":
                     self.bss_map[bss_id] = []
                     ap_pos[node_id] = [x, y]
-                    plt.plot(x, y, 'ro', markersize=4, label="" if n_po else "PO")
+                    plt.plot(x, y, 'ro', markersize=4, label="" if n_po else "PanlinkAP")
                     n_po += 1
-                elif node_type == "PC":
+                elif node_type == "PanlinkSTA":
                     self.bss_map[bss_id].append(node_id)
-                    plt.plot(x, y, 'r*', markersize=8, label="" if n_pc else "PC")
+                    plt.plot(x, y, 'r*', markersize=8, label="" if n_pc else "PanlinkSTA")
                     n_pc += 1
                     plt.plot([ap_pos[bss_id][0], x], [ap_pos[bss_id][1], y], 'k--')
                 elif node_type == "AP":

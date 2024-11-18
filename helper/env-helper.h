@@ -47,9 +47,9 @@ class EnvHelper
     /**
      * Initialize the environment agent manager.
      *
-     * \param panlinkInfo the list of Panlink nodes
+     * \param map the agent map
      */
-    void InitEnvAgentManager(std::vector<PanlinkNodeInfo> panlinkInfo);
+    void InitEnvAgentManager(AgentMap map);
 
     /**
      * Schedule an initial information exchange.

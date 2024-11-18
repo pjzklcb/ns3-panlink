@@ -251,7 +251,7 @@ IntfDeployer::DeployInterference(WifiHelper& wifiHelper,
                   << probe["position"]["x"].GetDouble() << ", "
                   << probe["position"]["y"].GetDouble() << ", "
                   << probe["position"]["z"].GetDouble() << ")" << ", Channel: " << channel
-                  << ", Bandwidth" << bandwidth << std::endl;
+                  << ", Bandwidth: " << bandwidth << std::endl;
     }
 
     /* Install mobility */

@@ -15,7 +15,7 @@
         },
         {
             "id": 1,
-            "type": "PC",
+            "type": "STA",
             "position": {
                 "x": 0.0,
                 "y": 0.0,
