@@ -74,6 +74,62 @@ ReadPanlinkFromJson(std::string filename)
     return document;
 }
 
+std::string
+ParseRandomVariableStream(const rapidjson::Value& item)
+{
+    std::string rand;
+    if (item.IsDouble())
+    {
+        rand = "ns3::ConstantRandomVariable[Constant=" + std::to_string(item.GetDouble()) + "]";
+        return rand;
+    }
+    if (item.IsInt())
+    {
+        rand = "ns3::ConstantRandomVariable[Constant=" + std::to_string(item.GetInt()) + "]";
+        return rand;
+    }
+
+    if (!item.IsObject())
+    {
+        NS_ABORT_MSG("Missing distribution member in json");
+        return rand;
+    }
+
+    std::string dist = SnakeToCamel(item["dist"].GetString());
+    // check if distribution exists
+    std::stringstream ss;
+    ss << "ns3::" << dist << "RandomVariable";
+    try
+    {
+        TypeId tid = TypeId::LookupByName(ss.str());
+        NS_LOG_DEBUG(dist << " has typeId=" << tid);
+    }
+    catch (const std::exception& e)
+    {
+        NS_ABORT_MSG("Unknown distribution in json");
+    }
+    
+    // create the random variable stream
+    ss << "[";
+    for (auto it = item.MemberBegin(); it != item.MemberEnd(); ++it)
+    {
+        // skip the "dist" memeber 
+        if (std::string(it->name.GetString()) == "dist")
+        {
+            continue;
+        }
+        std::string key = SnakeToCamel(it->name.GetString());
+        std::string value = std::to_string(it->value.GetDouble());
+        ss << key << "=" << value << "|";
+    }
+
+    ss.seekp(-1, std::ios_base::end);
+    ss << "]";
+    rand = ss.str();
+
+    return rand;
+}
+
 uint16_t
 AcIndexToTos(AcIndex ac)
 {

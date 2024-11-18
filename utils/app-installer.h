@@ -86,14 +86,6 @@ class AppInstaller
     ApplicationContainer InstallSinkApplications(NodeContainer nodes);
 
     /**
-     * Generate random variable stream based on the json file.
-     *
-     * @param item the json component to be parsed
-     * @return random varaible stream
-     */
-    std::string ParseRandomVariableStream(const rapidjson::Value& item);
-
-    /**
      * Install a source application to the given node.
      *
      * @param node the given node

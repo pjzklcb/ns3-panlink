@@ -59,6 +59,14 @@ typedef std::map<uint32_t /* src node id */, std::vector<AgentInfo>> AgentMap;
 rapidjson::Document ReadPanlinkFromJson(std::string filename);
 
 /**
+ * Generate random variable stream based on the json file.
+ *
+ * @param item the json component to be parsed
+ * @return random varaible stream
+ */
+std::string ParseRandomVariableStream(const rapidjson::Value& item);
+
+/**
  * Get the Type of Service of the specified AC Index.
  * Check qos-utils.h
  *
