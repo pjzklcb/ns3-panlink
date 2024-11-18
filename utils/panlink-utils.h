@@ -31,6 +31,13 @@ struct SrcApp
 typedef std::map<uint32_t /* src node id */, std::vector<SrcApp>> SrcAppMap;
 
 /**
+ * Converts a string from snake_case to CamelCase.
+ * 
+ * @param str the string to convert
+ */
+std::string SnakeToCamel(const std::string& str);
+
+/**
  * The information of an agent installed on a node.
  */
 struct AgentInfo
@@ -57,8 +64,8 @@ struct PanlinkNodeInfo
 };
 
 /**
- * \param filename the name of the JSON file
- * \return Panlink nodes configured in the JSON
+ * @param filename the name of the JSON file
+ * @return Panlink nodes configured in the JSON
  */
 std::vector<PanlinkNodeInfo> ReadNodesFromJson(std::string filename);
 
@@ -66,8 +73,8 @@ std::vector<PanlinkNodeInfo> ReadNodesFromJson(std::string filename);
  * Get the Type of Service of the specified AC Index.
  * Check qos-utils.h
  * 
- * \param ac the AC string {AC_BE:0x70, AC_BK:0x28, AC_VI:0xb8, AC_VO:0xc0}
- * \return the ToS
+ * @param ac the AC string {AC_BE:0x70, AC_BK:0x28, AC_VI:0xb8, AC_VO:0xc0}
+ * @return the ToS
  */
 uint16_t AcIndexToTos(AcIndex ac);
 

@@ -19,6 +19,32 @@ namespace ns3
 
 NS_LOG_COMPONENT_DEFINE("PanlinkUtils");
 
+std::string 
+SnakeToCamel(const std::string& str)
+{
+    std::string result;
+    bool capitalizeNext = false;
+
+    for (char c : str) {
+        if (c == '_') {
+            capitalizeNext = true;
+        } else {
+            if (capitalizeNext) {
+                result += std::toupper(c);
+                capitalizeNext = false;
+            } else {
+                result += c;
+            }
+        }
+    }
+
+    if (!result.empty()) {
+        result[0] = std::toupper(result[0]);
+    }
+
+    return result;
+}
+
 std::vector<PanlinkNodeInfo>
 ReadNodesFromJson(std::string filename)
 {

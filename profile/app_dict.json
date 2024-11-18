@@ -20,26 +20,26 @@
         },
         {
             "name": "mobile_gaming_frame_sync_dl",
-            "payload_interval": {"dict": "largest_extreme", "location": 0.028, "scale": 0.0042},
-            "payload_size": {"dict": "largest_extreme", "location": 210.0, "scale": 35.0},
+            "payload_interval": {"dist": "largest_extreme_value", "location": 0.028, "scale": 0.0042},
+            "payload_size": {"dist": "largest_extreme_value", "location": 210.0, "scale": 35.0},
             "fragment_size": 1500
         },
         {
             "name": "mobile_gaming_frame_sync_ul",
-            "payload_interval": {"dict": "largest_extreme", "location": 0.022, "scale": 0.0034},
-            "payload_size": {"dict": "largest_extreme", "location": 92.0, "scale": 38.0},
+            "payload_interval": {"dist": "largest_extreme_value", "location": 0.022, "scale": 0.0034},
+            "payload_size": {"dist": "largest_extreme_value", "location": 92.0, "scale": 38.0},
             "fragment_size": 1500
         },
         {
             "name": "mobile_gaming_status_sync_dl",
-            "payload_interval": {"dict": "largest_extreme", "location": 0.013, "scale": 0.0037},
-            "payload_size": {"dict": "largest_extreme", "location": 50.0, "scale": 11.0},
+            "payload_interval": {"dist": "largest_extreme_value", "location": 0.013, "scale": 0.0037},
+            "payload_size": {"dist": "largest_extreme_value", "location": 50.0, "scale": 11.0},
             "fragment_size": 1500
         },
         {
             "name": "mobile_gaming_status_sync_ul",
-            "payload_interval": {"dict": "largest_extreme", "location": 0.015, "scale": 0.0057},
-            "payload_size": {"dict": "largest_extreme", "location": 38.0, "scale": 3.7},
+            "payload_interval": {"dist": "largest_extreme_value", "location": 0.015, "scale": 0.0057},
+            "payload_size": {"dist": "largest_extreme_value", "location": 38.0, "scale": 3.7},
             "fragment_size": 1500
         }
     ]

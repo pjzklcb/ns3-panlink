@@ -1,0 +1,97 @@
+{
+    "ap_beacon": {
+        "count": 8,
+        "rssi": {
+            "dist": "normal",
+            "mean": -80,
+            "std": 1.0
+        }
+    },
+    "ap": {
+        "count": 4,
+        "rssi": {
+            "dist": "normal",
+            "mean": -80,
+            "std": 1.0
+        },
+        "sta": {
+            "count": {
+                "dist": "uniform",
+                "min": 1,
+                "max": 4
+            },
+            "rssi": {
+                "dist": "normal",
+                "mean": -80,
+                "std": 1.0
+            }
+        },
+        "app": {
+            "count": {
+                "dist": "uniform",
+                "min": 1,
+                "max": 4
+            },
+            "packet_size": {
+                "dist": "mixture",
+                "rv": [
+                    {
+                        "dist": "weibull",
+                        "scale": 0.7884,
+                        "shape": 798.9999,
+                        "bound": 506.8989
+                    },
+                    {
+                        "dist": "pareto",
+                        "scale": 0.7364,
+                        "shape": -61.8166,
+                        "bound": 428.8166
+                    },
+                    {
+                        "dist": "lognormal",
+                        "mu": 0.8282,
+                        "sigma": 78.6037
+                    }
+                ],
+                "weight": [
+                    0.4,
+                    0.5,
+                    0.1
+                ]
+            },
+            "packet_interval": {
+                "dist": "mixture",
+                "rv": [
+                    {
+                        "dist": "exponential",
+                        "mean": 0.7884,
+                        "bound": 506.8989
+                    },
+                    {
+                        "dist": "largest_extreme",
+                        "location": 0.028, 
+                        "scale": 0.0042
+                    },
+                    {
+                        "dist": "lognormal",
+                        "mu": 0.8282,
+                        "sigma": 78.6037
+                    }
+                ],
+                "weight": [
+                    0.4,
+                    0.5,
+                    0.1
+                ]
+            }
+        }
+    },
+    "probe": {
+        "count": 5,
+        "rssi": {
+            "dist": "normal",
+            "mean": -75,
+            "std": 1.0
+        }
+    }
+}

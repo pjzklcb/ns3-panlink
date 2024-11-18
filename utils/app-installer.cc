@@ -26,7 +26,7 @@ AppInstaller::~AppInstaller()
 }
 
 void
-AppInstaller::ReadAppDictFromJson(std::string filename)
+AppInstaller::ReadAppProfileFromJson(std::string filename)
 {
     NS_LOG_FUNCTION(this << filename);
 
@@ -94,18 +94,37 @@ AppInstaller::ParseRandomVariableStream(const rapidjson::Value& item)
         return rand;
     }
 
-    std::string dict = item["dict"].GetString();
-    if (dict == "largest_extreme")
+    std::string dist = SnakeToCamel(item["dist"].GetString());
+    // check if distribution exists
+    std::stringstream ss;
+    ss << "ns3::" << dist << "RandomVariable";
+    try
     {
-        auto location = std::to_string(item["location"].GetDouble());
-        auto scale = std::to_string(item["scale"].GetDouble());
-        rand =
-            "ns3::LargestExtremeValueRandomVariable[Location=" + location + "|Scale=" + scale + "]";
+        TypeId tid = TypeId::LookupByName(ss.str());
+        NS_LOG_DEBUG(dist << " has typeId=" << tid);
     }
-    else
+    catch (const std::exception& e)
     {
-        NS_LOG_ERROR("Unknown distribution in app_dict.json");
+        NS_ABORT_MSG("Unknown distribution in app_dict.json");
     }
+    
+    // create the random variable stream
+    ss << "[";
+    for (auto it = item.MemberBegin(); it != item.MemberEnd(); ++it)
+    {
+        // skip the "dist" memeber 
+        if (std::string(it->name.GetString()) == "dist")
+        {
+            continue;
+        }
+        std::string key = SnakeToCamel(it->name.GetString());
+        std::string value = std::to_string(it->value.GetDouble());
+        std::cout << ss.str() << std::endl;
+    }
+
+    ss.seekp(-1, std::ios_base::end);
+    ss << "]";
+    rand = ss.str();
 
     return rand;
 }
@@ -137,8 +156,8 @@ AppInstaller::InstallApplications(const NodeContainer& nodes,
             ApplicationContainer app = DoInstallApplication(nodes.Get(srcNodeId), dstAddr, srcApp);
             apps.Add(app);
 
-            std::cout << "Node-" << srcNodeId << " installed application \"" << appName << "\" to node-"
-                      << dstNodeId << "(IP: " << interfaces.GetAddress(dstNodeId)
+            std::cout << "Node-" << srcNodeId << " installed application \"" << appName
+                      << "\" to node-" << dstNodeId << "(IP: " << interfaces.GetAddress(dstNodeId)
                       << ", Port:" << port << ")" << std::endl;
 
             // Record the sink app
@@ -163,10 +182,10 @@ AppInstaller::DoInstallApplication(Ptr<Node> node, InetSocketAddress dstAddr, Sr
     burstHelper.SetAttribute("FragmentSize", UintegerValue(appInfo.m_fragmentSize));
     burstHelper.SetAttribute("Tos", UintegerValue(tos));
     burstHelper.SetBurstGenerator("ns3::SimpleBurstGenerator",
-                                   "PeriodRv",
-                                   StringValue(appInfo.m_payloadInterval),
-                                   "BurstSizeRv",
-                                   StringValue(appInfo.m_payloadSize));
+                                  "PeriodRv",
+                                  StringValue(appInfo.m_payloadInterval),
+                                  "BurstSizeRv",
+                                  StringValue(appInfo.m_payloadSize));
 
     m_appHelpers.push_back(burstHelper);
     auto app = burstHelper.Install(node);

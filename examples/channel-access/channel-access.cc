@@ -51,7 +51,7 @@ main(int argc, char* argv[])
     std::string configPath = "contrib/panlink/configs/";
     std::string configPanlink = configPath + "panlink_channel_access.json";
     std::string configIntf = configPath + "intf_test1.json";
-    std::string configApp = "contrib/panlink/dataset/app_profile.json";
+    std::string configApp = "contrib/panlink/profile/app_dict.json";
     bool pcap = false;
     bool stats = false;
     bool verbose = false;
@@ -122,7 +122,7 @@ main(int argc, char* argv[])
     //==================================================================//
     std::cout << "Reading configuration files..." << std::endl;
     std::vector<PanlinkNodeInfo> g_panlinkInfo = ReadNodesFromJson(configPanlink);
-    g_appInstaller.ReadAppDictFromJson(configApp);
+    g_appInstaller.ReadAppProfileFromJson(configApp);
 
     //==================================================================//
     //                      Configure Wi-Fi Stack                       ||

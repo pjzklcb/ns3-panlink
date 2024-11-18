@@ -33,7 +33,7 @@ typedef std::map<std::string /* application name */, AppInfo> AppDict;
 typedef std::pair<uint32_t /* dst node id */, uint16_t /* port */> SinkApp;
 
 /**
- * \ingroup panlink
+ * @ingroup panlink
  *
  * The application installer. Sink applications will be installed automatically based on
  * the source applications.
@@ -49,17 +49,17 @@ class AppInstaller
     ~AppInstaller();
 
     /**
-     * Read application dictionary from JSON file.
+     * Read application profile from JSON file.
      *
-     * \param filename the name of the JSON file
+     * @param filename the name of the JSON file
      */
-    void ReadAppDictFromJson(std::string filename);
+    void ReadAppProfileFromJson(std::string filename);
 
     /**
      * Install sink applications to the given nodes.
      *
-     * \param nodes the given nodes
-     * \param srcApps the source applications
+     * @param nodes the given nodes
+     * @param srcApps the source applications
      */
     ApplicationContainer InstallApplications(const NodeContainer& nodes,
                                              const Ipv4InterfaceContainer& interfaces,
@@ -70,10 +70,10 @@ class AppInstaller
      * helpers. Return the number of streams (possibly zero) that have been assigned. The Install()
      * method should have previously been called by the user.
      *
-     * \param stream first stream index to use
-     * \param nodes NodeContainer of the set of nodes for which the application should be modified
+     * @param stream first stream index to use
+     * @param nodes NodeContainer of the set of nodes for which the application should be modified
      * to use a fixed stream
-     * \return the number of stream indices assigned by this installer.
+     * @return the number of stream indices assigned by this installer.
      */
     int64_t AssignStreams(NodeContainer nodes, int64_t stream);
 
@@ -81,24 +81,24 @@ class AppInstaller
     /**
      * Install sink applications to the given nodes.
      *
-     * \param nodes the given nodes
+     * @param nodes the given nodes
      */
     ApplicationContainer InstallSinkApplications(NodeContainer nodes);
 
     /**
      * Generate random variable stream based on the json file.
      *
-     * \param item the json component to be parsed
-     * \return random varaible stream
+     * @param item the json component to be parsed
+     * @return random varaible stream
      */
     std::string ParseRandomVariableStream(const rapidjson::Value& item);
 
     /**
      * Install a source application to the given node.
      *
-     * \param node the given node
-     * \param dstAddr the destination address
-     * \param srcApp the source application
+     * @param node the given node
+     * @param dstAddr the destination address
+     * @param srcApp the source application
      */
     ApplicationContainer DoInstallApplication(Ptr<Node> node,
                                               InetSocketAddress dstAddr,
