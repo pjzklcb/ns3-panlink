@@ -1,0 +1,30 @@
+{
+    "nodes": [
+        {
+            "id": 0,
+            "type": "AP",
+            "position": {
+                "x": 5.0,
+                "y": 0.0,
+                "z": 1.5
+            },
+            "channel": 42,
+            "bandwidth": 80,
+            "applications": [],
+            "agents": []
+        },
+        {
+            "id": 1,
+            "type": "PC",
+            "position": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 1.5
+            },
+            "channel": 42,
+            "bandwidth": 80,
+            "applications": [],
+            "agents": []
+        }
+    ]
+}

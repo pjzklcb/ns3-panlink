@@ -51,7 +51,7 @@ main(int argc, char* argv[])
     std::string configPath = "contrib/panlink/configs/";
     std::string configPanlink = configPath + "panlink_channel_access.json";
     std::string configIntf = configPath + "intf_test1.json";
-    std::string configApp = configPath + "app_dict.json";
+    std::string configApp = "contrib/panlink/dataset/app_profile.json";
     bool pcap = false;
     bool stats = false;
     bool verbose = false;
