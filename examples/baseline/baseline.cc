@@ -37,15 +37,17 @@ main(int argc, char* argv[])
     bool enableIntf{false};
     bool downlink{true};
     bool useRts{false};
-    bool useExtendedBlockAck{false};
+    bool useExtendedBlockAck{true};
     double distance{1.0}; // meters
     double frequency{5};  // whether 2.4, 5 or 6 GHz
     std::size_t nStations{1};
     std::string dlAckSeqType{"NO-OFDMA"};
     bool enableUlOfdma{false};
     bool enableBsrp{false};
-    uint32_t payloadSize =
-        700; // must fit in the max TX duration when transmitting at MCS 0 over an RU of 26 tones
+    uint16_t maxMpdus = 255; // maximum number of MPDUs per A-MPDU
+    uint8_t nStreams = 2;    // number of spatial streams
+    uint32_t fragmentSize =
+        1500; // must fit in the max TX duration when transmitting at MCS 0 over an RU of 26 tones
     Time accessReqInterval{0};
     int gi = 800;
 
@@ -89,7 +91,7 @@ main(int argc, char* argv[])
         "muSchedAccessReqInterval",
         "Duration of the interval between two requests for channel access made by the MU scheduler",
         accessReqInterval);
-    cmd.AddValue("payloadSize", "The application payload size in bytes", payloadSize);
+    cmd.AddValue("fragmentSize", "The maximum size of each fragment", fragmentSize);
     cmd.AddValue("pcap", "Enable generating pcap files", pcap);
     cmd.AddValue("stats", "Enable results saving", stats);
     cmd.AddValue("verbose", "Enable printing logs", verbose);
@@ -163,6 +165,10 @@ main(int argc, char* argv[])
 
     Config::SetDefault("ns3::WifiMac::MpduBufferSize",
                        UintegerValue(useExtendedBlockAck ? 256 : 64));
+    Config::SetDefault("ns3::WifiMac::VO_MaxAmpduSize", UintegerValue(maxMpdus*fragmentSize));
+    Config::SetDefault("ns3::WifiMac::VI_MaxAmpduSize", UintegerValue(maxMpdus*fragmentSize));
+    Config::SetDefault("ns3::WifiMac::BE_MaxAmpduSize", UintegerValue(maxMpdus*fragmentSize));
+    Config::SetDefault("ns3::WifiMac::BK_MaxAmpduSize", UintegerValue(maxMpdus*fragmentSize));
 
     g_wifiHelper.SetStandard(WIFI_STANDARD_80211ax);
     std::string freqStr;
@@ -214,6 +220,9 @@ main(int argc, char* argv[])
 
     g_phyHelper.SetPcapDataLinkType(WifiPhyHelper::DLT_IEEE802_11_RADIO);
     g_phyHelper.SetChannel(spectrumChannel);
+    g_phyHelper.Set("Antennas", UintegerValue(nStreams));
+    g_phyHelper.Set("MaxSupportedTxSpatialStreams", UintegerValue(nStreams));
+    g_phyHelper.Set("MaxSupportedRxSpatialStreams", UintegerValue(nStreams));
 
     //==================================================================//
     //                       Deploy Panlink Nodes                       ||
