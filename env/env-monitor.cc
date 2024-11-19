@@ -11,6 +11,8 @@
 #include "ns3/config.h"
 #include "ns3/ipv4-address.h"
 
+#include <iomanip>
+
 namespace ns3
 {
 
@@ -370,13 +372,24 @@ EnvMonitor::WriteInFlightPacketMapToCsv(std::string resultDir)
                                 << packet.m_txCounter << "," << packet.m_txPowerW << ","
                                 << packet.m_ac << "," << packet.m_isData << "," << packet.m_isBurst
                                 << "," << packet.m_burstRx << "," << packet.m_expired << ","
-                                << packet.m_acked << ","
-                                << packet.m_phyTxTime[i].first.ToDouble(Time::MS) << ","
-                                << packet.m_phyTxTime[i].second.ToDouble(Time::MS) << ","
-                                << packet.m_appTxTime.ToDouble(Time::MS) << ","
-                                << packet.m_appRxTime.ToDouble(Time::MS) << ","
-                                << packet.m_enqueueTime.ToDouble(Time::MS) << ","
-                                << packet.m_L2RxTime.ToDouble(Time::MS) << std::endl;
+                                << packet.m_acked << ",";
+            double values[] = {packet.m_phyTxTime[i].first.ToDouble(Time::MS),
+                               packet.m_phyTxTime[i].second.ToDouble(Time::MS),
+                               packet.m_appTxTime.ToDouble(Time::MS),
+                               packet.m_appRxTime.ToDouble(Time::MS),
+                               packet.m_enqueueTime.ToDouble(Time::MS),
+                               packet.m_L2RxTime.ToDouble(Time::MS)};
+
+            for (size_t j = 0; j < sizeof(values) / sizeof(values[0]); j++)
+            {
+                m_nodeFiles[nodeId] << std::fixed << std::setprecision(3) << values[j];
+                if (j < sizeof(values) / sizeof(values[0]) - 1)
+                {
+                    m_nodeFiles[nodeId] << ",";
+                }
+            }
+
+            m_nodeFiles[nodeId] << "\n";
         }
     }
 }

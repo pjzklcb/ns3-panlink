@@ -403,7 +403,7 @@ main(int argc, char* argv[])
     /* Create pcap file */
     if (pcap)
     {
-        // g_phyHelper.EnablePcap(resultDir + "node-", panlinkDevices.Get(0));
+        g_phyHelper.EnablePcap(resultDir + "node-", panlinkDevices.Get(0));
         g_phyHelper.EnablePcap(resultDir + "node-", panlinkDevices.Get(1));
         // g_phyHelper.EnablePcap(resultDir + "node-", g_devices.Get(3));
     }
