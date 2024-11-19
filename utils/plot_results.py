@@ -337,8 +337,9 @@ class PlotResults(object):
             if self.target_nodes is None or node_id in self.target_nodes:
                 self.plot_l2_delay_cdf(node_id, l2_delay, dropped)
 
-            # plot e2e delay
-            self.plot_e2e_delay(node_id, e2e_delay, incomplete)
+            # plot e2e delay of tartgeted nodes
+            if self.target_nodes is None or node_id in self.target_nodes:
+                self.plot_e2e_delay(node_id, e2e_delay, incomplete)
     
     def plot_l2_delay(self, node_id, l2_delay, drop_before_enqueue, expired, dropped):
         if len(l2_delay) == 0:

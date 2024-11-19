@@ -72,7 +72,7 @@ class ChannelAccessRlAgent(RlAgent):
         us_, ub_, uo_ = obs.selfChannelUtil, obs.bssChannelUtil, obs.otherChannelUtil
         ar_ = obs.ackRatio
         cw_ = math.log(obs.cw+1, 2) / 10
-        nd_ = min(1, obs.nDeferredAccess / 200)
+        nd_ = obs.nDeferredAccess / obs.cw+1
         b_ = obs.waitedSlots / obs.cw
 
         next_state = [nb_, no_, ac_, p_, d_, ds_, db_, do_, us_, ub_, uo_, ar_, cw_, nd_, b_]
