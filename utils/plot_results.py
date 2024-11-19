@@ -100,7 +100,7 @@ class PlotResults(object):
 
                 self.n_nodes += 1
         
-        plt.legend()
+        plt.legend(loc="upper left", ncol=4)
         plt.xlabel("x-coordinate (m)")
         plt.xlabel("y-coordinate (m)")
         plt.title("Node position")
@@ -210,7 +210,7 @@ class PlotResults(object):
                 subfig.scatter(time_list, backoff_list, color="r", marker='.', s=8, alpha=0.5,
                                label='average backoff={:.2f}'.format(np.mean(backoff_list)))
                 
-                subfig.legend()
+                subfig.legend(loc='upper right')
                 subfig.set_yscale('log', base=2)
                 subfig.set_xlabel("Time (s)")
                 subfig.set_ylabel("CW")
@@ -245,7 +245,7 @@ class PlotResults(object):
                     assert phy_tx_time[0] > packet_map[uid].phy_tx_time[-1][0], "phy tx time not increasing"
                     packet_map[uid].phy_tx_time.append(phy_tx_time)
                 
-                if phy_tx_time[0] != 0:
+                if phy_tx_time[0] != 0 and phy_tx_time[1] != 0:
                     self.channel_load.add(tuple(phy_tx_time) + (node_id,))
             
         return packet_map
@@ -425,6 +425,7 @@ class PlotResults(object):
         plt.savefig(self.result_dir + "figures/node_" + str(node_id) + "_e2e_delay.png")
         plt.close()
 
+    # @todo: need to consider hidden nodes
     def plot_channel_load(self, intervals = [[3.0, 3.5]]):
         events = list(self.channel_load) + [(self.sim_time, self.sim_time, 0)] # add a dummy event at end
         events.sort(key=lambda x: x[0])  # sort by start time
@@ -447,12 +448,12 @@ class PlotResults(object):
                 idle_time += start - prev_end
                 # handle the previous collision
                 if len(current_events) == 1:
-                    util_time += prev_end - prev_start
+                    util_time += prev_end - max(0, prev_start)
                 elif len(current_events) > 1:
                     collision_nodes = set()
                     for s, e, id in current_events:
-                        if id in collision_nodes:
-                            print("Warning: node-{} may be a hidden node to {}".format(id, collision_nodes))
+                        # if id in collision_nodes:
+                        #     print("Warning: node-{} may be a hidden node to {}".format(id, collision_nodes))
                         collision_nodes.add(id)
                         if id in n_collisions:
                             n_collisions[id] += 1
@@ -526,5 +527,5 @@ class PlotResults(object):
         
 
 if __name__ == '__main__':
-    timestamp = "1731984808"
+    timestamp = "1731998150"
     PlotResults(timestamp, target_nodes=[0,1,2,3,4]).do_plot()

@@ -61,26 +61,26 @@ class ChannelAccessRlAgent(RlAgent):
         msg_interface.GetPy2CppVector()[self.memory_id].backoff = self.backoff
 
     def choose_action(self, obs):
-        # process the obs
-        n_b, n_o = obs.nBssStas, obs.nObssStas
-        ac = obs.ac
-        p = obs.thpt[obs.ac]/obs.thptReq[obs.ac] if obs.thptReq[obs.ac] else 0
-        d = obs.delay[obs.ac]/obs.delayReq[obs.ac] if obs.thptReq[obs.ac] else 1
+        # normalize the obs
+        nb_, no_ = min(1, obs.nBssStas/10), min(1, obs.nObssStas/20)
+        ac_ = obs.ac / 3
+        p_ = min(1, obs.thpt[obs.ac]/obs.thptReq[obs.ac]) if obs.thptReq[obs.ac] else 0
+        d_ = min(1, obs.delay[obs.ac]/obs.delayReq[obs.ac]) if obs.thptReq[obs.ac] else 1
         sum = obs.selfD2lt + obs.bssD2lt + obs.otherD2lt
         sum = sum if sum else 1
-        d_s, d_b, d_o = obs.selfD2lt/sum, obs.bssD2lt/sum, obs.otherD2lt/sum
-        u_s, u_b, u_o = obs.selfChannelUtil, obs.bssChannelUtil, obs.otherChannelUtil
-        r = obs.ackRatio
-        cw = obs.cw
-        d_a = obs.nDeferredAccess
-        b = obs.waitedSlots
+        ds_, db_, do_ = obs.selfD2lt/sum, obs.bssD2lt/sum, obs.otherD2lt/sum
+        us_, ub_, uo_ = obs.selfChannelUtil, obs.bssChannelUtil, obs.otherChannelUtil
+        ar_ = obs.ackRatio
+        cw_ = math.log(obs.cw+1, 2) / 10
+        nd_ = min(1, obs.nDeferredAccess / 200)
+        b_ = obs.waitedSlots / obs.cw
 
-        next_state = [n_b, n_o, ac, p, d, d_s, d_b, d_o, u_s, u_b, u_o, r, cw, d_a, b]
+        next_state = [nb_, no_, ac_, p_, d_, ds_, db_, do_, us_, ub_, uo_, ar_, cw_, nd_, b_]
         if self.state:
             # caculate reward
-            r_thpt = min(0, p-1)
-            r_delay = -5 if d == 0 else 1-d
-            r_acked = 1 if r > 0 else -1
+            r_thpt = p_-1
+            r_delay = 0 if d_ == 0 else 1-d_
+            r_acked = 1 if ar_ > 0 else -1
             reward = r_thpt + r_delay + r_acked
             self.reward_log.append(reward)
             self.model.store_transition(self.state, self.action, reward, next_state, self.action_mask)
@@ -88,8 +88,8 @@ class ChannelAccessRlAgent(RlAgent):
                 self.model.learn()
 
         # get action mask
-        scale = (cw + 1) / self.action_size
-        valid_size = math.floor((cw + 1 - b) / scale) if scale > 1 else cw + 1 - b
+        scale = (obs.cw + 1) / self.action_size
+        valid_size = math.floor((obs.cw + 1 - obs.waitedSlots) / scale) if scale > 1 else obs.cw + 1 - obs.waitedSlots
         self.action_mask = [True]*valid_size + [False]*(self.action_size - valid_size)
 
         # choose action
@@ -97,9 +97,9 @@ class ChannelAccessRlAgent(RlAgent):
         self.action_log.append(self.action)
         
         self.backoff = int(self.action * scale + random.randint(0, scale-1)) if scale > 1 else self.action
-        self.backoff_log.append((cw - b, self.backoff))
+        self.backoff_log.append((obs.cw - obs.waitedSlots, self.backoff))
         if self.show_log:
-            print("New Backoff={} from [0, {}-{}]".format(self.backoff, cw, b))
+            print("New Backoff={} from [0, {}-{}]".format(self.backoff, obs.cw, obs.waitedSlots))
         self.state = next_state
 
     def save_model(self, save_dir):
@@ -117,7 +117,8 @@ class ChannelAccessRlAgent(RlAgent):
         y1, y2 = zip(*self.backoff_log)
         plt.figure()
         plt.scatter(range(len(y1)), y1, c='b', marker='+', s=8)
-        plt.scatter(range(len(y2)), y2, c='r', marker='o', s=8, alpha=0.5)
+        plt.scatter(range(len(y2)), [0.5 if x == 0 else x for x in y2], c='r', marker='.', s=8, alpha=0.5)
+        plt.yscale('log', base=2)
         plt.xlabel('Step number')
         plt.ylabel('Backoff')
         plt.savefig('{}/node_{}_action_channel_access.png'.format(save_dir, self.node_id))

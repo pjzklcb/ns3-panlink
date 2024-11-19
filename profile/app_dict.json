@@ -13,6 +13,12 @@
             "fragment_size": 1500
         },
         {
+            "name": "projection_1080p",
+            "payload_interval": 0.016,
+            "payload_size": 20000,
+            "fragment_size": 1500
+        },
+        {
             "name": "projection_4k",
             "payload_interval": 0.016,
             "payload_size": 380000,
