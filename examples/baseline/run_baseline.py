@@ -37,7 +37,7 @@ if __name__ == '__main__':
     parser.add_argument('--ns3_seed', type=int,
                         default=11, help='random seed for ns-3')
     parser.add_argument('--config_panlink', type=str,
-                        default='panlink_channel_access.json', help='config file for panlink network')
+                        default='panlink_no_agent.json', help='config file for panlink network')
     parser.add_argument('--config_intf', type=str,
                         default='intf_test1.json', help='config file for interference')
     parser.add_argument('--simulation_time', type=float,
@@ -82,7 +82,7 @@ if __name__ == '__main__':
         with open(os.path.join(result_dir, 'ns3_settings.json'), 'w') as f:
             json.dump(ns3_settings, f, indent=4)
 
-    exp = Experiment("panlink_channel_access", ns3_dir, py_binding, 
+    exp = Experiment("panlink_baseline", ns3_dir, py_binding, 
                      handleFinish=True, useVector=True, vectorSize=n_vec_size,
                      segName = timestamp + ' Seg',
                      cpp2pyMsgName = timestamp + ' Cpp to Python Msg',

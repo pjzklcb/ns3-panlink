@@ -26,7 +26,7 @@
 
 using namespace ns3;
 
-NS_LOG_COMPONENT_DEFINE("panlink-channel-access");
+NS_LOG_COMPONENT_DEFINE("panlink-baseline");
 
 int
 main(int argc, char* argv[])
@@ -50,7 +50,7 @@ main(int argc, char* argv[])
     int gi = 800;
 
     std::string configPath = "contrib/panlink/configs/";
-    std::string configPanlink = configPath + "panlink_channel_access.json";
+    std::string configPanlink = configPath + "panlink_no_agent.json";
     std::string configIntf = configPath + "intf_test1.json";
     std::string configApp = "contrib/panlink/profile/app_dict.json";
     bool pcap = false;

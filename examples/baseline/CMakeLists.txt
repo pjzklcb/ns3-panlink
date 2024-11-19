@@ -6,9 +6,9 @@ if(${GSL_FOUND})
 endif()
 
 build_lib_example(
-        NAME panlink_cca
+        NAME panlink_baseline
         SOURCE_FILES
-            cca.cc
+            baseline.cc
         LIBRARIES_TO_LINK
             ${libai}
             ${libcore}

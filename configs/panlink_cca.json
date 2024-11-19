@@ -98,7 +98,7 @@
             ],
             "agents": [
                 {
-                    "type": "cca_sensitivity",
+                    "type": "cca",
                     "period": 0.05
                 }
             ]
