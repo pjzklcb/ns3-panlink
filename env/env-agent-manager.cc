@@ -31,39 +31,45 @@ EnvAgentManager::~EnvAgentManager()
     m_agentMap.clear();
 }
 
-void
-EnvAgentManager::Install(Ptr<Node> node, std::vector<AgentInfo> agentList)
+uint32_t
+EnvAgentManager::GetMemoryId(Ptr<Node> node)
 {
     NS_LOG_FUNCTION(this << node);
 
-    if (agentList.size() == 0)
+    return GetMemoryId(node->GetId());
+}
+
+uint32_t
+EnvAgentManager::GetMemoryId(uint32_t nodeId)
+{
+    NS_LOG_FUNCTION(this << nodeId);
+
+    uint32_t memoryId;
+
+    auto it = m_memoryMap.find(nodeId);
+    if (it == m_memoryMap.end())
     {
-        std::cout << "Node-" << node->GetId() << ": Empty agent list." << std::endl;
-        return;
+        // assign the memory ID of new node
+        memoryId = m_memoryMap.size();
+        m_memoryMap[nodeId] = memoryId;
+        m_agentMap[nodeId] = std::map<AgentType, Ptr<EnvAgent>>();
+    }
+    else
+    {
+        memoryId = it->second;
     }
 
-    // assign the memory ID of new node
-    if (auto it = m_memoryMap.find(node->GetId()); it == m_memoryMap.end())
-    {
-        uint32_t memoryId = m_memoryMap.size();
-        m_memoryMap[node->GetId()] = memoryId;
-        m_agentMap[node->GetId()] = std::map<AgentType, Ptr<EnvAgent>>();
-    }
+    return memoryId;
+}
 
-    // create EnvAgent
-    EnvAgentHelper helper;
-    for (auto agentInfo : agentList)
-    {
-        auto type = agentInfo.m_type;
-        helper.SetType(helper.GetAgentName(type),
-                       "MemoryId",
-                       UintegerValue(m_memoryMap[node->GetId()]),
-                       "Period",
-                       TimeValue(agentInfo.m_period));
-        m_agentMap[node->GetId()][type] = helper.Create(node);
-        std::cout << "Node-" << node->GetId() << " installs an agent "
-                  << helper.GetAgentName(type).substr(5) << std::endl;
-    }
+void
+EnvAgentManager::Register(Ptr<EnvAgent> agent)
+{
+    NS_LOG_FUNCTION(this << agent);
+
+    auto node = agent->GetNode(); 
+    auto type = agent->GetAgentType();
+    m_agentMap[node->GetId()][type] = agent;
 }
 
 Ptr<EnvAgent>

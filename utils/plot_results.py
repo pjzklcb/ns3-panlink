@@ -71,28 +71,28 @@ class PlotResults(object):
                 node_id = int(node_info["id"])
                 node_type = node_info["type"]
                 x, y = float(node_info["loc_x"]), float(node_info["loc_y"])
-                if node_type == "PanlinkAP":
+                if node_type == "PanlinkAp":
                     self.bss_map[bss_id] = []
                     ap_pos[node_id] = [x, y]
-                    plt.plot(x, y, 'ro', markersize=4, label="" if n_po else "PanlinkAP")
+                    plt.plot(x, y, 'ro', markersize=4, label="" if n_po else "Panlink AP")
                     n_po += 1
-                elif node_type == "PanlinkSTA":
+                elif node_type == "PanlinkSta":
                     self.bss_map[bss_id].append(node_id)
-                    plt.plot(x, y, 'r*', markersize=8, label="" if n_pc else "PanlinkSTA")
+                    plt.plot(x, y, 'r*', markersize=8, label="" if n_pc else "Panlink STA")
                     n_pc += 1
                     plt.plot([ap_pos[bss_id][0], x], [ap_pos[bss_id][1], y], 'k--')
-                elif node_type == "AP":
+                elif node_type == "Ap":
                     self.bss_map[bss_id] = []
                     ap_pos[node_id] = [x, y]
                     plt.plot(x, y, 'bo', markersize=4, label="" if n_ap else "AP")
                     n_ap += 1
-                elif node_type == "STA":
+                elif node_type == "Sta":
                     self.bss_map[bss_id].append(node_id)
                     plt.plot(x, y, 'gx', markersize=4, label="" if n_sta else "STA")
                     n_sta += 1
                     plt.plot([ap_pos[bss_id][0], x], [ap_pos[bss_id][1], y], 'k--')
-                elif node_type == "PROBE":
-                    plt.plot(x, y, 'mx', markersize=4, alpha=0.5, label="" if n_probe else "PROBE")
+                elif node_type == "Probe":
+                    plt.plot(x, y, 'mx', markersize=4, alpha=0.5, label="" if n_probe else "Probe")
                     n_probe += 1
                 else:
                     print("Node type error.")

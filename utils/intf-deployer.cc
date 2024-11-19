@@ -172,7 +172,7 @@ IntfDeployer::DeployInterference(WifiHelper& wifiHelper,
 
             recorder.Add(nodes.Get(0)->GetId(),
                          nodes.Get(j)->GetId(),
-                         (j == 0) ? "AP" : "STA",
+                         (j == 0) ? "Ap" : "Sta",
                          node["position"]["x"].GetDouble(),
                          node["position"]["y"].GetDouble());
             std::cout << "Node ID: " << nodes.Get(j)->GetId()
@@ -244,7 +244,7 @@ IntfDeployer::DeployInterference(WifiHelper& wifiHelper,
 
         recorder.Add(nodes.Get(i)->GetId(),
                      nodes.Get(i)->GetId(),
-                     "PROBE",
+                     "Probe",
                      probe["position"]["x"].GetDouble(),
                      probe["position"]["y"].GetDouble());
         std::cout << "Node ID: " << nodes.Get(i)->GetId() << ", Node type: PROBER, Position: ("

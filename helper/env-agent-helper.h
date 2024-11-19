@@ -19,7 +19,7 @@ namespace ns3
 {
 
 /**
- * \ingroup panlink
+ * @ingroup panlink
  */
 
 class EnvAgentHelper
@@ -29,28 +29,25 @@ class EnvAgentHelper
     virtual ~EnvAgentHelper();
 
     /**
-     * \tparam Args \deduced Template type parameter pack for the sequence of name-value pairs.
-     * \param type the type of ns3::EnvAgent to create.
-     * \param args A sequence of name-value pairs of the attributes to set.
+     * @tparam Args \deduced Template type parameter pack for the sequence of name-value pairs.
+     * @param type the type of ns3::EnvAgent to create.
+     * @param args A sequence of name-value pairs of the attributes to set.
      *
-     * All the attributes specified in this method should exist
-     * in the requested MAC.
+     * All the attributes specified in this method should exist in the requested EnvAgent.
      */
     template <typename... Args>
     void SetType(std::string type, Args&&... args);
 
     /**
-     * \param node the node on which the Env Agent object will reside
-     * \return a new Env Agent object.
+     * @param node the node on which the Env Agent object will reside
+     * @returns a new Env Agent object.
      *
-     * This allows the ns3::EnvHelper class to create EnvAgent objects from ns3::EnvAgentManager::Install.
+     * This allows the ns3::EnvHelper class to create EnvAgent objects from ns3::EnvHelper::Install.
      */
     virtual Ptr<EnvAgent> Create(Ptr<Node> node) const;
 
     /**
-     * Get the name of the Env Agent.
-     *
-     * \return the name of the Env Agent
+     * @returns the name of the Env Agent
      */
     std::string GetAgentName(AgentType type) const;
 

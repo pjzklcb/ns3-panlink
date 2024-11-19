@@ -2,7 +2,7 @@
     "nodes": [
         {
             "id": 0,
-            "type": "AP",
+            "type": "ap",
             "position": {
                 "x": 5.0,
                 "y": 0.0,
@@ -72,7 +72,7 @@
         },
         {
             "id": 1,
-            "type": "PanlinkSTA",
+            "type": "panlink_sta",
             "position": {
                 "x": 0.0,
                 "y": 0.0,
@@ -105,7 +105,7 @@
         },
         {
             "id": 2,
-            "type": "STA",
+            "type": "sta",
             "position": {
                 "x": 5.0,
                 "y": 5.0,
@@ -133,7 +133,7 @@
         },
         {
             "id": 3,
-            "type": "STA",
+            "type": "sta",
             "position": {
                 "x": 5.0,
                 "y": -5.0,
@@ -161,7 +161,7 @@
         },
         {
             "id": 4,
-            "type": "STA",
+            "type": "sta",
             "position": {
                 "x": 10.0,
                 "y": 0.0,

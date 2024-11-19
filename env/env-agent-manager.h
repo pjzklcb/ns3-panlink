@@ -35,12 +35,22 @@ class EnvAgentManager : public Singleton<EnvAgentManager>
     ~EnvAgentManager();
 
     /**
-     * Install EnvAgents with the specified node.
+     * Register EnvAgent in the manager.
      *
-     * \param node the bound node
-     * \param agentList the list of agents
+     * @param agentList the list of agents
      */
-    void Install(Ptr<Node> node, std::vector<AgentInfo> agentList);
+    void Register(Ptr<EnvAgent> agent);
+
+    /**
+     * @param node the node
+     * @returns the memory ID of the node
+     */
+    uint32_t GetMemoryId(Ptr<Node> node);
+    /**
+     * @param nodeId the node ID
+     * @returns the memory ID of the node
+     */
+    uint32_t GetMemoryId(uint32_t nodeId);
 
     /**
      * Get the environment agent of the specified node and type.

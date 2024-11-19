@@ -8,6 +8,7 @@
 
 #include "ns3/app-installer.h"
 #include "ns3/core-module.h"
+#include "ns3/env-agent-helper.h"
 #include "ns3/env-helper.h"
 #include "ns3/internet-module.h"
 #include "ns3/intf-deployer.h"
@@ -113,7 +114,8 @@ main(int argc, char* argv[])
     Ipv4InterfaceContainer g_interfaces;
     SrcAppMap g_srcAppMap;
     AppInstaller g_appInstaller;
-    AgentMap g_agentMap;
+    EnvHelper g_envHelper(timestamp);
+    EnvAgentHelper g_agentHelper;
     TopologyRecorder g_recorder;
 
     g_mobilityHelper.SetMobilityModel("ns3::ConstantPositionMobilityModel");
@@ -229,7 +231,7 @@ main(int argc, char* argv[])
     for (const auto& node : g_panlinkInfo["nodes"].GetArray())
     {
         uint32_t nodeId = node["id"].GetUint();
-        std::string nodeType = node["type"].GetString();
+        std::string nodeType = SnakeToCamel(node["type"].GetString());
 
         uint32_t channel = node["channel"].GetUint();
         uint32_t bandwidth = node["bandwidth"].GetUint();
@@ -245,65 +247,56 @@ main(int argc, char* argv[])
                                              "RtsCtsTxDurationThresh",
                                              TimeValue(MilliSeconds(1.0)));
 
-        // parse agents
-        bool enableChannelAccess = false;
-        g_agentMap[nodeId] = std::vector<AgentInfo>();
-        for (auto& agent : node["agents"].GetArray())
-        {
-            std::string agentType = agent["type"].GetString();
-            double period = agent["period"].GetDouble();
-            AgentType type = NO_RL;
-            if (agentType == "cca")
-            {
-                type = RL_CCA_SENSITIVITY;
-            }
-            else if (agentType == "channel_access")
-            {
-                type = RL_CHANNEL_ACCESS;
-                enableChannelAccess = true;
-            }
-            else
-            {
-                NS_LOG_ERROR("Unknown agent type: " << agent.GetString());
-            }
-            g_agentMap[nodeId].push_back({type, Seconds(period)});
-        }
-
-        if (nodeType == "PanlinkAP")
-        {
-            g_macHelper.SetType("ns3::PanlinkApWifiMac",
-                                "Ssid",
-                                SsidValue(ssid),
-                                "EnableBeaconJitter",
-                                BooleanValue(true));
-            apId = nodeId;
-        }
-        else if (nodeType == "PanlinkSTA")
-        {
-            g_macHelper.SetType("ns3::PanlinkStaWifiMac",
-                                "Ssid",
-                                SsidValue(ssid),
-                                "EnablePanlinkChannelAccess",
-                                BooleanValue(enableChannelAccess));
-        }
-        else if (nodeType == "AP")
+        if (nodeType == "Ap")
         {
             g_macHelper.SetType("ns3::ApWifiMac",
                                 "Ssid",
                                 SsidValue(ssid),
                                 "EnableBeaconJitter",
                                 BooleanValue(true));
-            g_agentMap[nodeId] = std::vector<AgentInfo>();
             apId = nodeId;
         }
-        else if (nodeType == "STA")
+        else if (nodeType == "Sta")
         {
             g_macHelper.SetType("ns3::StaWifiMac", "Ssid", SsidValue(ssid));
-            g_agentMap[nodeId] = std::vector<AgentInfo>();
         }
         else
         {
-            NS_ABORT_MSG("Node type not recognized!");
+            /* Install env agents */
+            for (auto& agent : node["agents"].GetArray())
+            {
+                std::string agentType = SnakeToCamel(agent["type"].GetString());
+                double period = agent["period"].GetDouble();
+                g_agentHelper.SetType("ns3::" + agentType + "EnvAgent",
+                                      "Period",
+                                      TimeValue(Seconds(period)));
+                g_envHelper.Install(g_agentHelper, panlinkNodes.Get(nodeId));
+                std::cout << "Node-" << nodeId << " installs an agent " << agentType << std::endl;
+            }
+
+            bool enableChannelAccess =
+                EnvAgentManager::Get()->GetEnvAgent(nodeId, RL_CHANNEL_ACCESS) != nullptr;
+            if (nodeType == "PanlinkAp")
+            {
+                g_macHelper.SetType("ns3::PanlinkApWifiMac",
+                                    "Ssid",
+                                    SsidValue(ssid),
+                                    "EnableBeaconJitter",
+                                    BooleanValue(true));
+                apId = nodeId;
+            }
+            else if (nodeType == "PanlinkSta")
+            {
+                g_macHelper.SetType("ns3::PanlinkStaWifiMac",
+                                    "Ssid",
+                                    SsidValue(ssid),
+                                    "EnablePanlinkChannelAccess",
+                                    BooleanValue(enableChannelAccess));
+            }
+            else
+            {
+                NS_ABORT_MSG("Node type not recognized!");
+            }
         }
 
         g_phyHelper.Set("ChannelSettings", StringValue(channelStr));
@@ -416,13 +409,10 @@ main(int argc, char* argv[])
     }
 
     //==================================================================//
-    //                         Install Agents                           ||
+    //                       Initialize Agents                          ||
     //==================================================================//
-    std::cout << "Installing agents..." << std::endl;
-    EnvHelper envHelper(timestamp);
-    envHelper.InitEnvMonitor(g_nodes, g_devices, g_interfaces, g_srcAppMap);
-    envHelper.InitEnvAgentManager(g_agentMap);
-    envHelper.ScheduleInitInfoExchange(Seconds(0.1));
+    g_envHelper.InitEnvMonitor(g_nodes, g_devices, g_interfaces, g_srcAppMap);
+    g_envHelper.ScheduleInitInfoExchange(Seconds(0.1));
 
     //==================================================================//
     //                         Run Simulation                           ||
@@ -438,7 +428,7 @@ main(int argc, char* argv[])
     if (stats)
     {
         std::cout << "Saving results to " << resultDir << std::endl;
-        envHelper.SaveResults(resultDir);
+        g_envHelper.SaveResults(resultDir);
     }
 
     Simulator::Destroy();

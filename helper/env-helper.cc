@@ -66,18 +66,12 @@ EnvHelper::InitEnvMonitor(const NodeContainer& nodes,
     envMonitor->ConnectTraceSources();
 }
 
-void
-EnvHelper::InitEnvAgentManager(AgentMap map)
+void 
+EnvHelper::Install(const EnvAgentHelper& agentHelper, Ptr<Node> node) const
 {
-    NS_LOG_FUNCTION(this);
+    NS_LOG_FUNCTION(this << node);
 
-    // Create EnvAgentManager instance
-    auto agentManager = EnvAgentManager::Get();
-
-    for (auto [nodeId, agents] : map)
-    {
-        agentManager->Install(NodeList::GetNode(nodeId), agents);
-    }
+    EnvAgentManager::Get()->Register(agentHelper.Create(node));
 }
 
 void

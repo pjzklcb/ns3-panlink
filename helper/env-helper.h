@@ -9,6 +9,8 @@
 #ifndef ENV_HELPER_H
 #define ENV_HELPER_H
 
+#include "env-agent-helper.h"
+
 #include "ns3/env-agent-manager.h"
 #include "ns3/env-monitor.h"
 #include "ns3/ipv4-interface-container.h"
@@ -45,11 +47,12 @@ class EnvHelper
                         const SrcAppMap& srcApps);
 
     /**
-     * Initialize the environment agent manager.
+     * Install an EnvAgent on the specified node, and register the agent in the EnvAgentManager.
      *
-     * \param map the agent map
+     * @param agentHelper the EnvAgent helper to create EnvAgent objects
+     * @param node the node on which an EnvAgent must be created
      */
-    void InitEnvAgentManager(AgentMap map);
+    virtual void Install(const EnvAgentHelper& agentHelper, Ptr<Node> node) const;
 
     /**
      * Schedule an initial information exchange.
@@ -60,7 +63,7 @@ class EnvHelper
 
     /**
      * Save the simulation results to the given directory.
-     * 
+     *
      * \param resultDir the directory
      */
     void SaveResults(std::string resultDir);

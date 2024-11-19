@@ -2,7 +2,7 @@
     "nodes": [
         {
             "id": 0,
-            "type": "AP",
+            "type": "ap",
             "position": {
                 "x": 5.0,
                 "y": 0.0,
@@ -15,7 +15,7 @@
         },
         {
             "id": 1,
-            "type": "STA",
+            "type": "sta",
             "position": {
                 "x": 0.0,
                 "y": 0.0,

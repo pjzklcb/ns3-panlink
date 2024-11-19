@@ -7,6 +7,7 @@
  */
 
 #include "env-agent-helper.h"
+#include "ns3/env-agent-manager.h"
 
 namespace ns3
 {
@@ -16,6 +17,9 @@ NS_LOG_COMPONENT_DEFINE("EnvAgentHelper");
 EnvAgentHelper::EnvAgentHelper()
 {
     NS_LOG_FUNCTION(this);
+
+    // create env agent manager instance
+    EnvAgentManager::Get();
 }
 
 EnvAgentHelper::~EnvAgentHelper()
@@ -28,7 +32,10 @@ EnvAgentHelper::Create(Ptr<Node> node) const
 {
     NS_LOG_FUNCTION(this << node);
 
+    auto agentManager = EnvAgentManager::Get();
+
     ObjectFactory agentFactory = m_agent;
+    agentFactory.Set("MemoryId", UintegerValue(agentManager->GetMemoryId(node)));
     auto agent = agentFactory.Create<EnvAgent>();
     agent->SetNode(node);
 
