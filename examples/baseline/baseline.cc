@@ -35,8 +35,6 @@ main(int argc, char* argv[])
     uint32_t seed = 10; // random seed
     Time simulationTime = Seconds(3);
     bool enableIntf{false};
-    bool downlink{true};
-    bool useRts{false};
     bool useExtendedBlockAck{true};
     double distance{1.0}; // meters
     double frequency{5};  // whether 2.4, 5 or 6 GHz
@@ -72,10 +70,6 @@ main(int argc, char* argv[])
     cmd.AddValue("distance",
                  "Distance in meters between the station and the access point",
                  distance);
-    cmd.AddValue("downlink",
-                 "Generate downlink flows if set to 1, uplink flows otherwise",
-                 downlink);
-    cmd.AddValue("useRts", "Enable/disable RTS/CTS", useRts);
     cmd.AddValue("useExtendedBlockAck", "Enable/disable use of extended BACK", useExtendedBlockAck);
     cmd.AddValue("nStations", "Number of non-AP HE stations", nStations);
     cmd.AddValue("dlAckType",
@@ -132,13 +126,6 @@ main(int argc, char* argv[])
     //==================================================================//
     //                      Configure Wi-Fi Stack                       ||
     //==================================================================//
-
-    // if (useRts)
-    // {
-    //     Config::SetDefault("ns3::WifiRemoteStationManager::RtsCtsThreshold", StringValue("0"));
-    //     Config::SetDefault("ns3::WifiDefaultProtectionManager::EnableMuRts", BooleanValue(true));
-    // }
-
     if (dlAckSeqType == "ACK-SU-FORMAT")
     {
         Config::SetDefault(
@@ -169,6 +156,7 @@ main(int argc, char* argv[])
     Config::SetDefault("ns3::WifiMac::VI_MaxAmpduSize", UintegerValue(maxMpdus*fragmentSize));
     Config::SetDefault("ns3::WifiMac::BE_MaxAmpduSize", UintegerValue(maxMpdus*fragmentSize));
     Config::SetDefault("ns3::WifiMac::BK_MaxAmpduSize", UintegerValue(maxMpdus*fragmentSize));
+    // Config::SetDefault("ns3::WifiMacQueue::MaxDelay", TimeValue(MilliSeconds(100)));
 
     g_wifiHelper.SetStandard(WIFI_STANDARD_80211ax);
     std::string freqStr;
@@ -253,6 +241,8 @@ main(int argc, char* argv[])
                                              StringValue("HeMcs9"),
                                              "ControlMode",
                                              StringValue("HeMcs0"),
+                                             "RtsCtsThreshold",
+                                             UintegerValue(2346),
                                              "RtsCtsTxDurationThresh",
                                              TimeValue(MilliSeconds(1.0)));
 
@@ -412,9 +402,9 @@ main(int argc, char* argv[])
     /* Create pcap file */
     if (pcap)
     {
-        g_phyHelper.EnablePcap(resultDir + "node-", panlinkDevices.Get(0));
+        // g_phyHelper.EnablePcap(resultDir + "node-", panlinkDevices.Get(0));
         g_phyHelper.EnablePcap(resultDir + "node-", panlinkDevices.Get(1));
-        // g_phyHelper.EnablePcap(resultDir + "node-", g_devices.Get(3));
+        g_phyHelper.EnablePcap(resultDir + "node-", g_devices.Get(8));
     }
 
     //==================================================================//

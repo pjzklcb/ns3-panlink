@@ -120,14 +120,6 @@ IntfDeployer::DeployInterference(WifiHelper& wifiHelper,
                                    std::to_string(bandwidth) + ", BAND_5GHZ, 0}");
 
             /* Install Wi-Fi stack */
-            wifiHelper.SetRemoteStationManager("ns3::ConstantRateWifiManager",
-                                               "DataMode",
-                                               StringValue("HeMcs9"),
-                                               "ControlMode",
-                                               StringValue("HeMcs0"),
-                                               "RtsCtsTxDurationThresh",
-                                               TimeValue(MilliSeconds(1.0)));
-
             if (j == 0)
             {
                 macHelper.SetType("ns3::ApWifiMac",
@@ -217,13 +209,6 @@ IntfDeployer::DeployInterference(WifiHelper& wifiHelper,
                                ", BAND_5GHZ, 0}");
 
         /* Install Wi-Fi stack */
-        wifiHelper.SetRemoteStationManager("ns3::ConstantRateWifiManager",
-                                           "DataMode",
-                                           StringValue("HeMcs9"),
-                                           "ControlMode",
-                                           StringValue("HeMcs0"),
-                                           "RtsCtsTxDurationThresh",
-                                           TimeValue(MilliSeconds(1.0)));
         macHelper.SetType("ns3::StaWifiMac",
                           "Ssid",
                           SsidValue(), // Wildcard SSID

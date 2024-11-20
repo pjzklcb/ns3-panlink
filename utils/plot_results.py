@@ -474,7 +474,7 @@ class PlotResults(object):
             f.write('idle rate = {}%\n'.format(idle_rate))
             f.write('util rate = {}%\n'.format(util_rate))
             for id, n in n_collisions.items():
-                f.write('node-{} transmits {} times, collides {} times, collision rate={}%'.format(
+                f.write('node-{} transmits {} times, collides {} times, collision rate={}% \n'.format(
                 id, n_transmits[id], n, collision_rate))
 
         # plot channel load in each interval

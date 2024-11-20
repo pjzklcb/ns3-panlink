@@ -77,7 +77,8 @@ class ChannelAccessRlAgent(RlAgent):
         next_state = [nb_, no_, ac_, p_, d_, ds_, db_, do_, us_, ub_, uo_, ar_, cw_, nd_, b_]
         if self.state:
             # caculate reward
-            reward = 1 if ar_ else (-1 if obs.nTxMpdus else 0)
+            r_tx = 1 if ar_ else (-1 if obs.nTxMpdus else 0)
+            reward = r_tx
             self.reward_log.append(reward)
             self.model.store_transition(self.state, self.action, reward, next_state, self.action_mask)
             if self.enable_learning:
@@ -85,14 +86,17 @@ class ChannelAccessRlAgent(RlAgent):
 
         # get action mask
         scale = (obs.cw + 1) / self.action_size
-        valid_size = math.floor((obs.cw + 1 - obs.waitedSlots) / scale) if scale > 1 else obs.cw + 1 - obs.waitedSlots
+        valid_size = math.ceil((obs.cw + 1 - obs.waitedSlots) / scale) if scale > 1 else obs.cw + 1 - obs.waitedSlots
         self.action_mask = [True]*valid_size + [False]*(self.action_size - valid_size)
 
         # choose action
         self.action = self.model.choose_action(next_state, self.action_mask)
         self.action_log.append(self.action)
         
-        self.backoff = int(self.action * scale + random.randint(0, scale-1)) if scale > 1 else self.action
+        if scale > 1:
+            self.backoff = min(obs.cw-obs.waitedSlots, int(self.action * scale + random.randint(0, scale-1)))
+        else:
+            self.backoff = self.action
         self.backoff_log.append((obs.cw - obs.waitedSlots, self.backoff))
         if self.show_log:
             print("New Backoff={} from [0, {}-{}]".format(self.backoff, obs.cw, obs.waitedSlots))

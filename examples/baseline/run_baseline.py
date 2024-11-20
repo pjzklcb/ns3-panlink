@@ -93,44 +93,34 @@ if __name__ == '__main__':
     step = 0
     py_time_cost = 0
 
-    try:
-        while True:
-            msg_interface.PyRecvBegin()
-            if msg_interface.PyGetFinished():
-                print("Simulation ended at {}".format(int(time.time())))
-                break
+    while True:
+        msg_interface.PyRecvBegin()
+        if msg_interface.PyGetFinished():
+            print("Simulation ended at {}".format(int(time.time())))
+            break
 
-            print("Step {}".format(step))
-            step += 1
+        print("Step {}".format(step))
+        step += 1
 
-            tic = time.time()
-            agent_manager.get_obs(msg_interface)
-            py_time_cost += time.time() - tic
-            msg_interface.PyRecvEnd()
+        tic = time.time()
+        agent_manager.get_obs(msg_interface)
+        py_time_cost += time.time() - tic
+        msg_interface.PyRecvEnd()
 
-            msg_interface.PySendBegin()
-            agent_manager.set_action(msg_interface)
-            msg_interface.PySendEnd()
+        msg_interface.PySendBegin()
+        agent_manager.set_action(msg_interface)
+        msg_interface.PySendEnd()
 
-    except Exception as e:
-        exc_type, exc_value, exc_traceback = sys.exc_info()
-        print("Exception occurred: {}".format(e))
-        print("Traceback:")
-        traceback.print_tb(exc_traceback)
-        exit(1)
+    if args.stats:
+        learn_dir = os.path.join(result_dir, 'learn')
+        if not os.path.exists(learn_dir):
+            os.makedirs(learn_dir)
+        agent_manager.plot_results(learn_dir)
+        agent_manager.save_models(learn_dir)
 
-    else:
-        if args.stats:
-            learn_dir = os.path.join(result_dir, 'learn')
-            if not os.path.exists(learn_dir):
-                os.makedirs(learn_dir)
-            agent_manager.plot_results(learn_dir)
-            agent_manager.save_models(learn_dir)
-
-    finally:
-        time_cost = int(time.time()) - int(timestamp)
-        print("Finally exiting...")
-        print("Time cost: {}min {}s, Python time cost: {}s".format(
-            time_cost // 60, time_cost % 60, py_time_cost))
-        PlotResults(timestamp, target_nodes=[0, 1, 2, 3, 4]).do_plot()
-        del exp
+    time_cost = int(time.time()) - int(timestamp)
+    print("Finally exiting...")
+    print("Time cost: {}min {}s, Python time cost: {}s".format(
+        time_cost // 60, time_cost % 60, py_time_cost))
+    PlotResults(timestamp, target_nodes=[0, 1, 2, 3, 4]).do_plot()
+    del exp
