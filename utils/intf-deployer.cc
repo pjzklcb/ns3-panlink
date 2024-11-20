@@ -155,7 +155,7 @@ IntfDeployer::DeployInterference(WifiHelper& wifiHelper,
                     srcAppMap[nodes.Get(j)->GetId()].emplace_back(
                         SrcApp{app["name"].GetString(),
                                dst,
-                               50000 + uint(k),
+                               50001 + uint(k),
                                StringToAcIndex(app["qos"].GetString()),
                                app["start_time"].GetDouble(),
                                app["end_time"].GetDouble()});
@@ -167,12 +167,12 @@ IntfDeployer::DeployInterference(WifiHelper& wifiHelper,
                          (j == 0) ? "Ap" : "Sta",
                          node["position"]["x"].GetDouble(),
                          node["position"]["y"].GetDouble());
-            std::cout << "Node ID: " << nodes.Get(j)->GetId()
-                      << ", Node type: " << (j == 0 ? "AP" : "STA") << ", Position: ("
-                      << node["position"]["x"].GetDouble() << ", "
-                      << node["position"]["y"].GetDouble() << ", "
-                      << node["position"]["z"].GetDouble() << ")" << ", Channel: " << channel
-                      << ", Bandwidth: " << bandwidth << std::endl;
+            NS_LOG_DEBUG("Node ID: " << nodes.Get(j)->GetId()
+                                     << ", Node type: " << (j == 0 ? "AP" : "STA")
+                                     << ", Position: (" << node["position"]["x"].GetDouble() << ", "
+                                     << node["position"]["y"].GetDouble() << ", "
+                                     << node["position"]["z"].GetDouble() << ")"
+                                     << ", Channel: " << channel << ", Bandwidth: " << bandwidth);
         }
 
         /* Install mobility */
@@ -232,11 +232,11 @@ IntfDeployer::DeployInterference(WifiHelper& wifiHelper,
                      "Probe",
                      probe["position"]["x"].GetDouble(),
                      probe["position"]["y"].GetDouble());
-        std::cout << "Node ID: " << nodes.Get(i)->GetId() << ", Node type: PROBER, Position: ("
-                  << probe["position"]["x"].GetDouble() << ", "
-                  << probe["position"]["y"].GetDouble() << ", "
-                  << probe["position"]["z"].GetDouble() << ")" << ", Channel: " << channel
-                  << ", Bandwidth: " << bandwidth << std::endl;
+        NS_LOG_DEBUG("Node ID: " << nodes.Get(i)->GetId() << ", Node type: PROBER, Position: ("
+                                 << probe["position"]["x"].GetDouble() << ", "
+                                 << probe["position"]["y"].GetDouble() << ", "
+                                 << probe["position"]["z"].GetDouble() << ")"
+                                 << ", Channel: " << channel << ", Bandwidth: " << bandwidth);
     }
 
     /* Install mobility */

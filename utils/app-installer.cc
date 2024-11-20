@@ -100,9 +100,9 @@ AppInstaller::InstallApplications(const NodeContainer& nodes,
             ApplicationContainer app = DoInstallApplication(nodes.Get(srcNodeId), dstAddr, srcApp);
             apps.Add(app);
 
-            std::cout << "Node-" << srcNodeId << " installed application \"" << appName
-                      << "\" to node-" << dstNodeId << "(IP: " << interfaces.GetAddress(dstNodeId)
-                      << ", Port:" << port << ")" << std::endl;
+            NS_LOG_DEBUG("Node-" << srcNodeId << " installed application \"" << appName
+                                 << "\" to node-" << dstNodeId << "(IP: "
+                                 << interfaces.GetAddress(dstNodeId) << ", Port:" << port << ")");
 
             // Record the sink app
             m_sinkAppList.insert({dstNodeId, port});
