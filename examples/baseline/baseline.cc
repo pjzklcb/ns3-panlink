@@ -33,6 +33,7 @@ main(int argc, char* argv[])
 {
     std::string timestamp = "0";
     uint32_t seed = 10; // random seed
+    uint32_t episode = 0;
     Time simulationTime = Seconds(3);
     bool enableIntf{false};
     bool useExtendedBlockAck{true};
@@ -60,6 +61,7 @@ main(int argc, char* argv[])
     CommandLine cmd(__FILE__);
     cmd.AddValue("timestamp", "The timestamp for this example to run", timestamp);
     cmd.AddValue("seed", "The random seed for this example to run", seed);
+    cmd.AddValue("episode", "The index of the episode", episode);
     cmd.AddValue("configPanlink", "The config file of panlink network", configPanlink);
     cmd.AddValue("configIntf", "The config file of interference", configIntf);
     cmd.AddValue("simulationTime", "Total simulation time", simulationTime);
@@ -152,10 +154,10 @@ main(int argc, char* argv[])
 
     Config::SetDefault("ns3::WifiMac::MpduBufferSize",
                        UintegerValue(useExtendedBlockAck ? 256 : 64));
-    Config::SetDefault("ns3::WifiMac::VO_MaxAmpduSize", UintegerValue(maxMpdus*fragmentSize));
-    Config::SetDefault("ns3::WifiMac::VI_MaxAmpduSize", UintegerValue(maxMpdus*fragmentSize));
-    Config::SetDefault("ns3::WifiMac::BE_MaxAmpduSize", UintegerValue(maxMpdus*fragmentSize));
-    Config::SetDefault("ns3::WifiMac::BK_MaxAmpduSize", UintegerValue(maxMpdus*fragmentSize));
+    Config::SetDefault("ns3::WifiMac::VO_MaxAmpduSize", UintegerValue(maxMpdus * fragmentSize));
+    Config::SetDefault("ns3::WifiMac::VI_MaxAmpduSize", UintegerValue(maxMpdus * fragmentSize));
+    Config::SetDefault("ns3::WifiMac::BE_MaxAmpduSize", UintegerValue(maxMpdus * fragmentSize));
+    Config::SetDefault("ns3::WifiMac::BK_MaxAmpduSize", UintegerValue(maxMpdus * fragmentSize));
     // Config::SetDefault("ns3::WifiMacQueue::MaxDelay", TimeValue(MilliSeconds(100)));
 
     g_wifiHelper.SetStandard(WIFI_STANDARD_80211ax);
@@ -332,10 +334,11 @@ main(int argc, char* argv[])
             g_srcAppMap[nodeId].emplace_back(srcApp);
         }
 
-        std::cout << "Node ID: " << nodeId << ", Node type: " << nodeType << ", Position: ("
-                  << node["position"]["x"].GetDouble() << ", " << node["position"]["y"].GetDouble()
-                  << ", " << node["position"]["z"].GetDouble() << "), Channel: " << channel
-                  << ", Bandwidth: " << bandwidth << std::endl;
+        NS_LOG_DEBUG("Node ID: " << nodeId << ", Node type: " << nodeType << ", Position: ("
+                                 << node["position"]["x"].GetDouble() << ", "
+                                 << node["position"]["y"].GetDouble() << ", "
+                                 << node["position"]["z"].GetDouble() << "), Channel: " << channel
+                                 << ", Bandwidth: " << bandwidth);
     }
 
     /* Install mobility */
@@ -388,7 +391,8 @@ main(int argc, char* argv[])
     streamNumber += g_appInstaller.AssignStreams(g_nodes, streamNumber);
 
     /* Create result dir */
-    std::string resultDir = "contrib/panlink/result-" + timestamp + "/";
+    std::string resultDir =
+        "contrib/panlink/result-" + timestamp + "/episode_" + std::to_string(episode) + "/";
     if (pcap || stats)
     {
         namespace fs = std::filesystem;

@@ -74,6 +74,11 @@ class AgentManager:
     def set_action(self, msg_interface):
         self.active_agent.set_action(msg_interface)
     
+    def reset(self):
+        for node, agents in self.agent_dict.items():
+            for agent in agents:
+                agent.reset()
+
     def save_models(self, save_dir):
         for node, agents in self.agent_dict.items():
             for agent in agents:

@@ -33,6 +33,10 @@ class RlAgent():
             return True
         return False
 
+    def reset(self):
+        self.counter = 0
+        self.sim_time = 0
+
     def get_obs(self, msg_interface):
         env = msg_interface.GetCpp2PyVector()[self.memory_id]
         self.sim_time = env.simTime

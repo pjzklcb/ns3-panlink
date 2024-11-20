@@ -11,7 +11,6 @@ import argparse
 import time
 import torch
 import numpy as np
-import traceback
 
 ns3_dir = os.path.abspath(os.path.dirname(os.path.abspath(__file__)) + '/../../../..')
 panlink_dir = os.path.join(ns3_dir, 'contrib/panlink')
@@ -28,14 +27,13 @@ import cpp_py_interface as py_binding
 config_dir = os.path.join(panlink_dir, 'configs')
 
 if __name__ == '__main__':
-
-    timestamp = str(int(time.time()))
-
     parser = argparse.ArgumentParser()
     parser.add_argument('--seed', type=int,
                         default=11, help="random seed")
     parser.add_argument('--ns3_seed', type=int,
                         default=11, help='random seed for ns-3')
+    parser.add_argument('--n_episodes', type=int,
+                        default=1, help='number of episodes')
     parser.add_argument('--config_panlink', type=str,
                         default='panlink_no_agent.json', help='config file for panlink network')
     parser.add_argument('--config_intf', type=str,
@@ -61,6 +59,8 @@ if __name__ == '__main__':
     n_vec_size = agent_manager.register_agents(os.path.join(config_dir, args.config_panlink))
     
     # create and save ns3 settings
+    timestamp = str(int(time.time()))
+
     ns3_settings = {
         'timestamp': timestamp,
         'seed': args.ns3_seed,
@@ -83,44 +83,53 @@ if __name__ == '__main__':
             json.dump(ns3_settings, f, indent=4)
 
     exp = Experiment("panlink_baseline", ns3_dir, py_binding, 
-                     handleFinish=True, useVector=True, vectorSize=n_vec_size,
-                     segName = timestamp + ' Seg',
-                     cpp2pyMsgName = timestamp + ' Cpp to Python Msg',
-                     py2cppMsgName = timestamp + ' Python to Cpp Msg',
-                     lockableName = timestamp + ' Lockable')
-    msg_interface = exp.run(setting=ns3_settings, show_output=True)
-
-    step = 0
+                    handleFinish=True, useVector=True, vectorSize=n_vec_size,
+                    segName = timestamp + ' Seg',
+                    cpp2pyMsgName = timestamp + ' Cpp to Python Msg',
+                    py2cppMsgName = timestamp + ' Python to Cpp Msg',
+                    lockableName = timestamp + ' Lockable')
+    
     py_time_cost = 0
+    for i_episode in range(args.n_episodes):
+        print("Episode {} starts".format(i_episode))
+        ns3_settings['episode'] = i_episode
+        agent_manager.reset()
+        msg_interface = exp.run(setting=ns3_settings, show_output=True)
 
-    while True:
-        msg_interface.PyRecvBegin()
-        if msg_interface.PyGetFinished():
-            print("Simulation ended at {}".format(int(time.time())))
-            break
+        epoch = 0
+        while True:
+            msg_interface.PyRecvBegin()
+            if msg_interface.PyGetFinished():
+                print("Simulation ended at {}".format(int(time.time())))
+                msg_interface.PyRecvEnd()
 
-        print("Step {}".format(step))
-        step += 1
+                msg_interface.PySetRestart()
+                break
 
-        tic = time.time()
-        agent_manager.get_obs(msg_interface)
-        py_time_cost += time.time() - tic
-        msg_interface.PyRecvEnd()
+            print("Episode {}, epoch {}".format(i_episode, epoch))
+            epoch += 1
 
-        msg_interface.PySendBegin()
-        agent_manager.set_action(msg_interface)
-        msg_interface.PySendEnd()
+            tic = time.time()
+            agent_manager.get_obs(msg_interface)
+            py_time_cost += time.time() - tic
+            msg_interface.PyRecvEnd()
 
-    if args.stats:
-        learn_dir = os.path.join(result_dir, 'learn')
-        if not os.path.exists(learn_dir):
-            os.makedirs(learn_dir)
-        agent_manager.plot_results(learn_dir)
-        agent_manager.save_models(learn_dir)
+            msg_interface.PySendBegin()
+            agent_manager.set_action(msg_interface)
+            msg_interface.PySendEnd()
+
+        if args.stats:
+            learn_dir = os.path.join(result_dir, 'episode_' + str(i_episode), 'learn')
+            if not os.path.exists(learn_dir):
+                os.makedirs(learn_dir)
+            agent_manager.plot_results(learn_dir)
+            agent_manager.save_models(learn_dir)
+        
+        exp.kill()
 
     time_cost = int(time.time()) - int(timestamp)
     print("Finally exiting...")
     print("Time cost: {}min {}s, Python time cost: {}s".format(
         time_cost // 60, time_cost % 60, py_time_cost))
-    PlotResults(timestamp, target_nodes=[0, 1, 2, 3, 4]).do_plot()
     del exp
+    # PlotResults(timestamp, args.n_episodes, target_nodes=[0, 1, 2, 3, 4]).do_plot()
