@@ -156,11 +156,10 @@ class SensingMac : public Object
     double GetOtherChannelUtil(Time period, uint8_t linkId) const;
 
     /**
-     * Get the ratio of acked MPDUs of the last transmission.
-     * 
      * @param linkId the link ID
+     * @return the pair of transmitted and acked MPDUs of the last transmission.
      */
-    double GetAckedMpduRatio(uint8_t linkId) const;
+    std::pair<uint32_t, uint32_t> GetAckedMpdus(uint8_t linkId);
 
     /**
      * Trace the packet that has been enqueued to the given AC MAC queue.

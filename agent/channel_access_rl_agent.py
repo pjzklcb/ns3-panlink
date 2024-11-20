@@ -33,7 +33,7 @@ class ChannelAccessRlAgent(RlAgent):
         delay = env.delay[ac.value]
         self_d2lt = env.selfD2lt
         self_channel_util = env.selfChannelUtil
-        ack_ratio = env.ackRatio
+        n_tx_mpdus, n_acked_mpdus = env.nTxMpdus, env.nAckedMpdus
         cw = env.cw
         n_deferred_access = env.nDeferredAccess
         n_waited_slot = env.waitedSlots
@@ -45,14 +45,13 @@ class ChannelAccessRlAgent(RlAgent):
         other_channel_util = env.otherChannelUtil
 
         if self.show_log:
-            print("At {:6f}s, n_bss_stas={}, n_obss_stas={}, \n \
+            print("At {:6f}s, n_bss_stas={}, n_obss_stas={}, n_acked/n_tx={}/{}, \n \
                   ac={}, thpt_req/thpt={:.4f}/{:.4f} Mbps, delay_req/delay={:.3f}/{:.3f} ms, \n \
-                  self_d2lt={:.3f}ms, bss_d2lt={:.3f}ms, other_d2lt={:.3f}ms, \n \
-                  self_channel_util={:.4f}, bss_channel_util={:.4f}, other_channel_util={:.4f}, \n \
-                  ack_ratio={:.4f}, cw={}, n_deferred_access={}, n_waited_slot={}".format(
-                self.sim_time, n_bss_stas, n_obss_stas, ac.name, thpt_req, thpt, delay_req, delay, 
-                self_d2lt, bss_d2lt, other_d2lt, self_channel_util, bss_channel_util, other_channel_util,
-                ack_ratio, cw, n_deferred_access, n_waited_slot
+                  d2lt=[{:.3f}, {:.3f}, {:.3f}]ms, channel_util=[{:.4f}, {:.4f}, {:.4f}], \n \
+                  cw={}, n_deferred_access={}, n_waited_slot={}".format(
+                self.sim_time, n_bss_stas, n_obss_stas, n_acked_mpdus, n_tx_mpdus, ac.name, thpt_req, thpt, 
+                delay_req, delay, self_d2lt, bss_d2lt, other_d2lt, self_channel_util, bss_channel_util, 
+                other_channel_util, cw, n_deferred_access, n_waited_slot
             ))
         
         self.choose_action(env)
@@ -70,7 +69,7 @@ class ChannelAccessRlAgent(RlAgent):
         sum = sum if sum else 1
         ds_, db_, do_ = obs.selfD2lt/sum, obs.bssD2lt/sum, obs.otherD2lt/sum
         us_, ub_, uo_ = obs.selfChannelUtil, obs.bssChannelUtil, obs.otherChannelUtil
-        ar_ = obs.ackRatio
+        ar_ = obs.nAckedMpdus / obs.nTxMpdus if obs.nTxMpdus else 0
         cw_ = math.log(obs.cw+1, 2) / 10
         nd_ = obs.nDeferredAccess / obs.cw+1
         b_ = obs.waitedSlots / obs.cw
@@ -78,10 +77,7 @@ class ChannelAccessRlAgent(RlAgent):
         next_state = [nb_, no_, ac_, p_, d_, ds_, db_, do_, us_, ub_, uo_, ar_, cw_, nd_, b_]
         if self.state:
             # caculate reward
-            r_thpt = p_-1
-            r_delay = 0 if d_ == 0 else 1-d_
-            r_acked = 1 if ar_ > 0 else -1
-            reward = r_thpt + r_delay + r_acked
+            reward = 1 if ar_ else (-1 if obs.nTxMpdus else 0)
             self.reward_log.append(reward)
             self.model.store_transition(self.state, self.action, reward, next_state, self.action_mask)
             if self.enable_learning:

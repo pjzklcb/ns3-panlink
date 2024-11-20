@@ -107,17 +107,17 @@ PanlinkTxop::GenerateBackoff(uint8_t linkId)
     link.backoffStart = Simulator::Now();
     link.nDeferredAccess = 0;
     link.waitedSlots = 0;
-    link.backoffSlots = m_rng->GetInteger(0, GetCw(linkId));
+    // link.backoffSlots = m_rng->GetInteger(0, GetCw(linkId));
 
-    // auto obs = ChannelAccessEnvAgent::ChannelAccessObs();
-    // obs.linkId = linkId;
-    // obs.ac = GetAccessCategory();
-    // obs.cw = link.cw;
-    // obs.nDeferredAccess = 0;
-    // obs.waitedSlots = 0;
+    auto obs = ChannelAccessEnvAgent::ChannelAccessObs();
+    obs.linkId = linkId;
+    obs.ac = GetAccessCategory();
+    obs.cw = link.cw;
+    obs.nDeferredAccess = 0;
+    obs.waitedSlots = 0;
 
-    // uint32_t nodeId = m_mac->GetDevice()->GetNode()->GetId();
-    // EnvAgentManager::Get()->EnvInfoExchange(nodeId, RL_CHANNEL_ACCESS, obs);
+    uint32_t nodeId = m_mac->GetDevice()->GetNode()->GetId();
+    EnvAgentManager::Get()->EnvInfoExchange(nodeId, RL_CHANNEL_ACCESS, obs);
 
     m_waitedSlotsTrace(link.nDeferredAccess, link.waitedSlots, link.backoffSlots, linkId);
 }

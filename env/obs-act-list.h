@@ -28,7 +28,8 @@ struct Obs
     std::array<double, 4> delayReq;
     double selfD2lt;
     double selfChannelUtil;
-    double ackRatio; // ratio of acked MPDUs
+    uint32_t nTxMpdus;
+    uint32_t nAckedMpdus;
     uint32_t cw;
     uint32_t nDeferredAccess;
     uint32_t waitedSlots;
