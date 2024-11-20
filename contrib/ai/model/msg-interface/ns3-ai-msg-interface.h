@@ -285,6 +285,17 @@ class Ns3AiMsgInterfaceImpl
         return m_isFinished;
     };
 
+    /**
+     * Python side restarts the simulation
+     */
+    void PySetRestart()
+    {
+        assert(m_handleFinish);
+        m_isFinished = false;
+        // only when no other processes are running
+        m_sync->m_isFinished = false;
+    };
+
   private:
     Cpp2PyMsgType* m_cpp2pyStruct;
     Py2CppMsgType* m_py2CppStruct;

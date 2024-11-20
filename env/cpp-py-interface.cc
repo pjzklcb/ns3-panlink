@@ -130,6 +130,7 @@ PYBIND11_MODULE(cpp_py_interface, m)
         .def("PySendBegin", &ns3::Ns3AiMsgInterfaceImpl<Obs, Act>::PySendBegin)
         .def("PySendEnd", &ns3::Ns3AiMsgInterfaceImpl<Obs, Act>::PySendEnd)
         .def("PyGetFinished", &ns3::Ns3AiMsgInterfaceImpl<Obs, Act>::PyGetFinished)
+        .def("PySetRestart", &ns3::Ns3AiMsgInterfaceImpl<Obs, Act>::PySetRestart)
         .def("GetCpp2PyVector",
              &ns3::Ns3AiMsgInterfaceImpl<Obs, Act>::GetCpp2PyVector,
              py::return_value_policy::reference)
