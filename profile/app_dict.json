@@ -13,6 +13,12 @@
             "fragment_size": 1500
         },
         {
+            "name": "test2",
+            "payload_interval": 0.01,
+            "payload_size": 80000,
+            "fragment_size": 1500
+        },
+        {
             "name": "test_weibull",
             "payload_interval": {"dist": "weibull", "scale": 0.7884, "shape": 798.9999, "bound": 506.8989},
             "payload_size": {"dist": "largest_extreme_value", "location": 210.0, "scale": 35.0},

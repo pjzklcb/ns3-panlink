@@ -94,6 +94,12 @@ if __name__ == '__main__':
             episode_dir = os.path.join(result_dir, 'episode_' + str(i_episode))
             if not os.path.exists(episode_dir):
                 os.makedirs(episode_dir)
+            
+            if i_episode != 0 and i_episode != args.n_episodes - 1:
+                ns3_settings['stats'] = False   # only record stats for the last episode
+            else:
+                ns3_settings['stats'] = True
+
             with open(os.path.join(episode_dir, 'ns3_settings.json'), 'w') as f:
                 json.dump(ns3_settings, f, indent=4)
         

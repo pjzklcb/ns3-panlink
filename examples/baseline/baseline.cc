@@ -158,7 +158,7 @@ main(int argc, char* argv[])
     Config::SetDefault("ns3::WifiMac::VI_MaxAmpduSize", UintegerValue(maxMpdus * fragmentSize));
     Config::SetDefault("ns3::WifiMac::BE_MaxAmpduSize", UintegerValue(maxMpdus * fragmentSize));
     Config::SetDefault("ns3::WifiMac::BK_MaxAmpduSize", UintegerValue(maxMpdus * fragmentSize));
-    // Config::SetDefault("ns3::WifiMacQueue::MaxDelay", TimeValue(MilliSeconds(100)));
+    Config::SetDefault("ns3::WifiMacQueue::MaxDelay", TimeValue(MilliSeconds(100)));
 
     g_wifiHelper.SetStandard(WIFI_STANDARD_80211ax);
     std::string freqStr;
@@ -411,10 +411,15 @@ main(int argc, char* argv[])
         g_phyHelper.EnablePcap(resultDir + "node-", g_devices.Get(8));
     }
 
+    /* Create env monitor to record stats */
+    if (stats)
+    {
+        g_envHelper.InitEnvMonitor(g_nodes, g_devices, g_interfaces, g_srcAppMap);
+    }
+
     //==================================================================//
     //                       Initialize Agents                          ||
     //==================================================================//
-    g_envHelper.InitEnvMonitor(g_nodes, g_devices, g_interfaces, g_srcAppMap);
     g_envHelper.ScheduleInitInfoExchange(Seconds(0.1));
 
     //==================================================================//

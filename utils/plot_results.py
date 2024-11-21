@@ -37,8 +37,8 @@ class InFlightPacketInfo:
 
 
 class PlotResults(object):
-    def __init__(self, timestamp, target_nodes = None):
-        self.result_dir = "contrib/panlink/result-" + timestamp + "/"
+    def __init__(self, timestamp, episode=0, target_nodes=None):
+        self.result_dir = "contrib/panlink/result-" + timestamp + "/episode_" + str(episode) + "/"
         if not os.path.exists(self.result_dir):
             raise ValueError("Result directory {} does not exist".format(self.result_dir))
         if not os.path.exists(self.result_dir + "figures/"):
@@ -528,5 +528,5 @@ class PlotResults(object):
         
 
 if __name__ == '__main__':
-    timestamp = "1731998150"
+    timestamp = "1732155235"
     PlotResults(timestamp, target_nodes=[0,1,2,3,4]).do_plot()

@@ -78,9 +78,6 @@ class CcaRlAgent(RlAgent):
         super().reset()
         self.cca_log = []
 
-    def save_model(self, save_dir):
-        self.model.save_model('{}/node_{}_model_cca.pt'.format(save_dir, self.node_id))
-
     def plot_results(self, save_dir):
         y = self.reward_log
         plt.figure()

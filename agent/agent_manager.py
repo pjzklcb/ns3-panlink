@@ -88,3 +88,8 @@ class AgentManager:
         for node, agents in self.agent_dict.items():
             for agent in agents:
                 agent.plot_results(save_dir)
+    
+    def plot_episodes(self, save_dir):
+        for node, agents in self.agent_dict.items():
+            for agent in agents:
+                agent.plot_episodes(save_dir)
