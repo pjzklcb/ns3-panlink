@@ -74,6 +74,10 @@ class CcaRlAgent(RlAgent):
             print("New CCA={}".format(self.new_cca))
         self.state = next_state
 
+    def reset(self):
+        super().reset()
+        self.cca_log = []
+
     def save_model(self, save_dir):
         self.model.save_model('{}/node_{}_model_cca.pt'.format(save_dir, self.node_id))
 

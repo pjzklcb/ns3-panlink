@@ -102,6 +102,10 @@ class ChannelAccessRlAgent(RlAgent):
             print("New Backoff={} from [0, {}-{}]".format(self.backoff, obs.cw, obs.waitedSlots))
         self.state = next_state
 
+    def reset(self):
+        super().reset()
+        self.backoff_log = []
+
     def save_model(self, save_dir):
         self.model.save_model('{}/node_{}_model_channel_access.pt'.format(save_dir, self.node_id))
 

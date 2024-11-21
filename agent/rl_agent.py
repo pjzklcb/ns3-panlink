@@ -5,6 +5,7 @@
 # Author: Pan Jinzhe <pjzklcb@gmail.com>
 
 from agent_utils import AgentType
+import matplotlib.pyplot as plt
 
 class RlAgent():
     def __init__(self, node_id, memory_id):
@@ -17,6 +18,7 @@ class RlAgent():
         self.action = None
         self.action_log = []
         self.reward_log = []
+        self.episode_log = []
 
         self.enable_learning = True
         self.show_log = True
@@ -36,6 +38,12 @@ class RlAgent():
     def reset(self):
         self.counter = 0
         self.sim_time = 0
+        self.state = None
+        self.action = None
+        self.action_log = []
+        if len(self.reward_log):
+            self.episode_log.append(sum(self.reward_log))
+            self.reward_log = []
 
     def get_obs(self, msg_interface):
         env = msg_interface.GetCpp2PyVector()[self.memory_id]
@@ -52,3 +60,12 @@ class RlAgent():
 
     def plot_results(self, save_dir):
         pass
+
+    def plot_episodes(self, save_dir):
+        y = self.episode_log
+        plt.figure()
+        plt.plot(range(len(y)), y, 'b-', linewidth=1)
+        plt.xlabel('Episode')
+        plt.ylabel('Reward')
+        plt.savefig('{}/node_{}_{}.png'.format(save_dir, self.node_id, self.agent_type.name))
+        plt.close()

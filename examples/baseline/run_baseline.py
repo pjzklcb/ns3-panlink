@@ -78,9 +78,6 @@ if __name__ == '__main__':
         result_dir = os.path.join(panlink_dir, 'result-' + timestamp)
         if not os.path.exists(result_dir):
             os.makedirs(result_dir)
-        
-        with open(os.path.join(result_dir, 'ns3_settings.json'), 'w') as f:
-            json.dump(ns3_settings, f, indent=4)
 
     exp = Experiment("panlink_baseline", ns3_dir, py_binding, 
                     handleFinish=True, useVector=True, vectorSize=n_vec_size,
@@ -93,6 +90,13 @@ if __name__ == '__main__':
     for i_episode in range(args.n_episodes):
         print("Episode {} starts".format(i_episode))
         ns3_settings['episode'] = i_episode
+        if args.stats:
+            episode_dir = os.path.join(result_dir, 'episode_' + str(i_episode))
+            if not os.path.exists(episode_dir):
+                os.makedirs(episode_dir)
+            with open(os.path.join(episode_dir, 'ns3_settings.json'), 'w') as f:
+                json.dump(ns3_settings, f, indent=4)
+        
         agent_manager.reset()
         msg_interface = exp.run(setting=ns3_settings, show_output=True)
 
@@ -119,7 +123,7 @@ if __name__ == '__main__':
             msg_interface.PySendEnd()
 
         if args.stats:
-            learn_dir = os.path.join(result_dir, 'episode_' + str(i_episode), 'learn')
+            learn_dir = os.path.join(episode_dir, 'learn')
             if not os.path.exists(learn_dir):
                 os.makedirs(learn_dir)
             agent_manager.plot_results(learn_dir)
@@ -132,4 +136,8 @@ if __name__ == '__main__':
     print("Time cost: {}min {}s, Python time cost: {}s".format(
         time_cost // 60, time_cost % 60, py_time_cost))
     del exp
-    # PlotResults(timestamp, args.n_episodes, target_nodes=[0, 1, 2, 3, 4]).do_plot()
+    if args.stats:
+        agent_manager.reset()
+        agent_manager.plot_episodes(result_dir)
+
+    PlotResults(timestamp, args.n_episodes-1, target_nodes=[0, 1, 2, 3, 4]).do_plot()
