@@ -16,7 +16,7 @@ class ChannelAccessRlAgent(RlAgent):
         super().__init__(node_id, memory_id)
         self.agent_type = AgentType.RL_CHANNEL_ACCESS
         
-        state_size = 16
+        state_size = 18
         self.action_size = 16
         self.model = DDQN(state_size, self.action_size)
         self.backoff = 0
@@ -34,6 +34,8 @@ class ChannelAccessRlAgent(RlAgent):
         n_dropped = env.nDroppedPackets
         n_sending = env.nSendingPackets
         n_acked = env.nAckedPackets
+        n_low_delay = env.nLowDelayPackets
+        n_high_delay = env.nHighDelayPackets
         cw = env.cw
         n_deferred_access = env.nDeferredAccess
         n_waited_slot = env.waitedSlots
@@ -45,12 +47,13 @@ class ChannelAccessRlAgent(RlAgent):
         other_channel_util = env.otherChannelUtil
 
         if self.show_log:
-            print("At {:6f}s, n_bss_stas={}, n_obss_stas={}, in_queue/expired/dropped/sending/acked={}/{}/{}/{}/{}, \n \
+            print("At {:6f}s, n_bss_stas={}, n_obss_stas={}, \n \
+                  in_queue/expired/dropped/sending/acked={}/{}/{}/{}/{}, low/high={}/{}, \n \
                   ac={}, d2lt=[{:.3f}, {:.3f}, {:.3f}]ms, channel_util=[{:.4f}, {:.4f}, {:.4f}], \n \
                   cw={}, n_deferred_access={}, n_waited_slot={}".format(
                 self.sim_time, n_bss_stas, n_obss_stas, n_in_queue, n_expired, n_dropped, n_sending, n_acked, 
-                ac.name, self_d2lt, bss_d2lt, other_d2lt, self_channel_util, bss_channel_util, 
-                other_channel_util, cw, n_deferred_access, n_waited_slot
+                n_low_delay, n_high_delay, ac.name, self_d2lt, bss_d2lt, other_d2lt, self_channel_util, 
+                bss_channel_util, other_channel_util, cw, n_deferred_access, n_waited_slot
             ))
         
         self.choose_action(env)
@@ -59,6 +62,7 @@ class ChannelAccessRlAgent(RlAgent):
         msg_interface.GetPy2CppVector()[self.memory_id].backoff = self.backoff
 
     def choose_action(self, obs):
+        # obs.cw = 15
         # normalize the obs
         nb_, no_ = min(1, obs.nBssStas/10), min(1, obs.nObssStas/20)
         ni_ = obs.nInQueuePackets
@@ -66,6 +70,7 @@ class ChannelAccessRlAgent(RlAgent):
         nd_ = obs.nDroppedPackets
         ns_ = obs.nSendingPackets
         na_ = obs.nAckedPackets
+        nl_, nh_ = obs.nLowDelayPackets, obs.nHighDelayPackets
         sum = obs.selfD2lt + obs.bssD2lt + obs.otherD2lt
         sum = sum if sum else 1
         ds_, db_, do_ = obs.selfD2lt/sum, obs.bssD2lt/sum, obs.otherD2lt/sum
@@ -74,11 +79,11 @@ class ChannelAccessRlAgent(RlAgent):
         da_ = obs.nDeferredAccess / obs.cw+1
         b_ = obs.waitedSlots / obs.cw
 
-        next_state = [ni_, ne_, nd_, ns_, na_, nb_, no_, ds_, db_, do_, us_, ub_, uo_, cw_, da_, b_]
+        next_state = [ni_, ne_, nd_, ns_, na_, nl_, nh_, nb_, no_, ds_, db_, do_, us_, ub_, uo_, cw_, da_, b_]
         if self.state:
             # caculate reward
             r_tx = 1 if na_ else (-1 if ns_ else 0)
-            r_packet = -0.1*nd_ - ne_
+            r_packet = nl_ + 0.5*(na_-nl_-nh_) + 0.1*nh_ - 0.1*nd_ - ne_
             reward = r_tx + r_packet
             self.reward_log.append(reward)
             self.model.store_transition(self.state, self.action, reward, next_state, self.action_mask)

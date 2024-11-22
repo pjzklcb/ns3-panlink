@@ -165,8 +165,8 @@ class SensingMac : public Object
         uint32_t nDroppedPackets{0};
         uint32_t nSendingPackets{0};
         uint32_t nAckedPackets{0};
-        uint32_t nLowLatencyPackets{0}; // latency <= 10ms
-        uint32_t nHighLatencyPackets{0}; // latency > 30ms
+        uint32_t nLowDelayPackets{0}; // latency <= 10ms
+        uint32_t nHighDelayPackets{0}; // latency > 30ms
     };
 
     /**

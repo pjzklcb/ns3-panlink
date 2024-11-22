@@ -33,6 +33,8 @@ struct Obs
     uint32_t nDroppedPackets;
     uint32_t nSendingPackets;
     uint32_t nAckedPackets;
+    uint32_t nLowDelayPackets;
+    uint32_t nHighDelayPackets;
     uint32_t cw;
     uint32_t nDeferredAccess;
     uint32_t waitedSlots;

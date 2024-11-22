@@ -200,6 +200,11 @@ SensingMac::NotifyEdcaEnqueue(std::string ac, Ptr<const WifiMpdu> item)
 
     WipeAllExpiredPackets();
 
+    if (!item->GetHeader().IsQosData())
+    {
+        return;
+    }
+
     uint64_t uid = item->GetPacket()->GetUid();
     AcIndex aci = StringToAcIndex(ac);
 
@@ -283,11 +288,13 @@ SensingMac::NotifyAckedMpdu(Ptr<const WifiMpdu> mpdu)
     NS_LOG_FUNCTION(this << mpdu);
 
     auto uid = mpdu->GetPacket()->GetUid();
-    auto it = m_packetMap.find(uid);
-    NS_ABORT_MSG_IF(it == m_packetMap.end(), "Packet with uid=" << uid << " not found");
+    if (auto it = m_packetMap.find(uid); it != m_packetMap.end())
+    {
+        it->second.ackedTime = Simulator::Now();
+        m_linkMap[it->second.linkId].lastTxOkTime = Simulator::Now();
 
-    it->second.ackedTime = Simulator::Now();
-    m_linkMap[it->second.linkId].lastTxOkTime = Simulator::Now();
+        m_queueMap[it->second.ac].inQueuePackets.remove(uid);
+    }
 }
 
 void
@@ -320,6 +327,10 @@ SensingMac::WipeAllExpiredPackets()
     {
         if (Simulator::Now() - it->second.enqueueTime > m_duration)
         {
+            auto list = m_queueMap[it->second.ac].inQueuePackets;
+            NS_ABORT_MSG_IF(auto it2 = std::find(list.begin(), list.end(), it->first);
+                            it2 != list.end(),
+                            "some packet in queue is neither acked, nor dropped/expired");
             it = m_packetMap.erase(it);
         }
         else
@@ -653,7 +664,7 @@ SensingMac::GetLastAccessInfo(uint8_t linkId)
         queue.expiredPackets.clear();
     }
 
-   result.nSendingPackets = m_linkMap[linkId].pendingPackets.size();
+    result.nSendingPackets = m_linkMap[linkId].pendingPackets.size();
     for (const auto& uid : m_linkMap[linkId].pendingPackets)
     {
         auto it = m_packetMap.find(uid);
@@ -661,8 +672,16 @@ SensingMac::GetLastAccessInfo(uint8_t linkId)
         if (it->second.ackedTime != Seconds(0))
         {
             result.nAckedPackets++;
-            
-            // Time delay = it->second.ackedTime - it->second.enqueueTime;
+
+            Time delay = it->second.ackedTime - it->second.enqueueTime;
+            if (delay <= MilliSeconds(10))
+            {
+                result.nLowDelayPackets++;
+            }
+            else if (delay > MilliSeconds(30))
+            {
+                result.nHighDelayPackets++;
+            }
         }
     }
 
