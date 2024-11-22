@@ -199,6 +199,13 @@ class SensingMac : public Object
      * @param mpdu the MPDU
      */
     void NotifyAckedMpdu(Ptr<const WifiMpdu> mpdu);
+    /**
+     * Handles frames comes from WifiMac::m_droppedMpduCallback.
+     *
+     * @param reason the dropped reason
+     * @param mpdu the MPDU
+     */
+    void NotifyDroppedMpdu(WifiMacDropReason reason, Ptr<const WifiMpdu> mpdu);
 
     /**
      * The information of the packets sent by this STA.

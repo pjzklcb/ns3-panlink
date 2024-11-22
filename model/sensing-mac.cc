@@ -292,6 +292,27 @@ SensingMac::NotifyAckedMpdu(Ptr<const WifiMpdu> mpdu)
 }
 
 void
+SensingMac::NotifyDroppedMpdu(WifiMacDropReason reason, Ptr<const WifiMpdu> mpdu)
+{
+    NS_LOG_FUNCTION(this << reason << mpdu);
+
+    if (reason != WIFI_MAC_DROP_REACHED_RETRY_LIMIT)
+    {
+        return;
+    }
+
+    uint64_t uid = mpdu->GetPacket()->GetUid();
+    if (auto it = m_packetMap.find(uid); it != m_packetMap.end())
+    {
+        it->second.isExpired = true;
+
+        AcIndex aci = it->second.ac;
+        m_queueMap[aci].inqueuePackets.remove(uid);
+        m_queueMap[aci].droppedPackets.push_back(uid);
+    }
+}
+
+void
 SensingMac::WipeAllExpiredPackets()
 {
     NS_LOG_FUNCTION(this);

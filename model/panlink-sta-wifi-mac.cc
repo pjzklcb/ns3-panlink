@@ -86,8 +86,8 @@ PanlinkStaWifiMac::SetSensingMac(const Ptr<SensingMac> sensingMac)
     // connect callbacks
     TraceConnectWithoutContext("AckedMpdu",
                                MakeCallback(&SensingMac::NotifyAckedMpdu, m_sensingMac));
-    // TraceConnectWithoutContext("DroppedMpdu",
-    //                            MakeCallback(&SensingMac::NotifyDroppedMpdu, m_sensingMac));
+    TraceConnectWithoutContext("DroppedMpdu",
+                               MakeCallback(&SensingMac::NotifyDroppedMpdu, m_sensingMac));
     // TraceConnectWithoutContext("MpduResponseTimeout",
     //                            MakeCallback(&SensingMac::NotifyMpduTimeout, m_sensingMac));
     // TraceConnectWithoutContext("PsduResponseTimeout",
