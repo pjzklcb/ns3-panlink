@@ -56,8 +56,13 @@ ChannelAccessEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, 
     env.selfD2lt = (now - sensingMac->GetSelfLastTxOk(obs.linkId)).ToDouble(Time::MS);
     env.bssD2lt = (now - sensingMac->GetBssLastTxOk(obs.linkId)).ToDouble(Time::MS);
     env.otherD2lt = (now - sensingMac->GetOtherLastTxOk(obs.linkId)).ToDouble(Time::MS);
-    std::tie(env.nTxMpdus, env.nAckedMpdus) = sensingMac->GetAckedMpdus(obs.linkId);
-
+    auto info = sensingMac->GetLastAccessInfo(obs.linkId);
+    env.nInQueuePackets = info.nInQueuePackets;
+    env.nExpiredPackets = info.nExpiredPackets;
+    env.nDroppedPackets = info.nDroppedPackets;
+    env.nSendingPackets = info.nSendingPackets;
+    env.nAckedPackets = info.nAckedPackets;
+    
     // Get module obs
     auto& channelAccessObs = static_cast<ChannelAccessObs&>(obs);
     env.ac = static_cast<uint8_t>(channelAccessObs.ac);

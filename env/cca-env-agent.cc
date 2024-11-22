@@ -53,6 +53,15 @@ CcaEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, ModuleObs&
     // Get obs from sensing MAC
     auto sensingMac = GetSensingMac();
     auto linkId = obs.linkId;
+    int i = 0;
+    for (const auto& aci : {AC_BE, AC_BK, AC_VI, AC_VO})
+    {
+        env.thptReq[i] = sensingMac->GetThptReq(m_period, aci);
+        env.thpt[i] = sensingMac->GetThpt(m_period, aci);
+        env.delayReq[i] = 30; // ms
+        env.delay[i] = sensingMac->GetDelay(m_period, aci);
+        i++;
+    }
     env.bssRssi = sensingMac->GetMinBssRssi(linkId);
     env.obssRssi = sensingMac->GetMaxObssRssi(linkId);
 }

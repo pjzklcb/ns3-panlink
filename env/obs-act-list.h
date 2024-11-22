@@ -28,8 +28,11 @@ struct Obs
     std::array<double, 4> delayReq;
     double selfD2lt;
     double selfChannelUtil;
-    uint32_t nTxMpdus;
-    uint32_t nAckedMpdus;
+    uint32_t nInQueuePackets;
+    uint32_t nExpiredPackets;
+    uint32_t nDroppedPackets;
+    uint32_t nSendingPackets;
+    uint32_t nAckedPackets;
     uint32_t cw;
     uint32_t nDeferredAccess;
     uint32_t waitedSlots;

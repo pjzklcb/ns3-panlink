@@ -156,10 +156,24 @@ class SensingMac : public Object
     double GetOtherChannelUtil(Time period, uint8_t linkId) const;
 
     /**
-     * @param linkId the link ID
-     * @return the pair of transmitted and acked MPDUs of the last transmission.
+     * The obs collected from the mac since the last access restore.
      */
-    std::pair<uint32_t, uint32_t> GetAckedMpdus(uint8_t linkId);
+    struct AccessInfo
+    {
+        uint32_t nInQueuePackets{0};
+        uint32_t nExpiredPackets{0};
+        uint32_t nDroppedPackets{0};
+        uint32_t nSendingPackets{0};
+        uint32_t nAckedPackets{0};
+        uint32_t nLowLatencyPackets{0}; // latency <= 10ms
+        uint32_t nHighLatencyPackets{0}; // latency > 30ms
+    };
+
+    /**
+     * @param linkId the link ID
+     * @return the obs of the link after the last access restore.
+     */
+    AccessInfo GetLastAccessInfo(uint8_t linkId);
 
     /**
      * Trace the packet that has been enqueued to the given AC MAC queue.
@@ -208,6 +222,23 @@ class SensingMac : public Object
     void NotifyDroppedMpdu(WifiMacDropReason reason, Ptr<const WifiMpdu> mpdu);
 
     /**
+     * Handles frames comes from WifiMac::m_mpduResponseTimeoutCallback.
+     *
+     * @param reason the reason why the timer was started
+     * @param mpdu the MPDU whose response was not received before the timeout
+     * @param txVector the TXVECTOR used to transmit the MPDU
+     */
+    void NotifyMpduTimeout(uint8_t reason, Ptr<const WifiMpdu> mpdu, const WifiTxVector& txVector);
+    /**
+     * Handles frames comes from WifiMac::m_psduResponseTimeoutCallback.
+     *
+     * @param reason the reason why the timer was started
+     * @param psdu the PSDU whose response was not received before the timeout
+     * @param txVector the TXVECTOR used to transmit the PSDU
+     */
+    void NotifyPsduTimeout(uint8_t reason, Ptr<const WifiPsdu> psdu, const WifiTxVector& txVector);
+
+    /**
      * The information of the packets sent by this STA.
      */
     struct SelfPacketInfo
@@ -230,6 +261,7 @@ class SensingMac : public Object
     struct SelfLinkInfo
     {
         Time lastTxOkTime;
+        std::list<uint64_t> pendingPackets; //!< pending packets
         std::map<uint64_t /* UID */, std::pair<Time /* Tx Begin */, Time /* Tx End */>> channelUtil;
     };
 
@@ -263,11 +295,14 @@ class SensingMac : public Object
      */
     double GetDelay(Time period, AcIndex ac, uint8_t linkId = SINGLE_LINK_OP_ID) const;
 
+    /**
+     * The information of the queues of each AC.
+     */
     struct MacQueueInfo
     {
-        std::list<uint64_t> inqueuePackets;
-        std::list<uint64_t> expiredPackets;
-        std::list<uint64_t> droppedPackets;
+        std::list<uint64_t> inQueuePackets; // list of packets in queue
+        std::list<uint64_t> expiredPackets; // list of expired packets
+        std::list<uint64_t> droppedPackets; // list of dropped packets
     };
 
   protected:
@@ -286,8 +321,7 @@ class SensingMac : public Object
     std::map<uint8_t /* link ID */, SelfLinkInfo>
         m_linkMap; //!< each link's channel utilization of this STA
     std::unordered_map<Mac48Address, NeighborStaInfo, WifiAddressHash>
-        m_neighborStaMap; //!< channel utilization of neighbor STAs
-    std::map<uint8_t, std::vector<uint64_t>> m_pendingPackets; //!< pending packets
+        m_neighborStaMap;                       //!< channel utilization of neighbor STAs
     std::map<AcIndex, MacQueueInfo> m_queueMap; //!< queue information of each AC
 };
 

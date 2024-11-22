@@ -163,15 +163,6 @@ EnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, ModuleObs& ob
     if (auto sensingMac = GetSensingMac())
     {
         auto linkId = obs.linkId;
-        int i = 0;
-        for (const auto& aci : {AC_BE, AC_BK, AC_VI, AC_VO})
-        {
-            env.thptReq[i] = sensingMac->GetThptReq(period, aci);
-            env.thpt[i] = sensingMac->GetThpt(period, aci);
-            env.delayReq[i] = 30; // ms
-            env.delay[i] = sensingMac->GetDelay(period, aci);
-            i++;
-        }
         env.nBssStas = sensingMac->GetNBssStas(linkId);
         env.nObssStas = sensingMac->GetNObssStas(linkId);
         env.selfChannelUtil = sensingMac->GetSelfChannelUtil(period, linkId);

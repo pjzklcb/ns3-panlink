@@ -52,7 +52,6 @@ SensingMac::DoInitialize()
     for (uint8_t linkId = 0; linkId < m_mac->GetNLinks(); ++linkId)
     {
         m_linkMap[linkId] = SelfLinkInfo();
-        m_pendingPackets[linkId] = std::vector<uint64_t>();
     }
     for (const auto& [aci, ac] : wifiAcList)
     {
@@ -203,7 +202,7 @@ SensingMac::NotifyEdcaEnqueue(std::string ac, Ptr<const WifiMpdu> item)
 
     uint64_t uid = item->GetPacket()->GetUid();
     AcIndex aci = StringToAcIndex(ac);
-    
+
     // register the packet
     auto [it, inserted] = m_packetMap.try_emplace(uid);
     NS_ABORT_MSG_IF(!inserted, "Packet with uid=" << uid << " already exists");
@@ -214,7 +213,7 @@ SensingMac::NotifyEdcaEnqueue(std::string ac, Ptr<const WifiMpdu> item)
     it->second.duration = item->GetHeader().GetDuration();
 
     // record in the queue
-    m_queueMap[aci].inqueuePackets.push_back(uid);
+    m_queueMap[aci].inQueuePackets.push_back(uid);
 }
 
 void
@@ -230,7 +229,7 @@ SensingMac::NotifyEdcaExpired(std::string ac, Ptr<const WifiMpdu> item)
         it->second.isExpired = true;
 
         // remove the packet from the queue
-        m_queueMap[aci].inqueuePackets.remove(uid);
+        m_queueMap[aci].inQueuePackets.remove(uid);
         m_queueMap[aci].expiredPackets.push_back(uid);
     }
 }
@@ -247,7 +246,7 @@ SensingMac::NotifyPhyTxBegin(std::string context, Ptr<const Packet> p, double tx
         it->second.txCounter++;
         it->second.txPowerW = txPowerW;
 
-        m_pendingPackets[linkId].emplace_back(p->GetUid());
+        m_linkMap[linkId].pendingPackets.push_back(p->GetUid());
     }
 
     m_linkMap[linkId].channelUtil[p->GetUid()] = {Simulator::Now(), Seconds(0)};
@@ -307,7 +306,7 @@ SensingMac::NotifyDroppedMpdu(WifiMacDropReason reason, Ptr<const WifiMpdu> mpdu
         it->second.isExpired = true;
 
         AcIndex aci = it->second.ac;
-        m_queueMap[aci].inqueuePackets.remove(uid);
+        m_queueMap[aci].inQueuePackets.remove(uid);
         m_queueMap[aci].droppedPackets.push_back(uid);
     }
 }
@@ -638,26 +637,38 @@ SensingMac::GetOtherChannelUtil(Time period, uint8_t linkId) const
     return channelUtil / period.GetSeconds();
 }
 
-std::pair<uint32_t, uint32_t>
-SensingMac::GetAckedMpdus(uint8_t linkId)
+SensingMac::AccessInfo
+SensingMac::GetLastAccessInfo(uint8_t linkId)
 {
     NS_LOG_FUNCTION(this << linkId);
 
-    uint32_t nAckedMpdus = 0;
-    uint32_t nTxMpdus = m_pendingPackets.at(linkId).size();
-    for (const auto& uid : m_pendingPackets.at(linkId))
+    AccessInfo result;
+    for (auto& [aci, queue] : m_queueMap)
+    {
+        result.nInQueuePackets += queue.inQueuePackets.size();
+        result.nDroppedPackets += queue.droppedPackets.size();
+        result.nExpiredPackets += queue.expiredPackets.size();
+
+        queue.droppedPackets.clear();
+        queue.expiredPackets.clear();
+    }
+
+   result.nSendingPackets = m_linkMap[linkId].pendingPackets.size();
+    for (const auto& uid : m_linkMap[linkId].pendingPackets)
     {
         auto it = m_packetMap.find(uid);
         NS_ASSERT(it != m_packetMap.end());
         if (it->second.ackedTime != Seconds(0))
         {
-            nAckedMpdus++;
+            result.nAckedPackets++;
+            
+            // Time delay = it->second.ackedTime - it->second.enqueueTime;
         }
     }
 
-    m_pendingPackets.at(linkId).clear();
+    m_linkMap[linkId].pendingPackets.clear();
 
-    return {nTxMpdus, nAckedMpdus};
+    return result;
 }
 
 } // namespace ns3
