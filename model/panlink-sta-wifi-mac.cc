@@ -86,11 +86,20 @@ PanlinkStaWifiMac::SetSensingMac(const Ptr<SensingMac> sensingMac)
     // connect callbacks
     TraceConnectWithoutContext("AckedMpdu",
                                MakeCallback(&SensingMac::NotifyAckedMpdu, m_sensingMac));
+    // TraceConnectWithoutContext("DroppedMpdu",
+    //                            MakeCallback(&SensingMac::NotifyDroppedMpdu, m_sensingMac));
+    // TraceConnectWithoutContext("MpduResponseTimeout",
+    //                            MakeCallback(&SensingMac::NotifyMpduTimeout, m_sensingMac));
+    // TraceConnectWithoutContext("PsduResponseTimeout",
+    //                            MakeCallback(&SensingMac::NotifyPsduTimeout, m_sensingMac));
     for (const auto& [ac, _] : wifiAcList)
     {
         GetTxopQueue(ac)->TraceConnect("Enqueue",
                                        AcIndexToString(ac),
                                        MakeCallback(&SensingMac::NotifyEdcaEnqueue, m_sensingMac));
+        GetTxopQueue(ac)->TraceConnect("Expired",
+                                       AcIndexToString(ac),
+                                       MakeCallback(&SensingMac::NotifyEdcaExpired, m_sensingMac));
     }
     for (const auto& [id, link] : GetLinks())
     {

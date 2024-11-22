@@ -54,6 +54,10 @@ SensingMac::DoInitialize()
         m_linkMap[linkId] = SelfLinkInfo();
         m_pendingPackets[linkId] = std::vector<uint64_t>();
     }
+    for (const auto& [aci, ac] : wifiAcList)
+    {
+        m_queueMap[aci] = MacQueueInfo();
+    }
 }
 
 void
@@ -197,14 +201,38 @@ SensingMac::NotifyEdcaEnqueue(std::string ac, Ptr<const WifiMpdu> item)
 
     WipeAllExpiredPackets();
 
-    auto uid = item->GetPacket()->GetUid();
+    uint64_t uid = item->GetPacket()->GetUid();
+    AcIndex aci = StringToAcIndex(ac);
+    
+    // register the packet
     auto [it, inserted] = m_packetMap.try_emplace(uid);
     NS_ABORT_MSG_IF(!inserted, "Packet with uid=" << uid << " already exists");
 
     it->second.packetSize = item->GetPacketSize();
-    it->second.ac = StringToAcIndex(ac);
+    it->second.ac = aci;
     it->second.enqueueTime = Simulator::Now();
     it->second.duration = item->GetHeader().GetDuration();
+
+    // record in the queue
+    m_queueMap[aci].inqueuePackets.push_back(uid);
+}
+
+void
+SensingMac::NotifyEdcaExpired(std::string ac, Ptr<const WifiMpdu> item)
+{
+    NS_LOG_FUNCTION(this << ac << item);
+
+    uint64_t uid = item->GetPacket()->GetUid();
+    AcIndex aci = StringToAcIndex(ac);
+
+    if (auto it = m_packetMap.find(uid); it != m_packetMap.end())
+    {
+        it->second.isExpired = true;
+
+        // remove the packet from the queue
+        m_queueMap[aci].inqueuePackets.remove(uid);
+        m_queueMap[aci].expiredPackets.push_back(uid);
+    }
 }
 
 void

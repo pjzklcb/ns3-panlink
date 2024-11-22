@@ -37,30 +37,30 @@ class SensingMac : public Object
     /**
      * Set the MAC layer to use.
      *
-     * \param mac the MAC layer to use
+     * @param mac the MAC layer to use
      */
     virtual void SetWifiMac(const Ptr<WifiMac> mac);
     /**
      * Set the maximum duration of the data stored.
      *
-     * \param duration the duration after which the data is considered stale
+     * @param duration the duration after which the data is considered stale
      */
     void SetMaxDuration(Time duration);
 
     /**
      * Handles received frames not matter the STA they are sent to.
      *
-     * \param hdr the MAC header of the frame
-     * \param rssi the RSSI of the frame
-     * \param linkId the ID of the link
+     * @param hdr the MAC header of the frame
+     * @param rssi the RSSI of the frame
+     * @param linkId the ID of the link
      */
     void NotifyFrameInfo(const WifiMacHeader& hdr, double rssi, uint8_t linkId);
 
     /**
      * Record the STA whose last transmission was successful.
      *
-     * \param sta the MAC address of the STA
-     * \param linkId the ID of the link
+     * @param sta the MAC address of the STA
+     * @param linkId the ID of the link
      */
     void NotifyLastTxOkSta(Mac48Address sta, uint8_t linkId);
 
@@ -90,68 +90,68 @@ class SensingMac : public Object
     /**
      * Get the minimum RSSI of BSS STAs on the given link.
      *
-     * \param linkId the link ID
+     * @param linkId the link ID
      */
     double GetMinBssRssi(uint8_t linkId) const;
     /**
      * Get the maximum RSSI of OBSS STAs on the given link.
      *
-     * \param linkId the link ID
+     * @param linkId the link ID
      */
     double GetMaxObssRssi(uint8_t linkId) const;
 
     /**
      * Get the time of the last successful transmission of this STA on the given link.
      *
-     * \param linkId the link ID
+     * @param linkId the link ID
      */
     Time GetSelfLastTxOk(uint8_t linkId) const;
     /**
      * Get the time of the last successful transmission of STAs within the same BSS on the given
      * link.
      *
-     * \param linkId the link ID
+     * @param linkId the link ID
      */
     Time GetBssLastTxOk(uint8_t linkId) const;
     /**
      * Get the time of the last successful transmission of other STAs on the given link.
      *
-     * \param linkId the link ID
+     * @param linkId the link ID
      */
     Time GetOtherLastTxOk(uint8_t linkId) const;
 
     /**
      * Get the number of STAs in the same BSS on the given link.
      *
-     * \param linkId the link ID
+     * @param linkId the link ID
      */
     uint32_t GetNBssStas(uint8_t linkId) const;
     /**
      * Get the number of STAs belongs to OBSS on the given link.
      *
-     * \param linkId the link ID
+     * @param linkId the link ID
      */
     uint32_t GetNObssStas(uint8_t linkId) const;
 
     /**
      * Get the channel utilization of previous period of this STA on the given link.
      *
-     * \param period the period of time
-     * \param linkId the link ID
+     * @param period the period of time
+     * @param linkId the link ID
      */
     double GetSelfChannelUtil(Time period, uint8_t linkId) const;
     /**
      * Get the channel utilization of previous period of STAs within the same BSS on the given link.
      *
-     * \param period the period of time
-     * \param linkId the link ID
+     * @param period the period of time
+     * @param linkId the link ID
      */
     double GetBssChannelUtil(Time period, uint8_t linkId) const;
     /**
      * Get the channel utilization of previous period of other STAs on the given link.
      *
-     * \param period the period of time
-     * \param linkId the link ID
+     * @param period the period of time
+     * @param linkId the link ID
      */
     double GetOtherChannelUtil(Time period, uint8_t linkId) const;
 
@@ -164,33 +164,39 @@ class SensingMac : public Object
     /**
      * Trace the packet that has been enqueued to the given AC MAC queue.
      *
-     * \param ac the AC of the MacQueue
-     * \param item the enqueued MPDU
+     * @param ac the AC of the MacQueue
+     * @param item the enqueued MPDU
      */
     void NotifyEdcaEnqueue(std::string ac, Ptr<const WifiMpdu> item);
+    /**
+     * Trace the packet that is expired in the given AC MAC queue.
+     *
+     * @param ac the AC of the MacQueue
+     * @param item the expired MPDU
+     */
+    void NotifyEdcaExpired(std::string ac, Ptr<const WifiMpdu> item);
 
     /**
      * Trace the packet that has been sent by wifi PHY.
      *
-     * \param context the string contains link ID
-     * \param packet the sent packet
-     * \param txPowerW the transmission power
+     * @param context the string contains link ID
+     * @param packet the sent packet
+     * @param txPowerW the transmission power
      */
     void NotifyPhyTxBegin(std::string context, Ptr<const Packet> p, double txPowerW);
-
     /**
      * Trace the packet that finished transmission by wifi PHY.
      *
-     * \param context the string contains link ID
-     * \param packet the sent packet
-     * \param txPowerW the transmission power
+     * @param context the string contains link ID
+     * @param packet the sent packet
+     * @param txPowerW the transmission power
      */
     void NotifyPhyTxEnd(std::string context, Ptr<const Packet> p);
 
     /**
      * Handles frames comes from WifiMac::m_ackedMpduCallback.
      *
-     * \param mpdu the MPDU
+     * @param mpdu the MPDU
      */
     void NotifyAckedMpdu(Ptr<const WifiMpdu> mpdu);
 
@@ -206,6 +212,8 @@ class SensingMac : public Object
         Time duration;
         Time ackedTime{Seconds(0)};
         uint32_t txCounter{0};
+        bool isExpired{false};
+        bool isDropped{false};
         double txPowerW;
     };
 
@@ -221,9 +229,9 @@ class SensingMac : public Object
     /**
      * Get the required throughput for the given ac and link ID in the past period of time.
      *
-     * \param period the period
-     * \param ac the AC
-     * \param linkId the ID of the link
+     * @param period the period
+     * @param ac the AC
+     * @param linkId the ID of the link
      * \return the throughput in Mbps
      */
     double GetThptReq(Time period, AcIndex ac, uint8_t linkId = SINGLE_LINK_OP_ID) const;
@@ -231,9 +239,9 @@ class SensingMac : public Object
     /**
      * Get the actual throughput of the given ac and link ID in the past period of time.
      *
-     * \param period the period
-     * \param ac the AC
-     * \param linkId the ID of the link
+     * @param period the period
+     * @param ac the AC
+     * @param linkId the ID of the link
      * \return the throughput in Mbps
      */
     double GetThpt(Time period, AcIndex ac, uint8_t linkId = SINGLE_LINK_OP_ID) const;
@@ -241,12 +249,19 @@ class SensingMac : public Object
     /**
      * Get the average delay of the given ac and link ID in the past period of time.
      *
-     * \param period the period
-     * \param ac the AC
-     * \param linkId the ID of the link
+     * @param period the period
+     * @param ac the AC
+     * @param linkId the ID of the link
      * \return the average delay in milliseconds (0 if no packet tx successfully)
      */
     double GetDelay(Time period, AcIndex ac, uint8_t linkId = SINGLE_LINK_OP_ID) const;
+
+    struct MacQueueInfo
+    {
+        std::list<uint64_t> inqueuePackets;
+        std::list<uint64_t> expiredPackets;
+        std::list<uint64_t> droppedPackets;
+    };
 
   protected:
     void DoInitialize() override;
@@ -266,6 +281,7 @@ class SensingMac : public Object
     std::unordered_map<Mac48Address, NeighborStaInfo, WifiAddressHash>
         m_neighborStaMap; //!< channel utilization of neighbor STAs
     std::map<uint8_t, std::vector<uint64_t>> m_pendingPackets; //!< pending packets
+    std::map<AcIndex, MacQueueInfo> m_queueMap; //!< queue information of each AC
 };
 
 } // namespace ns3
