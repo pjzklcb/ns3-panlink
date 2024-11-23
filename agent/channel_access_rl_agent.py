@@ -62,7 +62,6 @@ class ChannelAccessRlAgent(RlAgent):
         msg_interface.GetPy2CppVector()[self.memory_id].backoff = self.backoff
 
     def choose_action(self, obs):
-        # obs.cw = 15
         # normalize the obs
         nb_, no_ = min(1, obs.nBssStas/10), min(1, obs.nObssStas/20)
         ni_ = obs.nInQueuePackets
@@ -84,7 +83,7 @@ class ChannelAccessRlAgent(RlAgent):
             # caculate reward
             r_tx = 1 if na_ else (-1 if ns_ else 0)
             r_packet = nl_ + 0.5*(na_-nl_-nh_) + 0.1*nh_ - 0.1*nd_ - ne_
-            reward = r_tx + r_packet
+            reward = r_tx + 0.1*r_packet
             self.reward_log.append(reward)
             self.model.store_transition(self.state, self.action, reward, next_state, self.action_mask)
             if self.enable_learning:
