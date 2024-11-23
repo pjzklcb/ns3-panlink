@@ -302,7 +302,8 @@ SensingMac::NotifyDroppedMpdu(WifiMacDropReason reason, Ptr<const WifiMpdu> mpdu
 {
     NS_LOG_FUNCTION(this << reason << mpdu);
 
-    if (reason != WIFI_MAC_DROP_REACHED_RETRY_LIMIT)
+    // handle dropped packets reached retry limit or out of BA bitmap range
+    if (reason != WIFI_MAC_DROP_REACHED_RETRY_LIMIT && reason != WIFI_MAC_DROP_QOS_OLD_PACKET)
     {
         return;
     }
@@ -328,9 +329,8 @@ SensingMac::WipeAllExpiredPackets()
         if (Simulator::Now() - it->second.enqueueTime > m_duration)
         {
             auto list = m_queueMap[it->second.ac].inQueuePackets;
-            NS_ABORT_MSG_IF(auto it2 = std::find(list.begin(), list.end(), it->first);
-                            it2 != list.end(),
-                            "some packet in queue is neither acked, nor dropped/expired");
+            auto it2 = std::find(list.begin(), list.end(), it->first);
+            NS_ABORT_MSG_IF(it2 != list.end(), "packet uid=" << it->first << " still in queue");
             it = m_packetMap.erase(it);
         }
         else
