@@ -119,6 +119,12 @@ class SensingMac : public Object
      * @param linkId the link ID
      */
     Time GetOtherLastTxOk(uint8_t linkId) const;
+    /**
+     * @param delay the delay
+     * @param linkId the link ID
+     * @returns the number of STAs whose last successful transmission was less than the given delay
+     */
+    uint32_t GetNStaTxOkDelayLessThan(Time delay, uint8_t linkId) const;
 
     /**
      * Get the number of STAs in the same BSS on the given link.

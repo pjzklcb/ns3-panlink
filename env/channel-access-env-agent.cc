@@ -53,9 +53,14 @@ ChannelAccessEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, 
 
     // Get obs from sensing MAC
     auto sensingMac = GetSensingMac();
-    env.selfD2lt = (now - sensingMac->GetSelfLastTxOk(obs.linkId)).ToDouble(Time::MS);
-    env.bssD2lt = (now - sensingMac->GetBssLastTxOk(obs.linkId)).ToDouble(Time::MS);
-    env.otherD2lt = (now - sensingMac->GetOtherLastTxOk(obs.linkId)).ToDouble(Time::MS);
+    uint32_t n10 = sensingMac->GetNStaTxOkDelayLessThan(MilliSeconds(10), obs.linkId);
+    uint32_t n50 = sensingMac->GetNStaTxOkDelayLessThan(MilliSeconds(50), obs.linkId);
+    uint32_t n100 = sensingMac->GetNStaTxOkDelayLessThan(MilliSeconds(100), obs.linkId);
+    uint32_t n500 = sensingMac->GetNStaTxOkDelayLessThan(MilliSeconds(500), obs.linkId);
+    env.nTxOkDelay10ms = n10;
+    env.nTxOkDelay50ms = n50 - n10;
+    env.nTxOkDelay100ms = n100 - n50;
+    env.nTxOkDelay500ms = n500 - n100;
     auto info = sensingMac->GetLastAccessInfo(obs.linkId);
     env.nInQueuePackets = info.nInQueuePackets;
     env.nExpiredPackets = info.nExpiredPackets;

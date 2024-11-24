@@ -26,7 +26,6 @@ struct Obs
     std::array<double, 4> thptReq; // {AC_BE, AC_BK, AC_VI, AC_VO}
     std::array<double, 4> delay;
     std::array<double, 4> delayReq;
-    double selfD2lt;
     double selfChannelUtil;
     uint32_t nInQueuePackets;
     uint32_t nExpiredPackets;
@@ -42,10 +41,12 @@ struct Obs
     // neighbor
     uint32_t nBssStas;
     uint32_t nObssStas;
+    uint32_t nTxOkDelay10ms;
+    uint32_t nTxOkDelay50ms;
+    uint32_t nTxOkDelay100ms;
+    uint32_t nTxOkDelay500ms;
     double bssRssi;
     double obssRssi;
-    double bssD2lt;
-    double otherD2lt;
     double bssChannelUtil;
     double otherChannelUtil;
 };

@@ -14,6 +14,7 @@ class RlAgent():
         self.agent_type = AgentType.NO_RL
         self.counter = 0
         self.sim_time = 0
+        self.delta_time = 0
         self.state = None
         self.action = None
         self.action_log = []
@@ -25,6 +26,7 @@ class RlAgent():
 
     def is_active(self, msg_interface):
         env = msg_interface.GetCpp2PyVector()[self.memory_id]
+        self.delta_time = (env.simTime - self.sim_time) * 1e3 # ms
         self.sim_time = env.simTime
         agent_type = env.agentType
         new_counter = env.counter
@@ -38,6 +40,7 @@ class RlAgent():
     def reset(self):
         self.counter = 0
         self.sim_time = 0
+        self.delta_time = 0
         self.state = None
         self.action = None
         self.action_log = []

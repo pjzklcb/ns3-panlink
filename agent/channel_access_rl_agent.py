@@ -16,7 +16,7 @@ class ChannelAccessRlAgent(RlAgent):
         super().__init__(node_id, memory_id)
         self.agent_type = AgentType.RL_CHANNEL_ACCESS
         
-        state_size = 18
+        state_size = 17
         self.action_size = 16
         self.model = DDQN(state_size, self.action_size)
         self.backoff = 0
@@ -25,10 +25,7 @@ class ChannelAccessRlAgent(RlAgent):
 
     def get_obs(self, msg_interface):
         env = msg_interface.GetCpp2PyVector()[self.memory_id]
-        self.sim_time = env.simTime
         ac = AcIndex(env.ac)
-        self_d2lt = env.selfD2lt
-        self_channel_util = env.selfChannelUtil
         n_in_queue = env.nInQueuePackets
         n_expired = env.nExpiredPackets
         n_dropped = env.nDroppedPackets
@@ -41,19 +38,18 @@ class ChannelAccessRlAgent(RlAgent):
         n_waited_slot = env.waitedSlots
         n_bss_stas = env.nBssStas
         n_obss_stas = env.nObssStas
-        bss_d2lt = env.bssD2lt
-        bss_channel_util = env.bssChannelUtil
-        other_d2lt = env.otherD2lt
-        other_channel_util = env.otherChannelUtil
+        n_txok_10ms = env.nTxOkDelay10ms
+        n_txok_50ms = env.nTxOkDelay50ms
+        n_txok_100ms = env.nTxOkDelay100ms
+        n_txok_500ms = env.nTxOkDelay500ms
 
         if self.show_log:
-            print("At {:6f}s, n_bss_stas={}, n_obss_stas={}, \n \
+            print("At {:6f}s, delta_time={:.3f}ms, n_bss_stas={}, n_obss_stas={}, <10/50/100/500ms={}/{}/{}/{}, \n \
                   in_queue/expired/dropped/sending/acked={}/{}/{}/{}/{}, low/high={}/{}, \n \
-                  ac={}, d2lt=[{:.3f}, {:.3f}, {:.3f}]ms, channel_util=[{:.4f}, {:.4f}, {:.4f}], \n \
-                  cw={}, n_deferred_access={}, n_waited_slot={}".format(
-                self.sim_time, n_bss_stas, n_obss_stas, n_in_queue, n_expired, n_dropped, n_sending, n_acked, 
-                n_low_delay, n_high_delay, ac.name, self_d2lt, bss_d2lt, other_d2lt, self_channel_util, 
-                bss_channel_util, other_channel_util, cw, n_deferred_access, n_waited_slot
+                  ac={}, cw={}, n_deferred_access={}, n_waited_slot={}".format(
+                self.sim_time, self.delta_time, n_bss_stas, n_obss_stas, n_txok_10ms, n_txok_50ms, n_txok_100ms, 
+                n_txok_500ms,n_in_queue, n_expired, n_dropped, n_sending, n_acked, 
+                n_low_delay, n_high_delay, ac.name, cw, n_deferred_access, n_waited_slot
             ))
         
         self.choose_action(env)
@@ -63,27 +59,29 @@ class ChannelAccessRlAgent(RlAgent):
 
     def choose_action(self, obs):
         # normalize the obs
+        t_ = self.delta_time/100
         nb_, no_ = min(1, obs.nBssStas/10), min(1, obs.nObssStas/20)
+        total_stas = max(1, obs.nBssStas + obs.nObssStas)
+        n10_ = obs.nTxOkDelay10ms / total_stas
+        n50_ = obs.nTxOkDelay50ms / total_stas
+        n100_ = obs.nTxOkDelay100ms / total_stas
+        n500_ = obs.nTxOkDelay500ms / total_stas
         ni_ = obs.nInQueuePackets
         ne_ = obs.nExpiredPackets
         nd_ = obs.nDroppedPackets
         ns_ = obs.nSendingPackets
         na_ = obs.nAckedPackets
         nl_, nh_ = obs.nLowDelayPackets, obs.nHighDelayPackets
-        sum = obs.selfD2lt + obs.bssD2lt + obs.otherD2lt
-        sum = sum if sum else 1
-        ds_, db_, do_ = obs.selfD2lt/sum, obs.bssD2lt/sum, obs.otherD2lt/sum
-        us_, ub_, uo_ = obs.selfChannelUtil, obs.bssChannelUtil, obs.otherChannelUtil
         cw_ = math.log(obs.cw+1, 2) / 10
         da_ = obs.nDeferredAccess / obs.cw+1
         b_ = obs.waitedSlots / obs.cw
 
-        next_state = [ni_, ne_, nd_, ns_, na_, nl_, nh_, nb_, no_, ds_, db_, do_, us_, ub_, uo_, cw_, da_, b_]
+        next_state = [t_, ni_, ne_, nd_, ns_, na_, nl_, nh_, nb_, no_, n10_, n50_, n100_, n500_, cw_, da_, b_]
         if self.state:
             # caculate reward
             r_tx = 1 if na_ else (-1 if ns_ else 0)
             r_packet = nl_ + 0.5*(na_-nl_-nh_) + 0.1*nh_ - 0.1*nd_ - ne_
-            reward = r_tx + 0.1*r_packet
+            reward = r_tx + 0.2*r_packet
             self.reward_log.append(reward)
             self.model.store_transition(self.state, self.action, reward, next_state, self.action_mask)
             if self.enable_learning:

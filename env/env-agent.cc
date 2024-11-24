@@ -165,9 +165,6 @@ EnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, ModuleObs& ob
         auto linkId = obs.linkId;
         env.nBssStas = sensingMac->GetNBssStas(linkId);
         env.nObssStas = sensingMac->GetNObssStas(linkId);
-        env.selfChannelUtil = sensingMac->GetSelfChannelUtil(period, linkId);
-        env.bssChannelUtil = sensingMac->GetBssChannelUtil(period, linkId);
-        env.otherChannelUtil = sensingMac->GetOtherChannelUtil(period, linkId);
     }
 }
 

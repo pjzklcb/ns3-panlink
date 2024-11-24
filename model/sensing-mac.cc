@@ -483,6 +483,26 @@ SensingMac::GetOtherLastTxOk(uint8_t linkId) const
     return lastTxOkTime;
 }
 
+uint32_t 
+SensingMac::GetNStaTxOkDelayLessThan(Time delay, uint8_t linkId) const
+{
+    NS_LOG_FUNCTION(this << delay << linkId);
+
+    uint32_t nStas = 0;
+    for (auto& [_, sta] : m_neighborStaMap)
+    {
+        if (sta.linkId == linkId)
+        {
+            if (Simulator::Now() - sta.lastTxOkTime <= delay)
+            {
+                nStas++;
+            }
+        }
+    }
+
+    return nStas;
+}
+
 uint32_t
 SensingMac::GetNBssStas(uint8_t linkId) const
 {
