@@ -103,7 +103,9 @@ if __name__ == '__main__':
             with open(os.path.join(episode_dir, 'ns3_settings.json'), 'w') as f:
                 json.dump(ns3_settings, f, indent=4)
         
-        agent_manager.reset()
+        if i_episode != 0:
+            agent_manager.reset()
+            agent_manager.plot_episodes(result_dir)
         msg_interface = exp.run(setting=ns3_settings, show_output=True)
 
         epoch = 0
