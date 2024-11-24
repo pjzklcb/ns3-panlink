@@ -21,6 +21,9 @@ class ChannelAccessRlAgent(RlAgent):
         self.model = DDQN(state_size, self.action_size)
         self.backoff = 0
         self.backoff_log = []
+        self.average_backoff = 8
+        self.last_waited_slots = 8
+        self.alpha = 1
         self.action_mask = [True]*self.action_size
 
     def get_obs(self, msg_interface):
@@ -76,12 +79,22 @@ class ChannelAccessRlAgent(RlAgent):
         da_ = obs.nDeferredAccess / obs.cw+1
         b_ = obs.waitedSlots / obs.cw
 
+        # adjust reward weight
+        if obs.nDeferredAccess == 0:
+            last_backoff = self.backoff + self.last_waited_slots
+            self.average_backoff = 0.9*self.average_backoff + 0.1*last_backoff
+            if self.average_backoff < 4:
+                self.alpha = max(0.1, self.alpha/2)
+            elif self.average_backoff > 16:
+                self.alpha = min(1, self.alpha*2)
+        self.last_waited_slots = obs.waitedSlots
+
         next_state = [t_, ni_, ne_, nd_, ns_, na_, nl_, nh_, nb_, no_, n10_, n50_, n100_, n500_, cw_, da_, b_]
         if self.state:
             # caculate reward
             r_tx = 1 if na_ else (-1 if ns_ else 0)
             r_packet = nl_ + 0.5*(na_-nl_-nh_) + 0.1*nh_ - 0.1*nd_ - ne_
-            reward = r_tx + 0.2*r_packet
+            reward = r_tx + self.alpha*r_packet
             self.reward_log.append(reward)
             self.model.store_transition(self.state, self.action, reward, next_state, self.action_mask)
             if self.enable_learning:
