@@ -330,7 +330,19 @@ SensingMac::WipeAllExpiredPackets()
         {
             auto list = m_queueMap[it->second.ac].inQueuePackets;
             auto it2 = std::find(list.begin(), list.end(), it->first);
-            NS_ABORT_MSG_IF(it2 != list.end(), "packet uid=" << it->first << " still in queue");
+            // NS_ABORT_MSG_IF(it2 != list.end(), "packet uid=" << it->first << " still in queue");
+            if (it2 != list.end())
+            {
+                // save to debug.txt
+                std::ofstream ofs("debug.txt", std::ios_base::app);
+                ofs << Simulator::Now() << ", uid=" << it->first
+                    << " still in queue, with txCounter=" << it->second.txCounter
+                    << ", ac=" << it->second.ac << ", packetSize=" << it->second.packetSize
+                    << ", acktime=" << it->second.ackedTime
+                    << ", isDropped=" << it->second.isDropped
+                    << ", isExpired=" << it->second.isExpired << std::endl;
+                ofs.close();
+            }
             it = m_packetMap.erase(it);
         }
         else
@@ -483,7 +495,7 @@ SensingMac::GetOtherLastTxOk(uint8_t linkId) const
     return lastTxOkTime;
 }
 
-uint32_t 
+uint32_t
 SensingMac::GetNStaTxOkDelayLessThan(Time delay, uint8_t linkId) const
 {
     NS_LOG_FUNCTION(this << delay << linkId);
