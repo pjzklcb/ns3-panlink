@@ -108,7 +108,7 @@ if __name__ == '__main__':
             agent_manager.plot_episodes(result_dir)
         msg_interface = exp.run(setting=ns3_settings, show_output=True)
 
-        epoch = 0
+        step = 0
         while True:
             msg_interface.PyRecvBegin()
             if msg_interface.PyGetFinished():
@@ -118,8 +118,8 @@ if __name__ == '__main__':
                 msg_interface.PySetRestart()
                 break
 
-            print("Episode {}, epoch {}".format(i_episode, epoch))
-            epoch += 1
+            print("Episode {}, step {}".format(i_episode, step))
+            step += 1
 
             tic = time.time()
             agent_manager.get_obs(msg_interface)

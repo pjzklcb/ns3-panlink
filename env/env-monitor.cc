@@ -259,13 +259,7 @@ EnvMonitor::NotifyFragmentRx(std::string context,
 void
 EnvMonitor::NotifyEdcaEnqueue(std::string ac, Ptr<const WifiMpdu> item)
 {
-    if (!item->GetHeader().IsQosData())
-    {
-        return;
-    }
-
     auto nodeId = MacAddressToNodeId(m_macAddressMap, item->GetHeader().GetAddr2());
-
     m_macTracer->HandleEdcaEnqueue(m_packetMap, nodeId, item, StringToAcIndex(ac));
 }
 
