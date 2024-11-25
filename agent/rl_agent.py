@@ -59,7 +59,7 @@ class RlAgent():
         pass
 
     def save_model(self, save_dir):
-        self.model.save_model('{}/node_{}_model_{}.pt'.format(save_dir, self.node_id, self.agent_type.name))
+        self.model.save_model('{}/node_{}_{}_model.pt'.format(save_dir, self.node_id, self.agent_type.name))
 
     def plot_results(self, save_dir):
         pass

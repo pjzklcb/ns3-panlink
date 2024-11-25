@@ -311,7 +311,7 @@ SensingMac::NotifyDroppedMpdu(WifiMacDropReason reason, Ptr<const WifiMpdu> mpdu
     uint64_t uid = mpdu->GetPacket()->GetUid();
     if (auto it = m_packetMap.find(uid); it != m_packetMap.end())
     {
-        it->second.isExpired = true;
+        it->second.isDropped = true;
 
         AcIndex aci = it->second.ac;
         m_queueMap[aci].inQueuePackets.remove(uid);
@@ -328,7 +328,7 @@ SensingMac::WipeAllExpiredPackets()
     {
         if (Simulator::Now() - it->second.enqueueTime > m_duration)
         {
-            auto list = m_queueMap[it->second.ac].inQueuePackets;
+            auto& list = m_queueMap[it->second.ac].inQueuePackets;
             auto it2 = std::find(list.begin(), list.end(), it->first);
             // NS_ABORT_MSG_IF(it2 != list.end(), "packet uid=" << it->first << " still in queue");
             if (it2 != list.end())
@@ -338,7 +338,8 @@ SensingMac::WipeAllExpiredPackets()
                 ofs << Simulator::Now() << ", uid=" << it->first
                     << " still in queue, with txCounter=" << it->second.txCounter
                     << ", ac=" << it->second.ac << ", packetSize=" << it->second.packetSize
-                    << ", acktime=" << it->second.ackedTime
+                    << ", equeueTime=" << it->second.enqueueTime
+                    << ", ackedTime=" << it->second.ackedTime
                     << ", isDropped=" << it->second.isDropped
                     << ", isExpired=" << it->second.isExpired << std::endl;
                 ofs.close();

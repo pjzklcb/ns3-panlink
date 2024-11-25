@@ -10,8 +10,6 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
 
 class PolicyNet(nn.Module):
     def __init__(self, state_size, action_size, hidden_size):
@@ -43,10 +41,11 @@ class ValueNet(nn.Module):
 
 class PPO:
     def __init__(self, state_size, action_size, hidden_size, 
-                 actor_lr, critic_lr, lmbda, n_epochs, epsilon, gamma, device):
+                 actor_lr, critic_lr, lmbda, n_epochs, epsilon, gamma):
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.actor = PolicyNet(state_size, action_size, 
-                                         hidden_size).to(device)
-        self.critic = ValueNet(state_size, hidden_size).to(device)
+                                         hidden_size).to(self.device)
+        self.critic = ValueNet(state_size, hidden_size).to(self.device)
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=actor_lr)
         self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=critic_lr)
 
@@ -55,14 +54,18 @@ class PPO:
         self.lmbda = lmbda
         self.n_epochs = n_epochs
         self.epsilon = epsilon
-        self.device = device
 
         self.transition_dict = []
         self.loss_log = []
     
-    def choose_action(self, state):
-        state = torch.from_numpy(state).float().to(self.device)
-        probs = self.actor(state)
+    def choose_action(self, state, action_mask=None):
+        if action_mask is None:
+            action_mask = [True]*self.action_size
+
+        state = torch.FloatTensor(state).to(self.device)
+        logits = self.actor(state)
+        masked_logits = logits + torch.log(torch.FloatTensor(action_mask).to(self.device))
+        probs = F.softmax(masked_logits, dim=-1)
         dist = torch.distributions.Categorical(probs)
         action = dist.sample()
         return action
@@ -71,9 +74,6 @@ class PPO:
         if action_mask is None:
             action_mask = [True]*self.action_size
         self.transition_dict.append((state, action, reward, next_state, action_mask))
-    
-    def reset_transition(self):
-        self.transition_dict = []
 
     def compute_advantage(self, td_delta):
         td_delta = td_delta.detach().numpy()
@@ -110,5 +110,17 @@ class PPO:
             critic_loss.backward()
             self.actor_optimizer.step()
             self.critic_optimizer.step()
-            
-            self.loss_log.append((actor_loss, critic_loss))
+
+            self.loss_log.append((actor_loss.item(), critic_loss.item()))
+    
+    def reset(self):
+        self.transition_dict = []
+        self.loss_log = []
+    
+    def save_model(self, filename):
+        torch.save(self.actor.state_dict(), filename + 'actor.pt')
+        torch.save(self.critic.state_dict(), filename + 'critic.pt')
+    
+    def load_model(self, filename):
+        self.actor.load_state_dict(torch.load(filename + 'actor.pt'))
+        self.critic.load_state_dict(torch.load(filename + 'critic.pt'))
