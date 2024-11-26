@@ -27,7 +27,7 @@ class ChannelAccessRlAgent(RlAgent):
         super().__init__(node_id, memory_id)
         self.agent_type = AgentType.RL_CHANNEL_ACCESS
         
-        state_size = 17
+        state_size = 18
         self.action_size = 1024
         self.model = PPO(state_size, self.action_size, hidden_size=HIDDEN_SIZE, 
                          actor_lr=ACTOR_LR, critic_lr=CRITIC_LR, gamma=GAMMA, 
@@ -55,17 +55,14 @@ class ChannelAccessRlAgent(RlAgent):
         n_waited_slot = env.waitedSlots
         n_bss_stas = env.nBssStas
         n_obss_stas = env.nObssStas
-        n_txok_10ms = env.nTxOkDelay10ms
-        n_txok_50ms = env.nTxOkDelay50ms
-        n_txok_100ms = env.nTxOkDelay100ms
-        n_txok_500ms = env.nTxOkDelay500ms
+        n_10, n_20, n_30, n_50, n_100 = [env.nTxOkDelay[i] for i in range(len(env.nTxOkDelay))]
 
         if self.show_log:
-            print("At {:6f}s, delta_time={:.3f}ms, n_bss_stas={}, n_obss_stas={}, <10/50/100/500ms={}/{}/{}/{}, \n \
+            print("At {:6f}s, delta_time={:.3f}ms, n_bss_stas={}, n_obss_stas={}, <10/20/30/50/100ms={}/{}/{}/{}/{}, \n \
                   in_queue/expired/dropped/sending/acked={}/{}/{}/{}/{}, low/high={}/{}, \n \
                   ac={}, cw={}, n_deferred_access={}, n_waited_slot={}".format(
-                self.sim_time, self.delta_time, n_bss_stas, n_obss_stas, n_txok_10ms, n_txok_50ms, n_txok_100ms, 
-                n_txok_500ms,n_in_queue, n_expired, n_dropped, n_sending, n_acked, 
+                self.sim_time, self.delta_time, n_bss_stas, n_obss_stas, n_10, n_20, n_30, n_50, n_100, 
+                n_in_queue, n_expired, n_dropped, n_sending, n_acked, 
                 n_low_delay, n_high_delay, ac.name, cw, n_deferred_access, n_waited_slot
             ))
         
@@ -79,10 +76,7 @@ class ChannelAccessRlAgent(RlAgent):
         t_ = self.delta_time
         nb_, no_ = obs.nBssStas, obs.nObssStas
         total_stas = max(1, obs.nBssStas + obs.nObssStas)
-        n10_ = obs.nTxOkDelay10ms / total_stas
-        n50_ = obs.nTxOkDelay50ms / total_stas
-        n100_ = obs.nTxOkDelay100ms / total_stas
-        n500_ = obs.nTxOkDelay500ms / total_stas
+        n10_, n20_, n30_, n50_, n100_ = [obs.nTxOkDelay[i] / total_stas for i in range(len(obs.nTxOkDelay))]
         ni_ = obs.nInQueuePackets
         ne_ = obs.nExpiredPackets
         nd_ = obs.nDroppedPackets
@@ -103,7 +97,7 @@ class ChannelAccessRlAgent(RlAgent):
                 self.alpha = min(1, self.alpha*2)
         self.last_waited_slots = obs.waitedSlots
 
-        o = [t_, ni_, ne_, nd_, ns_, na_, nl_, nh_, nb_, no_, n10_, n50_, n100_, n500_, cw_, da_, b_]
+        o = [t_, ni_, ne_, nd_, ns_, na_, nl_, nh_, nb_, no_, n10_, n20_, n30_, n50_, n100_, cw_, da_, b_]
         o = self.state_norm.normalize([o])[0]
         next_state = o.tolist() #np.clip(o, -5.0, 5.0).tolist()
         if self.state:

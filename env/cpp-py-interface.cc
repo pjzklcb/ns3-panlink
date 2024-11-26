@@ -45,6 +45,20 @@ PYBIND11_MODULE(cpp_py_interface, m)
             }
             return arr.at(i);
         });
+    
+    py::class_<std::array<uint32_t, 5>>(m, "TxOkDelayArray")
+        .def(py::init<>())
+        .def("size", &std::array<uint32_t, 5>::size)
+        .def("__len__", [](const std::array<uint32_t, 5>& arr) { return arr.size(); })
+        .def("__getitem__", [](const std::array<uint32_t, 5>& arr, uint32_t i) {
+            if (i >= arr.size())
+            {
+                std::cerr << "Invalid index " << i << " for std::array, whose size is "
+                          << arr.size() << std::endl;
+                exit(1);
+            }
+            return arr.at(i);
+        });
 
     py::class_<Obs>(m, "PyEnvStruct")
         .def(py::init<>())
@@ -70,10 +84,7 @@ PYBIND11_MODULE(cpp_py_interface, m)
         .def_readwrite("waitedSlots", &Obs::waitedSlots)
         .def_readwrite("nBssStas", &Obs::nBssStas)
         .def_readwrite("nObssStas", &Obs::nObssStas)
-        .def_readwrite("nTxOkDelay10ms", &Obs::nTxOkDelay10ms)
-        .def_readwrite("nTxOkDelay50ms", &Obs::nTxOkDelay50ms)
-        .def_readwrite("nTxOkDelay100ms", &Obs::nTxOkDelay100ms)
-        .def_readwrite("nTxOkDelay500ms", &Obs::nTxOkDelay500ms)
+        .def_readwrite("nTxOkDelay", &Obs::nTxOkDelay)
         .def_readwrite("bssRssi", &Obs::bssRssi)
         .def_readwrite("obssRssi", &Obs::obssRssi)
         .def_readwrite("bssChannelUtil", &Obs::bssChannelUtil)
