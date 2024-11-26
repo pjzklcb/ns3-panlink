@@ -41,9 +41,9 @@ class RunningMeanStd(object):
         tot_count = self.count + batch_count
 
         new_mean = self.mean + delta * batch_count / tot_count
-        new_std = (self.count * (self.std ** 2) + batch_count * (batch_std ** 2) +
-                   (delta ** 2) * self.count * batch_count / (tot_count ** 2))
-        new_std = np.sqrt(new_std / tot_count)
+        new_var = (self.count * (self.std**2) + batch_count * (batch_std**2) +
+                   (delta**2) * self.count * batch_count / tot_count) / tot_count
+        new_std = np.sqrt(new_var)
 
         self.mean = new_mean
         self.std = new_std
