@@ -5,9 +5,9 @@
 # Author: Pan Jinzhe <pjzklcb@gmail.com>
 
 import math
+import numpy as np
 import matplotlib.pyplot as plt
-import random
-from agent_utils import AgentType, AcIndex
+from agent_utils import AgentType, AcIndex, Normalizer
 from rl_agent import RlAgent
 from models.ppo import PPO
 
@@ -32,12 +32,13 @@ class ChannelAccessRlAgent(RlAgent):
         self.model = PPO(state_size, self.action_size, hidden_size=HIDDEN_SIZE, 
                          actor_lr=ACTOR_LR, critic_lr=CRITIC_LR, gamma=GAMMA, 
                          lmbda=LMBDA, n_epochs=N_EPOCHS, epsilon=EPSILON)
+        self.state_norm = Normalizer(state_size)
+        self.action_mask = [True]*self.action_size
         self.backoff = 0
         self.backoff_log = []
         self.average_backoff = 8
         self.last_waited_slots = 8
         self.alpha = 1
-        self.action_mask = [True]*self.action_size
 
     def get_obs(self, msg_interface):
         env = msg_interface.GetCpp2PyVector()[self.memory_id]
@@ -75,8 +76,8 @@ class ChannelAccessRlAgent(RlAgent):
 
     def choose_action(self, obs):
         # normalize the obs
-        t_ = self.delta_time/100
-        nb_, no_ = min(1, obs.nBssStas/10), min(1, obs.nObssStas/20)
+        t_ = self.delta_time
+        nb_, no_ = obs.nBssStas, obs.nObssStas
         total_stas = max(1, obs.nBssStas + obs.nObssStas)
         n10_ = obs.nTxOkDelay10ms / total_stas
         n50_ = obs.nTxOkDelay50ms / total_stas
@@ -102,7 +103,9 @@ class ChannelAccessRlAgent(RlAgent):
                 self.alpha = min(1, self.alpha*2)
         self.last_waited_slots = obs.waitedSlots
 
-        next_state = [t_, ni_, ne_, nd_, ns_, na_, nl_, nh_, nb_, no_, n10_, n50_, n100_, n500_, cw_, da_, b_]
+        o = [t_, ni_, ne_, nd_, ns_, na_, nl_, nh_, nb_, no_, n10_, n50_, n100_, n500_, cw_, da_, b_]
+        o = self.state_norm.normalize([o])[0]
+        next_state = o.tolist() #np.clip(o, -5.0, 5.0).tolist()
         if self.state:
             # caculate reward
             r_tx = 1 if na_ else (-1 if ns_ else 0)
@@ -137,7 +140,7 @@ class ChannelAccessRlAgent(RlAgent):
         self.model.save_model('{}/node_{}_{}_'.format(save_dir, self.node_id, self.agent_type.name))
     
     def load_model(self, load_dir):
-        self.model.save_model('{}/node_{}_{}_'.format(load_dir, self.node_id, self.agent_type.name))
+        self.model.load_model(load_dir)
 
     def plot_results(self, save_dir):
         self.save_dir = save_dir
