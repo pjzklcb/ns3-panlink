@@ -39,19 +39,19 @@ class ValueNet(nn.Module):
 
 class PPO:
     def __init__(self, state_size, action_size, hidden_size, 
-                 actor_lr, critic_lr, lmbda, n_epochs, epsilon, gamma):
+                 actor_lr, critic_lr, lmbda, n_epochs, eps, gamma):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.actor = PolicyNet(state_size, action_size, 
                                          hidden_size).to(self.device)
         self.critic = ValueNet(state_size, hidden_size).to(self.device)
-        self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=actor_lr)
-        self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=critic_lr)
+        self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=actor_lr, eps=1e-5)
+        self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=critic_lr, eps=1e-5)
 
         self.action_size = action_size
         self.gamma = gamma
         self.lmbda = lmbda
         self.n_epochs = n_epochs
-        self.epsilon = epsilon
+        self.eps = eps
 
         self.transition_dict = []
         self.loss_log = []
@@ -100,7 +100,7 @@ class PPO:
             log_probs = torch.log(self.actor(states).gather(1, actions))
             ratio = torch.exp(log_probs - old_log_probs)
             surr1 = ratio * advantage
-            surr2 = torch.clamp(ratio, 1 - self.epsilon, 1 + self.epsilon) * advantage
+            surr2 = torch.clamp(ratio, 1 - self.eps, 1 + self.eps) * advantage
             actor_loss = -torch.mean(torch.min(surr1, surr2))
             critic_loss = torch.mean(F.mse_loss(self.critic(states), td_target.detach()))
             self.actor_optimizer.zero_grad()

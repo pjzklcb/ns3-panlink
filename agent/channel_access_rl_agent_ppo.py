@@ -19,7 +19,7 @@ CRITIC_LR = 1e-2
 GAMMA = 0.98
 LMBDA = 0.95
 N_EPOCHS = 10
-EPSILON = 0.2
+EPS = 0.2
 
 
 class ChannelAccessRlAgent(RlAgent):
@@ -31,7 +31,7 @@ class ChannelAccessRlAgent(RlAgent):
         self.action_size = 1024
         self.model = PPO(state_size, self.action_size, hidden_size=HIDDEN_SIZE, 
                          actor_lr=ACTOR_LR, critic_lr=CRITIC_LR, gamma=GAMMA, 
-                         lmbda=LMBDA, n_epochs=N_EPOCHS, epsilon=EPSILON)
+                         lmbda=LMBDA, n_epochs=N_EPOCHS, eps=EPS)
         self.state_norm = Normalizer(state_size)
         self.action_mask = [True]*self.action_size
         self.backoff = 0
