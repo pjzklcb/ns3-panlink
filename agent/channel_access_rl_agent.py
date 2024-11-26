@@ -16,8 +16,8 @@ class ChannelAccessRlAgent(RlAgent):
         super().__init__(node_id, memory_id)
         self.agent_type = AgentType.RL_CHANNEL_ACCESS
         
-        state_size = 17
-        self.action_size = 16
+        state_size = 18
+        self.action_size = 1024
         self.model = DDQN(state_size, self.action_size)
         self.backoff = 0
         self.backoff_log = []
@@ -41,17 +41,14 @@ class ChannelAccessRlAgent(RlAgent):
         n_waited_slot = env.waitedSlots
         n_bss_stas = env.nBssStas
         n_obss_stas = env.nObssStas
-        n_txok_10ms = env.nTxOkDelay10ms
-        n_txok_50ms = env.nTxOkDelay50ms
-        n_txok_100ms = env.nTxOkDelay100ms
-        n_txok_500ms = env.nTxOkDelay500ms
+        n_10, n_20, n_30, n_50, n_100 = [env.nTxOkDelay[i] for i in range(len(env.nTxOkDelay))]
 
         if self.show_log:
-            print("At {:6f}s, delta_time={:.3f}ms, n_bss_stas={}, n_obss_stas={}, <10/50/100/500ms={}/{}/{}/{}, \n \
+            print("At {:6f}s, delta_time={:.3f}ms, n_bss_stas={}, n_obss_stas={}, <10/20/30/50/100ms={}/{}/{}/{}/{}, \n \
                   in_queue/expired/dropped/sending/acked={}/{}/{}/{}/{}, low/high={}/{}, \n \
                   ac={}, cw={}, n_deferred_access={}, n_waited_slot={}".format(
-                self.sim_time, self.delta_time, n_bss_stas, n_obss_stas, n_txok_10ms, n_txok_50ms, n_txok_100ms, 
-                n_txok_500ms,n_in_queue, n_expired, n_dropped, n_sending, n_acked, 
+                self.sim_time, self.delta_time, n_bss_stas, n_obss_stas, n_10, n_20, n_30, n_50, n_100, 
+                n_in_queue, n_expired, n_dropped, n_sending, n_acked, 
                 n_low_delay, n_high_delay, ac.name, cw, n_deferred_access, n_waited_slot
             ))
         
@@ -65,10 +62,7 @@ class ChannelAccessRlAgent(RlAgent):
         t_ = self.delta_time/100
         nb_, no_ = min(1, obs.nBssStas/10), min(1, obs.nObssStas/20)
         total_stas = max(1, obs.nBssStas + obs.nObssStas)
-        n10_ = obs.nTxOkDelay10ms / total_stas
-        n50_ = obs.nTxOkDelay50ms / total_stas
-        n100_ = obs.nTxOkDelay100ms / total_stas
-        n500_ = obs.nTxOkDelay500ms / total_stas
+        n10_, n20_, n30_, n50_, n100_ = [obs.nTxOkDelay[i] / total_stas for i in range(len(obs.nTxOkDelay))]
         ni_ = obs.nInQueuePackets
         ne_ = obs.nExpiredPackets
         nd_ = obs.nDroppedPackets
@@ -89,7 +83,7 @@ class ChannelAccessRlAgent(RlAgent):
                 self.alpha = min(1, self.alpha*2)
         self.last_waited_slots = obs.waitedSlots
 
-        next_state = [t_, ni_, ne_, nd_, ns_, na_, nl_, nh_, nb_, no_, n10_, n50_, n100_, n500_, cw_, da_, b_]
+        next_state = [t_, ni_, ne_, nd_, ns_, na_, nl_, nh_, nb_, no_, n10_, n20_, n30_, n50_, n100_, cw_, da_, b_]
         if self.state:
             # caculate reward
             r_tx = 1 if na_ else (-1 if ns_ else 0)
@@ -101,18 +95,14 @@ class ChannelAccessRlAgent(RlAgent):
                 self.model.learn()
 
         # get action mask
-        scale = (obs.cw + 1) / self.action_size
-        valid_size = math.ceil((obs.cw + 1 - obs.waitedSlots) / scale) if scale > 1 else obs.cw + 1 - obs.waitedSlots
+        valid_size = obs.cw + 1 - obs.waitedSlots
         self.action_mask = [True]*valid_size + [False]*(self.action_size - valid_size)
 
         # choose action
         self.action = self.model.choose_action(next_state, self.action_mask)
         self.action_log.append(self.action)
         
-        if scale > 1:
-            self.backoff = min(obs.cw-obs.waitedSlots, int(self.action * scale + random.randint(0, scale-1)))
-        else:
-            self.backoff = self.action
+        self.backoff = self.action
         self.backoff_log.append((obs.cw - obs.waitedSlots, self.backoff))
         if self.show_log:
             print("New Backoff={} from [0, {}-{}]".format(self.backoff, obs.cw, obs.waitedSlots))
@@ -128,7 +118,7 @@ class ChannelAccessRlAgent(RlAgent):
         plt.plot(range(len(y)), y, 'g-', linewidth=1)
         plt.xlabel('Step number')
         plt.ylabel('Reward')
-        plt.savefig('{}/node_{}_reward_channel_access.png'.format(save_dir, self.node_id))
+        plt.savefig('{}/node_{}_{}_reward.png'.format(save_dir, self.node_id, self.agent_type.name))
         plt.close()
 
         y1, y2 = zip(*self.backoff_log)
@@ -138,7 +128,7 @@ class ChannelAccessRlAgent(RlAgent):
         plt.yscale('log', base=2)
         plt.xlabel('Step number')
         plt.ylabel('Backoff')
-        plt.savefig('{}/node_{}_action_channel_access.png'.format(save_dir, self.node_id))
+        plt.savefig('{}/node_{}_{}_action.png'.format(save_dir, self.node_id, self.agent_type.name))
         plt.close()
 
         y = self.model.loss_log
@@ -146,5 +136,5 @@ class ChannelAccessRlAgent(RlAgent):
         plt.plot(range(len(y)), y, 'b-', linewidth=1)
         plt.xlabel('Step number')
         plt.ylabel('Loss')
-        plt.savefig('{}/node_{}_loss_channel_access.png'.format(save_dir, self.node_id))
+        plt.savefig('{}/node_{}_{}_loss.png'.format(save_dir, self.node_id, self.agent_type.name))
         plt.close()
