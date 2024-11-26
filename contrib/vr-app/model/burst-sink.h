@@ -124,12 +124,11 @@ class BurstSink : public Application
                                           const SeqTsSizeFragHeader& header);
 
   protected:
-    virtual void DoDispose();
+    void DoDispose() override;
 
   private:
-    // inherited from Application base class.
-    virtual void StartApplication(); // Called at time specified by Start
-    virtual void StopApplication();  // Called at time specified by Stop
+    void StartApplication() override;
+    void StopApplication() override;
 
     /**
      * \brief Handle a fragment received by the application

@@ -121,20 +121,12 @@ class BurstApplication : public Application
      */
     uint64_t GetTotalTxBytes() const;
 
-    /**
-     * \brief Assign a fixed random variable stream number to the 
-     * burst generator.
-     *
-     * \param stream first stream index to use
-     * \return the number of stream indices assigned
-     */
-    int64_t AssignStreams(int64_t stream);
+    int64_t AssignStreams(int64_t stream) override;
 
   protected:
     void DoDispose() override;
 
   private:
-    // inherited from Application base class.
     void StartApplication() override; // Called at time specified by Start
     void StopApplication() override;  // Called at time specified by Stop
 
