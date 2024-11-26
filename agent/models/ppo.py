@@ -19,10 +19,9 @@ class PolicyNet(nn.Module):
         self.fc3 = nn.Linear(hidden_size, action_size)
     
     def forward(self, x):
-        x = torch.relu(self.fc1(x))
-        x = torch.relu(self.fc2(x))
-        x = torch.softmax(self.fc3(x), dim=-1)
-        return x
+        x = F.tanh(self.fc1(x))
+        x = F.tanh(self.fc2(x))
+        return F.softmax(self.fc3(x), dim=-1)
     
 
 class ValueNet(nn.Module):
@@ -33,10 +32,9 @@ class ValueNet(nn.Module):
         self.fc3 = nn.Linear(hidden_size, 1)
     
     def forward(self, x):
-        x = torch.relu(self.fc1(x))
-        x = torch.relu(self.fc2(x))
-        x = self.fc3(x)
-        return x
+        x = F.tanh(self.fc1(x))
+        x = F.tanh(self.fc2(x))
+        return self.fc3(x)
     
 
 class PPO:
@@ -95,6 +93,7 @@ class PPO:
         td_target = rewards + self.gamma * self.critic(next_states)
         td_delta = td_target - self.critic(states)
         advantage = self.compute_advantage(td_delta)
+        advantage = (advantage - advantage.mean()) / (advantage.std() + 1e-8)
         old_log_probs = torch.log(self.actor(states).gather(1, actions)).detach()
 
         for _ in range(self.n_epochs):

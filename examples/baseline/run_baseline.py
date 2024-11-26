@@ -95,10 +95,10 @@ if __name__ == '__main__':
             if not os.path.exists(episode_dir):
                 os.makedirs(episode_dir)
             
-            # if i_episode % 10 == 0 or i_episode == args.n_episodes - 1:
-            #     ns3_settings['stats'] = True
-            # else:
-            #     ns3_settings['stats'] = False
+            if i_episode % 10 == 0 or i_episode == args.n_episodes - 1:
+                ns3_settings['stats'] = True
+            else:
+                ns3_settings['stats'] = False
 
             with open(os.path.join(episode_dir, 'ns3_settings.json'), 'w') as f:
                 json.dump(ns3_settings, f, indent=4)
