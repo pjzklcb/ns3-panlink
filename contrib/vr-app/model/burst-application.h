@@ -187,6 +187,7 @@ class BurstApplication : public Application
     uint32_t m_fragSize;                  //!< Size of fragments including SeqTsSizeFragHeader
     EventId m_nextBurstEvent;             //!< Event id for the next packet burst
     TypeId m_socketTid;                   //!< Type of the socket used
+    uint64_t m_maxTxBursts;               //!< Maximum number of bursts need to sent
     uint64_t m_totTxBursts;               //!< Total bursts sent
     uint64_t m_totTxFragments;            //!< Total fragments sent
     uint64_t m_totTxBytes;                //!< Total bytes sent

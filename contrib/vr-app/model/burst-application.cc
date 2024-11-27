@@ -87,6 +87,11 @@ BurstApplication::GetTypeId()
                           UintegerValue(0),
                           MakeUintegerAccessor(&BurstApplication::m_tos),
                           MakeUintegerChecker<uint8_t>())
+            .AddAttribute("MaxBursts",
+                          "Maximum number of bursts to send (0 for infinite)",
+                          UintegerValue(0),
+                          MakeUintegerAccessor(&BurstApplication::m_maxTxBursts),
+                          MakeUintegerChecker<uint64_t>())
             .AddTraceSource("FragmentTx",
                             "A fragment of the burst is sent",
                             MakeTraceSourceAccessor(&BurstApplication::m_txFragmentTrace),
@@ -232,6 +237,13 @@ BurstApplication::SendBurst()
 {
     NS_LOG_FUNCTION(this);
     NS_ASSERT(m_nextBurstEvent.IsExpired());
+
+    if (m_maxTxBursts != 0 && m_totTxBursts >= m_maxTxBursts)
+    {
+        NS_LOG_LOGIC("Maximum number of bursts reached: stopping application");
+        StopApplication();
+        return;
+    }
 
     if (!m_burstGenerator->HasNextBurst())
     {
