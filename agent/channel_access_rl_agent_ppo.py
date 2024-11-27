@@ -124,7 +124,6 @@ class ChannelAccessRlAgent(RlAgent):
         self.backoff_log = []
         if self.enable_learning:
             self.model.learn()
-            self.plot_loss()
             actor_lr = ACTOR_LR * (1-self.episode/N_EPISODES)
             critic_lr = CRITIC_LR * (1-self.episode/N_EPISODES)
             self.model.update_learning_rate(actor_lr, critic_lr)
@@ -138,32 +137,35 @@ class ChannelAccessRlAgent(RlAgent):
         self.model.load_model(actor_dir, critic_dir)
 
     def plot_results(self, save_dir):
-        self.save_dir = save_dir
+        sim_time, steps = zip(*self.step_time)
+
         y = self.reward_log
-        plt.figure()
-        plt.plot(range(len(y)), y, 'g-', linewidth=1)
-        plt.xlabel('Step number')
-        plt.ylabel('Reward')
-        plt.savefig('{}/node_{}_{}_reward.png'.format(save_dir, self.node_id, self.agent_type.name))
-        plt.close()
+        fig, ax1 = plt.subplots(figsize=(10,6))
+        ax1.plot(sim_time[:len(y)], y, 'g-', linewidth=1)
+        ax1.scatter(sim_time[::100], ax1.get_ylim()[1]*np.ones(len(sim_time[::100])), c='k', marker='|')
+        ax1.set_xlabel('Time (s)')
+        ax1.set_ylabel('Reward')
+        fig.savefig('{}/node_{}_{}_reward.png'.format(save_dir, self.node_id, self.agent_type.name))
+        plt.close(fig)
 
         y1, y2 = zip(*self.backoff_log)
-        plt.figure()
-        plt.scatter(range(len(y1)), y1, c='b', marker='+', s=8)
-        plt.scatter(range(len(y2)), [0.5 if x == 0 else x for x in y2], c='r', marker='.', s=8, alpha=0.5)
-        plt.yscale('log', base=2)
-        plt.xlabel('Step number')
-        plt.ylabel('Backoff')
-        plt.savefig('{}/node_{}_{}_action.png'.format(save_dir, self.node_id, self.agent_type.name))
-        plt.close()
+        fig, ax1 = plt.subplots(figsize=(10,6))
+        ax1.scatter(sim_time[:len(y1)], y1, c='b', marker='+', s=8)
+        ax1.scatter(sim_time[:len(y2)], [0.5 if x == 0 else x for x in y2], c='r', marker='.', s=8, alpha=0.5)
+        ax1.scatter(sim_time[::100], ax1.get_ylim()[1]*np.ones(len(sim_time[::100])), c='k', marker='|')
+        ax1.set_yscale('log', base=2)
+        ax1.set_xlabel('Time (s)')
+        ax1.set_ylabel('Backoff')
+        fig.savefig('{}/node_{}_{}_action.png'.format(save_dir, self.node_id, self.agent_type.name), dpi=250)
+        plt.close(fig)
 
-    def plot_loss(self):
-        actor_loss, critic_loss = zip(*self.model.loss_log)
-        plt.figure()
-        plt.plot(range(len(actor_loss)), actor_loss, 'b-', linewidth=1, label='Actor loss')
-        plt.plot(range(len(critic_loss)), critic_loss, 'r-', linewidth=1, label='Critic loss')
-        plt.legend()
-        plt.xlabel('Epoch')
-        plt.ylabel('Loss')
-        plt.savefig('{}/node_{}_{}_loss.png'.format(self.save_dir, self.node_id, self.agent_type.name))
-        plt.close()
+    # def plot_loss(self):
+    #     actor_loss, critic_loss = zip(*self.model.loss_log)
+    #     plt.figure()
+    #     plt.plot(range(len(actor_loss)), actor_loss, 'b-', linewidth=1, label='Actor loss')
+    #     plt.plot(range(len(critic_loss)), critic_loss, 'r-', linewidth=1, label='Critic loss')
+    #     plt.legend()
+    #     plt.xlabel('Epoch')
+    #     plt.ylabel('Loss')
+    #     plt.savefig('{}/node_{}_{}_loss.png'.format(self.save_dir, self.node_id, self.agent_type.name))
+    #     plt.close()

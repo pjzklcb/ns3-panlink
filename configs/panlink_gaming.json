@@ -94,7 +94,7 @@
                     "qos": "BE",
                     "start_time": 1.0,
                     "end_time": 100.0,
-                    "max_packets": 350
+                    "max_packets": 200
                 }
             ],
             "agents": [
@@ -128,7 +128,7 @@
                     "qos": "BE",
                     "start_time": 1.0,
                     "end_time": 100.0,
-                    "max_packets": 350
+                    "max_packets": 200
                 }
             ],
             "agents": []
@@ -157,7 +157,7 @@
                     "qos": "BE",
                     "start_time": 1.0,
                     "end_time": 100.0,
-                    "max_packets": 350
+                    "max_packets": 200
                 }
             ],
             "agents": []
@@ -186,7 +186,7 @@
                     "qos": "BE",
                     "start_time": 1.0,
                     "end_time": 100.0,
-                    "max_packets": 350
+                    "max_packets": 200
                 }
             ],
             "agents": []

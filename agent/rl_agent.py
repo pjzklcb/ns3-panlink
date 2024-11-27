@@ -19,6 +19,7 @@ class RlAgent():
         self.action = None
         self.action_log = []
         self.reward_log = []
+        self.step_time = []     # (sim_time, counter)
         self.episode = 0
         self.episode_log = []
 
@@ -35,6 +36,7 @@ class RlAgent():
             self.counter = new_counter
             print("At {:6f}s, Node-{}: Agent-{} triggered with counter={}".format(
                 self.sim_time, self.node_id, self.agent_type.name, self.counter))
+            self.step_time.append((self.sim_time, self.counter))
             return True
         return False
 
@@ -45,6 +47,7 @@ class RlAgent():
         self.state = None
         self.action = None
         self.action_log = []
+        self.step_time = []
         if len(self.reward_log):
             self.episode += 1
             self.episode_log.append(sum(self.reward_log))
