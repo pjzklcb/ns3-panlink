@@ -110,7 +110,7 @@ class ChannelAccessRlAgent(RlAgent):
 
         # choose action
         self.action = self.model.choose_action(next_state, self.action_mask)
-        self.action_log.append(self.action)
+        self.action_log.append((valid_size-1, self.action))
         
         self.backoff = min(int(self.action*scale) + random.randint(0, scale-1), 
                            obs.cw - obs.waitedSlots) if scale > 1 else self.action
@@ -148,6 +148,16 @@ class ChannelAccessRlAgent(RlAgent):
         fig.savefig('{}/node_{}_{}_reward.png'.format(save_dir, self.node_id, self.agent_type.name))
         plt.close(fig)
 
+        y1, y2 = zip(*self.action_log)
+        fig, ax1 = plt.subplots(figsize=(10,6))
+        ax1.scatter(sim_time[:len(y1)], y1, c='b', marker='+', s=8)
+        ax1.scatter(sim_time[:len(y2)], y2, c='r', marker='.', s=8, alpha=0.5)
+        ax1.scatter(sim_time[::100], ax1.get_ylim()[1]*np.ones(len(sim_time[::100])), c='k', marker='|')
+        ax1.set_xlabel('Time (s)')
+        ax1.set_ylabel('Action')
+        fig.savefig('{}/node_{}_{}_action.png'.format(save_dir, self.node_id, self.agent_type.name), dpi=250)
+        plt.close(fig)
+
         y1, y2 = zip(*self.backoff_log)
         fig, ax1 = plt.subplots(figsize=(10,6))
         ax1.scatter(sim_time[:len(y1)], [0.5 if x == 0 else x for x in y1], c='b', marker='+', s=8)
@@ -156,7 +166,7 @@ class ChannelAccessRlAgent(RlAgent):
         ax1.set_yscale('log', base=2)
         ax1.set_xlabel('Time (s)')
         ax1.set_ylabel('Backoff')
-        fig.savefig('{}/node_{}_{}_action.png'.format(save_dir, self.node_id, self.agent_type.name), dpi=250)
+        fig.savefig('{}/node_{}_{}_backoff.png'.format(save_dir, self.node_id, self.agent_type.name), dpi=250)
         plt.close(fig)
 
     # def plot_loss(self):
