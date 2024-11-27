@@ -7,7 +7,7 @@
 import math
 import matplotlib.pyplot as plt
 import random
-from agent_utils import AgentType, AcIndex
+from agent_utils import AgentType, AcIndex, Normalizer
 from rl_agent import RlAgent
 from models.ddqn import DDQN
 
@@ -19,6 +19,7 @@ class ChannelAccessRlAgent(RlAgent):
         state_size = 18
         self.action_size = 1024
         self.model = DDQN(state_size, self.action_size)
+        self.state_norm = Normalizer(state_size)
         self.backoff = 0
         self.backoff_log = []
         self.average_backoff = 8
@@ -83,7 +84,9 @@ class ChannelAccessRlAgent(RlAgent):
                 self.alpha = min(1, self.alpha*2)
         self.last_waited_slots = obs.waitedSlots
 
-        next_state = [t_, ni_, ne_, nd_, ns_, na_, nl_, nh_, nb_, no_, n10_, n20_, n30_, n50_, n100_, cw_, da_, b_]
+        o = [t_, ni_, ne_, nd_, ns_, na_, nl_, nh_, nb_, no_, n10_, n20_, n30_, n50_, n100_, cw_, da_, b_]
+        o = self.state_norm.normalize([o])[0]
+        next_state = o.tolist()
         if self.state:
             # caculate reward
             r_tx = 1 if na_ else (-1 if ns_ else 0)
