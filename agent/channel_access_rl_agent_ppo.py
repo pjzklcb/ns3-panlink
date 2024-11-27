@@ -150,7 +150,7 @@ class ChannelAccessRlAgent(RlAgent):
 
         y1, y2 = zip(*self.backoff_log)
         fig, ax1 = plt.subplots(figsize=(10,6))
-        ax1.scatter(sim_time[:len(y1)], y1, c='b', marker='+', s=8)
+        ax1.scatter(sim_time[:len(y1)], [0.5 if x == 0 else x for x in y1], c='b', marker='+', s=8)
         ax1.scatter(sim_time[:len(y2)], [0.5 if x == 0 else x for x in y2], c='r', marker='.', s=8, alpha=0.5)
         ax1.scatter(sim_time[::100], ax1.get_ylim()[1]*np.ones(len(sim_time[::100])), c='k', marker='|')
         ax1.set_yscale('log', base=2)
