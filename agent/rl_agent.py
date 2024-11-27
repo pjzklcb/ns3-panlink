@@ -19,6 +19,7 @@ class RlAgent():
         self.action = None
         self.action_log = []
         self.reward_log = []
+        self.episode = 0
         self.episode_log = []
 
         self.enable_learning = True
@@ -45,6 +46,7 @@ class RlAgent():
         self.action = None
         self.action_log = []
         if len(self.reward_log):
+            self.episode += 1
             self.episode_log.append(sum(self.reward_log))
             self.reward_log = []
 

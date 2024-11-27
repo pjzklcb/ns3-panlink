@@ -80,7 +80,8 @@ class PPO:
         for td in reversed(td_delta):
             advantage = self.gamma*self.lmbda*advantage + td
             advantage_list.append(advantage)
-        return torch.FloatTensor(advantage_list).to(self.device)
+        advantage_list = np.array(advantage_list)
+        return torch.tensor(advantage_list, dtype=torch.float32, device=self.device)
 
     def learn(self):
         s, a, r, s_, mask = zip(*self.transition_dict)
@@ -116,10 +117,14 @@ class PPO:
         self.transition_dict = []
         self.loss_log = []
     
-    def save_model(self, filename):
-        torch.save(self.actor.state_dict(), filename + 'actor.pt')
-        torch.save(self.critic.state_dict(), filename + 'critic.pt')
+    def update_learning_rate(self, actor_lr, critic_lr):
+        self.actor_optimizer.param_groups[0]['lr'] = actor_lr
+        self.critic_optimizer.param_groups[0]['lr'] = critic_lr
     
-    def load_model(self, filename):
-        self.actor.load_state_dict(torch.load(filename + 'actor.pt'))
-        self.critic.load_state_dict(torch.load(filename + 'critic.pt'))
+    def save_model(self, actor_dir, critic_dir):
+        torch.save(self.actor.state_dict(), actor_dir)
+        torch.save(self.critic.state_dict(), critic_dir)
+    
+    def load_model(self, actor_dir, critic_dir):
+        self.actor.load_state_dict(torch.load(actor_dir))
+        self.critic.load_state_dict(torch.load(critic_dir))
