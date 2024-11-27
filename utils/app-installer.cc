@@ -125,6 +125,7 @@ AppInstaller::DoInstallApplication(Ptr<Node> node, InetSocketAddress dstAddr, Sr
     BurstHelper burstHelper("ns3::UdpSocketFactory", dstAddr);
     burstHelper.SetAttribute("FragmentSize", UintegerValue(appInfo.m_fragmentSize));
     burstHelper.SetAttribute("Tos", UintegerValue(tos));
+    burstHelper.SetAttribute("MaxBursts", UintegerValue(srcApp.m_maxPackets));
     burstHelper.SetBurstGenerator("ns3::SimpleBurstGenerator",
                                   "PeriodRv",
                                   StringValue(appInfo.m_payloadInterval),

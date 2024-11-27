@@ -30,6 +30,7 @@ struct SrcApp
     AcIndex m_ac;
     double m_startTime;
     double m_endTime;
+    uint64_t m_maxPackets;
 };
 
 typedef std::map<uint32_t /* src node id */, std::vector<SrcApp>> SrcAppMap;
@@ -65,6 +66,16 @@ rapidjson::Document ReadPanlinkFromJson(std::string filename);
  * @return random varaible stream
  */
 std::string ParseRandomVariableStream(const rapidjson::Value& item);
+
+/**
+ * Generate application based on the json file.
+ * 
+ * @param item the json component to be parsed
+ * @param dstNodeId the dst node id
+ * @param port the port number
+ * @return application
+ */
+SrcApp ParseApplicationFromJson(const rapidjson::Value& item, uint32_t dstNodeId, uint16_t port);
 
 /**
  * Get the Type of Service of the specified AC Index.

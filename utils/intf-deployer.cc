@@ -151,14 +151,9 @@ IntfDeployer::DeployInterference(WifiHelper& wifiHelper,
                     auto& app = node["application_list"][k];
                     auto dst = (j != 0) ? nodes.Get(0)->GetId() // AP node ID
                                         : nodes.Get(staIndexMap[app["dst"].GetInt()])->GetId();
-
-                    srcAppMap[nodes.Get(j)->GetId()].emplace_back(
-                        SrcApp{app["name"].GetString(),
-                               dst,
-                               50001 + uint(k),
-                               StringToAcIndex(app["qos"].GetString()),
-                               app["start_time"].GetDouble(),
-                               app["end_time"].GetDouble()});
+                    
+                    auto srcApp = ParseApplicationFromJson(app, dst, 50001+uint(k));
+                    srcAppMap[nodes.Get(j)->GetId()].emplace_back(srcApp);
                 }
             }
 

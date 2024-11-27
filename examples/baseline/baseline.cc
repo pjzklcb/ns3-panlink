@@ -320,14 +320,9 @@ main(int argc, char* argv[])
         uint32_t port = 50000;
         for (const auto& app : node["applications"].GetArray())
         {
-            SrcApp srcApp = {app["name"].GetString(),
-                             app["dst"].GetUint(),
-                             ++port, // port number
-                             StringToAcIndex(app["qos"].GetString()),
-                             app["start_time"].GetDouble(),
-                             app["end_time"].GetDouble()};
+            SrcApp srcApp = ParseApplicationFromJson(app, app["dst"].GetUint(), ++port);
 
-            if (app["dst"].GetUint() == nodeId || app["dst"].GetUint() > panlinkNodes.GetN() - 1)
+            if (srcApp.m_dst == nodeId || srcApp.m_dst > panlinkNodes.GetN() - 1)
             {
                 NS_ABORT_MSG("Invalid application destination node ID!");
             }

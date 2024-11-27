@@ -16,26 +16,34 @@ namespace ns3
 
 NS_LOG_COMPONENT_DEFINE("PanlinkUtils");
 
-std::string 
+std::string
 SnakeToCamel(const std::string& str)
 {
     std::string result;
     bool capitalizeNext = false;
 
-    for (char c : str) {
-        if (c == '_') {
+    for (char c : str)
+    {
+        if (c == '_')
+        {
             capitalizeNext = true;
-        } else {
-            if (capitalizeNext) {
+        }
+        else
+        {
+            if (capitalizeNext)
+            {
                 result += std::toupper(c);
                 capitalizeNext = false;
-            } else {
+            }
+            else
+            {
                 result += c;
             }
         }
     }
 
-    if (!result.empty()) {
+    if (!result.empty())
+    {
         result[0] = std::toupper(result[0]);
     }
 
@@ -46,7 +54,7 @@ rapidjson::Document
 ReadPanlinkFromJson(std::string filename)
 {
     rapidjson::Document document;
-    
+
     // Open the JSON file
     std::ifstream file(filename);
     if (!file.is_open())
@@ -108,12 +116,12 @@ ParseRandomVariableStream(const rapidjson::Value& item)
     {
         NS_ABORT_MSG("Unknown distribution in json");
     }
-    
+
     // create the random variable stream
     ss << "[";
     for (auto it = item.MemberBegin(); it != item.MemberEnd(); ++it)
     {
-        // skip the "dist" memeber 
+        // skip the "dist" memeber
         if (std::string(it->name.GetString()) == "dist")
         {
             continue;
@@ -128,6 +136,41 @@ ParseRandomVariableStream(const rapidjson::Value& item)
     rand = ss.str();
 
     return rand;
+}
+
+SrcApp
+ParseApplicationFromJson(const rapidjson::Value& item, uint32_t dstNodeId, uint16_t port)
+{
+    SrcApp app;
+
+    if (!item.IsObject())
+    {
+        NS_ABORT_MSG("Application in json is not an object!");
+        return app;
+    }
+
+    if (!item.HasMember("name") || !item.HasMember("qos") || !item.HasMember("start_time") ||
+        !item.HasMember("end_time"))
+    {
+        NS_ABORT_MSG("Missing application member in json");
+        return app;
+    }
+
+    uint64_t maxPackets = 0;
+    if (item.HasMember("max_packets") && item["max_packets"].GetUint() > 0)
+    {
+        maxPackets = item["max_packets"].GetUint();
+    }
+
+    app = {item["name"].GetString(),
+           dstNodeId,
+           port, // port number
+           StringToAcIndex(item["qos"].GetString()),
+           item["start_time"].GetDouble(),
+           item["end_time"].GetDouble(),
+           maxPackets};
+
+    return app;
 }
 
 uint16_t
