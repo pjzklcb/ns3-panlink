@@ -5,6 +5,7 @@
 # Author: Pan Jinzhe <pjzklcb@gmail.com>
 
 import math
+import random
 import numpy as np
 import matplotlib.pyplot as plt
 from agent_utils import AgentType, AcIndex, Normalizer
@@ -18,7 +19,8 @@ ACTOR_LR = 1e-3
 CRITIC_LR = 1e-2
 GAMMA = 0.98
 LMBDA = 0.95
-N_EPOCHS = 10
+N_EPOCHS = 50
+N_EPISODES = 500
 EPS = 0.2
 
 
@@ -27,8 +29,8 @@ class ChannelAccessRlAgent(RlAgent):
         super().__init__(node_id, memory_id)
         self.agent_type = AgentType.RL_CHANNEL_ACCESS
         
-        state_size = 18
-        self.action_size = 1024
+        state_size = 19
+        self.action_size = 16
         self.model = PPO(state_size, self.action_size, hidden_size=HIDDEN_SIZE, 
                          actor_lr=ACTOR_LR, critic_lr=CRITIC_LR, gamma=GAMMA, 
                          lmbda=LMBDA, n_epochs=N_EPOCHS, eps=EPS)
@@ -36,9 +38,7 @@ class ChannelAccessRlAgent(RlAgent):
         self.action_mask = [True]*self.action_size
         self.backoff = 0
         self.backoff_log = []
-        self.average_backoff = 8
         self.last_waited_slots = 8
-        self.alpha = 1
 
     def get_obs(self, msg_interface):
         env = msg_interface.GetCpp2PyVector()[self.memory_id]
@@ -57,13 +57,18 @@ class ChannelAccessRlAgent(RlAgent):
         n_obss_stas = env.nObssStas
         n_10, n_20, n_30, n_50, n_100 = [env.nTxOkDelay[i] for i in range(len(env.nTxOkDelay))]
 
+        # get last equivalent backoff
+        if n_deferred_access == 0:
+            self.equal_backoff = self.backoff + n_waited_slot
+        self.last_waited_slots = n_waited_slot
+
         if self.show_log:
             print("At {:6f}s, delta_time={:.3f}ms, n_bss_stas={}, n_obss_stas={}, <10/20/30/50/100ms={}/{}/{}/{}/{}, \n \
                   in_queue/expired/dropped/sending/acked={}/{}/{}/{}/{}, low/high={}/{}, \n \
-                  ac={}, cw={}, n_deferred_access={}, n_waited_slot={}".format(
+                  ac={}, cw={}, n_deferred_access={}, n_waited_slot={}, last_equal_backoff={}".format(
                 self.sim_time, self.delta_time, n_bss_stas, n_obss_stas, n_10, n_20, n_30, n_50, n_100, 
                 n_in_queue, n_expired, n_dropped, n_sending, n_acked, 
-                n_low_delay, n_high_delay, ac.name, cw, n_deferred_access, n_waited_slot
+                n_low_delay, n_high_delay, ac.name, cw, n_deferred_access, n_waited_slot, self.equal_backoff
             ))
         
         self.choose_action(env)
@@ -84,39 +89,31 @@ class ChannelAccessRlAgent(RlAgent):
         na_ = obs.nAckedPackets
         nl_, nh_ = obs.nLowDelayPackets, obs.nHighDelayPackets
         cw_ = math.log(obs.cw+1, 2) / 10
-        da_ = obs.nDeferredAccess / obs.cw+1
-        b_ = obs.waitedSlots / obs.cw
+        da_ = obs.nDeferredAccess / (obs.cw + 1)
+        b_ = obs.waitedSlots
 
-        # adjust reward weight
-        if obs.nDeferredAccess == 0:
-            last_backoff = self.backoff + self.last_waited_slots
-            self.average_backoff = 0.9*self.average_backoff + 0.1*last_backoff
-            if self.average_backoff < 4:
-                self.alpha = max(0.1, self.alpha/2)
-            elif self.average_backoff > 16:
-                self.alpha = min(1, self.alpha*2)
-        self.last_waited_slots = obs.waitedSlots
-
-        o = [t_, ni_, ne_, nd_, ns_, na_, nl_, nh_, nb_, no_, n10_, n20_, n30_, n50_, n100_, cw_, da_, b_]
+        o = [self.equal_backoff, t_, ni_, ne_, nd_, ns_, na_, nl_, nh_, nb_, no_, n10_, n20_, n30_, n50_, n100_, cw_, da_, b_]
         o = self.state_norm.normalize([o])[0]
         next_state = o.tolist() #np.clip(o, -5.0, 5.0).tolist()
         if self.state:
             # caculate reward
-            r_tx = 1 if na_ else (-1 if ns_ else 0)
             r_packet = nl_ + 0.5*(na_-nl_-nh_) + 0.1*nh_ - 0.1*nd_ - ne_
-            reward = r_tx + self.alpha*r_packet
+            r_tx_fail = -1 if (ns_ > 0 and na_ == 0) else 0
+            reward = r_tx_fail + r_packet
             self.reward_log.append(reward)
             self.model.store_transition(self.state, self.action, reward, next_state, self.action_mask)
 
         # get action mask
-        valid_size = obs.cw + 1 - obs.waitedSlots
+        scale = (obs.cw + 1) / self.action_size
+        valid_size = math.ceil((obs.cw + 1 - obs.waitedSlots) / max(1, scale))
         self.action_mask = [True]*valid_size + [False]*(self.action_size - valid_size)
 
         # choose action
         self.action = self.model.choose_action(next_state, self.action_mask)
         self.action_log.append(self.action)
         
-        self.backoff = self.action
+        self.backoff = min(int(self.action*scale) + random.randint(0, scale-1), 
+                           obs.cw - obs.waitedSlots) if scale > 1 else self.action
         self.backoff_log.append((obs.cw - obs.waitedSlots, self.backoff))
         if self.show_log:
             print("New Backoff={} from [0, {}-{}]".format(self.backoff, obs.cw, obs.waitedSlots))
@@ -128,13 +125,17 @@ class ChannelAccessRlAgent(RlAgent):
         if self.enable_learning:
             self.model.learn()
             self.plot_loss()
+            actor_lr = ACTOR_LR * (1-self.episode/N_EPISODES)
+            critic_lr = CRITIC_LR * (1-self.episode/N_EPISODES)
+            self.model.update_learning_rate(actor_lr, critic_lr)
         self.model.reset()
     
     def save_model(self, save_dir):
-        self.model.save_model('{}/node_{}_{}_'.format(save_dir, self.node_id, self.agent_type.name))
+        prefix = '{}/node_{}_{}_'.format(save_dir, self.node_id, self.agent_type.name)
+        self.model.save_model(prefix+'actor.pt', prefix+'critic.pt')
     
-    def load_model(self, load_dir):
-        self.model.load_model(load_dir)
+    def load_model(self, actor_dir, critic_dir):
+        self.model.load_model(actor_dir, critic_dir)
 
     def plot_results(self, save_dir):
         self.save_dir = save_dir
@@ -162,7 +163,7 @@ class ChannelAccessRlAgent(RlAgent):
         plt.plot(range(len(actor_loss)), actor_loss, 'b-', linewidth=1, label='Actor loss')
         plt.plot(range(len(critic_loss)), critic_loss, 'r-', linewidth=1, label='Critic loss')
         plt.legend()
-        plt.xlabel('Step number')
+        plt.xlabel('Epoch')
         plt.ylabel('Loss')
         plt.savefig('{}/node_{}_{}_loss.png'.format(self.save_dir, self.node_id, self.agent_type.name))
         plt.close()
