@@ -91,8 +91,8 @@ EnvMonitor::ConnectAppTrace()
 
         std::string prefix =
             "/NodeList/" + std::to_string(srcNodeId) + "/ApplicationList/*/$ns3::BurstApplication/";
-        Config::Connect(prefix + "BurstTx", MakeCallback(&EnvMonitor::NotifyBurstTx, this));
-        Config::Connect(prefix + "FragmentTx", MakeCallback(&EnvMonitor::NotifyFragmentTx, this));
+        Config::ConnectFailSafe(prefix + "BurstTx", MakeCallback(&EnvMonitor::NotifyBurstTx, this));
+        Config::ConnectFailSafe(prefix + "FragmentTx", MakeCallback(&EnvMonitor::NotifyFragmentTx, this));
     }
 
     // Connect sink app trace sources
@@ -107,8 +107,8 @@ EnvMonitor::ConnectAppTrace()
 
         std::string prefix =
             "/NodeList/" + std::to_string(dstNodeId) + "/ApplicationList/*/$ns3::BurstSink/";
-        Config::Connect(prefix + "BurstRx", MakeCallback(&EnvMonitor::NotifyBurstRx, this));
-        Config::Connect(prefix + "FragmentRx", MakeCallback(&EnvMonitor::NotifyFragmentRx, this));
+        Config::ConnectFailSafe(prefix + "BurstRx", MakeCallback(&EnvMonitor::NotifyBurstRx, this));
+        Config::ConnectFailSafe(prefix + "FragmentRx", MakeCallback(&EnvMonitor::NotifyFragmentRx, this));
     }
 }
 
