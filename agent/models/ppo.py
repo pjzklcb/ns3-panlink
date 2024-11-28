@@ -59,20 +59,17 @@ class PPO:
     def choose_action(self, state, action_mask=None):
         if action_mask is None:
             action_mask = [True]*self.action_size
-        assert len(action_mask) == self.action_size, "Action mask must be a list of the same length as the action size"
 
-        state = torch.FloatTensor(state).to(self.device)
-        logits = self.actor(state)
-        masked_logits = logits + torch.log(torch.FloatTensor(action_mask).to(self.device))
-        probs = F.softmax(masked_logits, dim=-1)
+        state = torch.tensor([state], dtype=torch.float).to(self.device)
+        probs = self.actor(state) * torch.tensor([action_mask], dtype=torch.float, device=self.device)
+        probs = probs / probs.sum()
         dist = torch.distributions.Categorical(probs)
         action = dist.sample()
-        return action
+        return action.item()
 
     def store_transition(self, state, action, reward, next_state, action_mask=None):
         if action_mask is None:
             action_mask = [True]*self.action_size
-        assert len(action_mask) == self.action_size, "Action mask must be a list of the same length as the action size"
         
         self.transition_dict.append((state, action, reward, next_state, action_mask))
 
@@ -88,14 +85,14 @@ class PPO:
 
     def learn(self):
         s, a, r, s_, mask = zip(*self.transition_dict)
-        states = torch.tensor(s, dtype=torch.float32, device=self.device)
-        actions = torch.tensor(a, dtype=torch.long, device=self.device).unsqueeze(1)
-        rewards = torch.tensor(r, dtype=torch.float32, device=self.device).unsqueeze(1)
-        next_states = torch.tensor(s_, dtype=torch.float32, device=self.device)
+        states = torch.tensor(s, dtype=torch.float, device=self.device)
+        actions = torch.tensor(a, device=self.device).unsqueeze(1)
+        rewards = torch.tensor(r, dtype=torch.float, device=self.device).unsqueeze(1)
+        next_states = torch.tensor(s_, dtype=torch.float, device=self.device)
 
         td_target = rewards + self.gamma * self.critic(next_states)
         td_delta = td_target - self.critic(states)
-        advantage = self.compute_advantage(td_delta)
+        advantage = self.compute_advantage(td_delta.cpu()).to(self.device)
         advantage = (advantage - advantage.mean()) / (advantage.std() + 1e-8)
         old_log_probs = torch.log(self.actor(states).gather(1, actions)).detach()
 
@@ -104,10 +101,10 @@ class PPO:
             ratio = torch.exp(log_probs - old_log_probs)
             surr1 = ratio * advantage
             surr2 = torch.clamp(ratio, 1 - self.eps, 1 + self.eps) * advantage
-            actor_loss = -torch.mean(torch.min(surr1, surr2))
+            actor_loss = torch.mean(-torch.min(surr1, surr2))
             critic_loss = torch.mean(F.mse_loss(self.critic(states), td_target.detach()))
-            entropy_bonus = -torch.mean(torch.distributions.Categorical(logits=self.actor(states)).entropy())
-            actor_loss += 0.01 * entropy_bonus
+            # entropy_bonus = -torch.mean(torch.distributions.Categorical(logits=self.actor(states)).entropy())
+            # actor_loss += 0.01 * entropy_bonus
             self.actor_optimizer.zero_grad()
             self.critic_optimizer.zero_grad()
             actor_loss.backward()
