@@ -36,7 +36,7 @@ class RlAgent():
             self.counter = new_counter
             print("At {:6f}s, Node-{}: Agent-{} triggered with counter={}".format(
                 self.sim_time, self.node_id, self.agent_type.name, self.counter))
-            self.step_time.append((self.sim_time, self.counter))
+            self.step_time.append(self.sim_time)
             return True
         return False
 

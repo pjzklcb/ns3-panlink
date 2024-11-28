@@ -59,6 +59,7 @@ class PPO:
     def choose_action(self, state, action_mask=None):
         if action_mask is None:
             action_mask = [True]*self.action_size
+        assert len(action_mask) == self.action_size, "Action mask must be a list of the same length as the action size"
 
         state = torch.FloatTensor(state).to(self.device)
         logits = self.actor(state)
@@ -71,25 +72,26 @@ class PPO:
     def store_transition(self, state, action, reward, next_state, action_mask=None):
         if action_mask is None:
             action_mask = [True]*self.action_size
+        assert len(action_mask) == self.action_size, "Action mask must be a list of the same length as the action size"
+        
         self.transition_dict.append((state, action, reward, next_state, action_mask))
 
     def compute_advantage(self, td_delta):
         td_delta = td_delta.detach().numpy()
         advantage_list = []
         advantage = 0.0
-        for td in reversed(td_delta):
-            advantage = self.gamma*self.lmbda*advantage + td
+        for delta in reversed(td_delta):
+            advantage = self.gamma * self.lmbda * advantage + delta
             advantage_list.append(advantage)
-        advantage_list = np.array(advantage_list)
-        return torch.tensor(advantage_list, dtype=torch.float32, device=self.device)
+        advantage_list.reverse()
+        return torch.tensor(advantage_list, dtype=torch.float)
 
     def learn(self):
         s, a, r, s_, mask = zip(*self.transition_dict)
-        states = torch.FloatTensor(s).to(self.device)
-        actions = torch.LongTensor(a).unsqueeze(1).to(self.device)
-        rewards = torch.FloatTensor(r).unsqueeze(1).to(self.device)
-        next_states = torch.FloatTensor(s_).to(self.device)
-        action_masks = torch.BoolTensor(mask).to(self.device)
+        states = torch.tensor(s, dtype=torch.float32, device=self.device)
+        actions = torch.tensor(a, dtype=torch.long, device=self.device).unsqueeze(1)
+        rewards = torch.tensor(r, dtype=torch.float32, device=self.device).unsqueeze(1)
+        next_states = torch.tensor(s_, dtype=torch.float32, device=self.device)
 
         td_target = rewards + self.gamma * self.critic(next_states)
         td_delta = td_target - self.critic(states)
@@ -104,6 +106,8 @@ class PPO:
             surr2 = torch.clamp(ratio, 1 - self.eps, 1 + self.eps) * advantage
             actor_loss = -torch.mean(torch.min(surr1, surr2))
             critic_loss = torch.mean(F.mse_loss(self.critic(states), td_target.detach()))
+            entropy_bonus = -torch.mean(torch.distributions.Categorical(logits=self.actor(states)).entropy())
+            actor_loss += 0.01 * entropy_bonus
             self.actor_optimizer.zero_grad()
             self.critic_optimizer.zero_grad()
             actor_loss.backward()
@@ -112,9 +116,10 @@ class PPO:
             self.critic_optimizer.step()
 
             self.loss_log.append((actor_loss.item(), critic_loss.item()))
+        
+        self.transition_dict = []   # on policy
     
     def reset(self):
-        self.transition_dict = []
         self.loss_log = []
     
     def update_learning_rate(self, actor_lr, critic_lr):
