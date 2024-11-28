@@ -8,6 +8,7 @@ import os
 import sys
 import json
 import argparse
+import traceback
 import time
 import torch
 import numpy as np
@@ -25,6 +26,49 @@ from plot_results import PlotResults
 import cpp_py_interface as py_binding
 
 config_dir = os.path.join(panlink_dir, 'configs')
+STATS_RECORD_STEP = 10
+
+
+def run_new_episode(exp, ns3_settings, agent_manager, episode=0):
+    ns3_time_cost = 0
+
+    tic = time.time()
+    msg_interface = exp.run(setting=ns3_settings, show_output=True)
+
+    step = 0
+    try:
+        while True:
+            ns3_time_cost += time.time() - tic
+            msg_interface.PyRecvBegin()
+            if msg_interface.PyGetFinished():
+                print("Simulation ended at {}".format(int(time.time())))
+                msg_interface.PyRecvEnd()
+
+                msg_interface.PySetRestart()
+                break
+
+            print("Episode {}, step {}".format(episode, step))
+            step += 1
+
+            agent_manager.get_obs(msg_interface)
+            msg_interface.PyRecvEnd()
+
+            msg_interface.PySendBegin()
+            agent_manager.set_action(msg_interface)
+            msg_interface.PySendEnd()
+            
+            tic = time.time()
+
+    except Exception as e:
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        print("Episode {} finished with exception {}".format(episode, e))
+        print("Traceback (most recent call last):")
+        traceback.print_tb(exc_traceback)
+    
+    exp.kill()
+
+    return ns3_time_cost
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -86,7 +130,7 @@ if __name__ == '__main__':
                     py2cppMsgName = timestamp + ' Python to Cpp Msg',
                     lockableName = timestamp + ' Lockable')
     
-    py_time_cost = 0
+    ns3_time_cost = 0
     for i_episode in range(args.n_episodes):
         print("Episode {} starts".format(i_episode))
         ns3_settings['episode'] = i_episode
@@ -95,7 +139,7 @@ if __name__ == '__main__':
             if not os.path.exists(episode_dir):
                 os.makedirs(episode_dir)
             
-            if i_episode % 10 == 0 or i_episode == args.n_episodes - 1:
+            if i_episode % STATS_RECORD_STEP == 0 or i_episode == args.n_episodes - 1:
                 ns3_settings['stats'] = True
             else:
                 ns3_settings['stats'] = False
@@ -106,44 +150,21 @@ if __name__ == '__main__':
         if i_episode != 0:
             agent_manager.reset()
             agent_manager.plot_episodes(result_dir)
-        msg_interface = exp.run(setting=ns3_settings, show_output=True)
-
-        step = 0
-        while True:
-            msg_interface.PyRecvBegin()
-            if msg_interface.PyGetFinished():
-                print("Simulation ended at {}".format(int(time.time())))
-                msg_interface.PyRecvEnd()
-
-                msg_interface.PySetRestart()
-                break
-
-            print("Episode {}, step {}".format(i_episode, step))
-            step += 1
-
-            tic = time.time()
-            agent_manager.get_obs(msg_interface)
-            py_time_cost += time.time() - tic
-            msg_interface.PyRecvEnd()
-
-            msg_interface.PySendBegin()
-            agent_manager.set_action(msg_interface)
-            msg_interface.PySendEnd()
-
+        
+        ns3_time_cost += run_new_episode(exp, ns3_settings, agent_manager, episode=i_episode)
+        
         if args.stats:
             learn_dir = os.path.join(episode_dir, 'learn')
             if not os.path.exists(learn_dir):
                 os.makedirs(learn_dir)
             agent_manager.plot_results(learn_dir)
             agent_manager.save_models(learn_dir)
-        
-        exp.kill()
 
+    del exp
     time_cost = int(time.time()) - int(timestamp)
     print("Finally exiting...")
-    print("Time cost: {}min {}s, Python time cost: {}s".format(
-        time_cost // 60, time_cost % 60, py_time_cost))
-    del exp
+    print("Time cost: {}min {}s, ns-3 time cost: {}min {}s".format(
+        time_cost//60, time_cost%60, ns3_time_cost//60, ns3_time_cost%60))
     if args.stats:
         agent_manager.reset()
         agent_manager.plot_episodes(result_dir)
