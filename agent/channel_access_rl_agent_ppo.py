@@ -4,6 +4,7 @@
 #
 # Author: Pan Jinzhe <pjzklcb@gmail.com>
 
+import os
 import math
 import random
 import numpy as np
@@ -25,8 +26,8 @@ EPS = 0.2
 
 
 class ChannelAccessRlAgent(RlAgent):
-    def __init__(self, node_id, memory_id):
-        super().__init__(node_id, memory_id)
+    def __init__(self, node_id, memory_id, enable_learning=True, pretrained_model=None):
+        super().__init__(node_id, memory_id, enable_learning)
         self.agent_type = AgentType.RL_CHANNEL_ACCESS
         
         state_size = 19
@@ -39,6 +40,15 @@ class ChannelAccessRlAgent(RlAgent):
         self.backoff = 0
         self.backoff_log = []
         self.last_waited_slots = 8
+
+        # load pretrained model
+        try:
+            prefix = os.path.join(os.path.dirname(__file__), 'models')
+            self.model.load_model(os.path.join(prefix, pretrained_model[0]), 
+                                  os.path.join(prefix, pretrained_model[1]))
+            print("Pretrained model loaded successfully.")
+        except:
+            print("No pretrained model found.")
 
     def get_obs(self, msg_interface):
         env = msg_interface.GetCpp2PyVector()[self.memory_id]
@@ -59,7 +69,7 @@ class ChannelAccessRlAgent(RlAgent):
 
         # get last equivalent backoff
         if n_deferred_access == 0:
-            self.equal_backoff = self.backoff + n_waited_slot
+            self.equal_backoff = self.backoff + self.last_waited_slots
         self.last_waited_slots = n_waited_slot
 
         if self.show_log:
@@ -109,7 +119,7 @@ class ChannelAccessRlAgent(RlAgent):
         self.action_mask = [True]*valid_size + [False]*(self.action_size - valid_size)
 
         # choose action
-        self.action = self.model.choose_action(next_state, self.action_mask)
+        self.action = self.model.choose_action(next_state, self.action_mask, self.enable_learning)
         self.action_log.append((valid_size-1, self.action))
         
         self.backoff = min(int(self.action*scale) + random.randint(0, scale-1), 

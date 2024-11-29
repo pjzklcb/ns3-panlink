@@ -4,6 +4,7 @@
 #
 # Author: Pan Jinzhe <pjzklcb@gmail.com>
 
+import os
 import math
 import matplotlib.pyplot as plt
 import random
@@ -12,8 +13,8 @@ from rl_agent import RlAgent
 from models.ddqn import DDQN
 
 class ChannelAccessRlAgent(RlAgent):
-    def __init__(self, node_id, memory_id):
-        super().__init__(node_id, memory_id)
+    def __init__(self, node_id, memory_id, enable_learning=True, pretrained_model=None):
+        super().__init__(node_id, memory_id, enable_learning)
         self.agent_type = AgentType.RL_CHANNEL_ACCESS
         
         state_size = 18
@@ -26,6 +27,14 @@ class ChannelAccessRlAgent(RlAgent):
         self.last_waited_slots = 8
         self.alpha = 1
         self.action_mask = [True]*self.action_size
+
+        # load pretrained model
+        try:
+            prefix = os.path.join(os.path.dirname(__file__), 'models')
+            self.model.load_model(os.path.join(prefix, pretrained_model))
+            print("Pretrained model loaded successfully.")
+        except:
+            print("No pretrained model found.")
 
     def get_obs(self, msg_interface):
         env = msg_interface.GetCpp2PyVector()[self.memory_id]

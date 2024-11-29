@@ -11,8 +11,8 @@ from models.ddqn import DDQN
 
 
 class CcaRlAgent(RlAgent):
-    def __init__(self, node_id, memory_id):
-        super().__init__(node_id, memory_id)
+    def __init__(self, node_id, memory_id, enable_learning=True):
+        super().__init__(node_id, memory_id, enable_learning)
         self.agent_type = AgentType.RL_CCA_SENSITIVITY
         
         state_size = 6

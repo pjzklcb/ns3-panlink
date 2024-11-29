@@ -16,14 +16,19 @@ class AgentManager:
         self.memory_id = {}
         self.active_agent = None
     
-    def create_agent(self, node_id, agent_type):
+    def create_agent(self, node_id, agent_info):
         memory_id = self.memory_id[node_id]
+        agent_type = agent_info["type"]
+        enable_learning = agent_info["enable_learning"] if "enable_learning" in agent_info else True
+        pretrained_model = agent_info["pretrained_model"] if "pretrained_model" in agent_info else None
+        
+        print("Node-{} installing {}_agent".format(node_id, agent_type))
         if agent_type == "dummy":
-            return RlAgent(node_id, memory_id)
+            return RlAgent(node_id, memory_id, enable_learning)
         elif agent_type in {"cca", "Cca"}:
-            return CcaRlAgent(node_id, memory_id)
+            return CcaRlAgent(node_id, memory_id, enable_learning)
         elif agent_type in {"channel_access", "Channel_Access"}:
-            return ChannelAccessRlAgent(node_id, memory_id)
+            return ChannelAccessRlAgent(node_id, memory_id, enable_learning, pretrained_model)
         elif agent_type in {"rate_control", "Rate_Control"}:
             pass
         elif agent_type in {"aggregation", "Aggregation"}:
@@ -54,8 +59,7 @@ class AgentManager:
                 
                 self.agent_dict[node_id] = []
                 for agent_info in agents_info:
-                    agent_type = agent_info["type"]
-                    rl_agent = self.create_agent(node_id, agent_type)
+                    rl_agent = self.create_agent(node_id, agent_info)
                     self.agent_dict[node_id].append(rl_agent)
             
         if len(self.agent_dict) == 0:

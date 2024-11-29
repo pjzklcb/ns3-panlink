@@ -56,15 +56,18 @@ class PPO:
         self.transition_dict = []
         self.loss_log = []
     
-    def choose_action(self, state, action_mask=None):
+    def choose_action(self, state, action_mask=None, enable_learning=True):
         if action_mask is None:
             action_mask = [True]*self.action_size
 
         state = torch.tensor([state], dtype=torch.float).to(self.device)
         probs = self.actor(state) * torch.tensor([action_mask], dtype=torch.float, device=self.device)
         probs = probs / probs.sum()
-        dist = torch.distributions.Categorical(probs)
-        action = dist.sample()
+        if enable_learning:
+            dist = torch.distributions.Categorical(probs)
+            action = dist.sample()
+        else:
+            action = probs.max(1)[1]
         return action.item()
 
     def store_transition(self, state, action, reward, next_state, action_mask=None):
@@ -127,3 +130,5 @@ class PPO:
     def load_model(self, actor_dir, critic_dir):
         self.actor.load_state_dict(torch.load(actor_dir))
         self.critic.load_state_dict(torch.load(critic_dir))
+        self.actor.to(self.device)
+        self.critic.to(self.device)

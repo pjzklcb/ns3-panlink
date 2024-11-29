@@ -8,7 +8,7 @@ from agent_utils import AgentType
 import matplotlib.pyplot as plt
 
 class RlAgent():
-    def __init__(self, node_id, memory_id):
+    def __init__(self, node_id, memory_id, enable_learning=True):
         self.node_id = node_id
         self.memory_id = memory_id
         self.agent_type = AgentType.NO_RL
@@ -23,7 +23,7 @@ class RlAgent():
         self.episode = 0
         self.episode_log = []
 
-        self.enable_learning = True
+        self.enable_learning = enable_learning
         self.show_log = True
 
     def is_active(self, msg_interface):
