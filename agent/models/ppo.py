@@ -81,7 +81,7 @@ class PPO:
             advantage = self.gamma * self.lmbda * advantage + delta
             advantage_list.append(advantage)
         advantage_list.reverse()
-        return torch.tensor(advantage_list, dtype=torch.float)
+        return torch.tensor(np.array(advantage_list), dtype=torch.float)
 
     def learn(self):
         s, a, r, s_, mask = zip(*self.transition_dict)

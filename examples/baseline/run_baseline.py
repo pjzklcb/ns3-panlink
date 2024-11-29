@@ -38,8 +38,8 @@ def run_new_episode(exp, ns3_settings, agent_manager, episode=0):
     step = 0
     try:
         while True:
-            ns3_time_cost += time.time() - tic
             msg_interface.PyRecvBegin()
+            ns3_time_cost += time.time() - tic  # wait for CppSendEnd
             if msg_interface.PyGetFinished():
                 print("Simulation ended at {}".format(int(time.time())))
                 msg_interface.PyRecvEnd()
@@ -55,9 +55,8 @@ def run_new_episode(exp, ns3_settings, agent_manager, episode=0):
 
             msg_interface.PySendBegin()
             agent_manager.set_action(msg_interface)
+            tic = time.time()   # reset tic before CppRecvEnd
             msg_interface.PySendEnd()
-            
-            tic = time.time()
 
     except Exception as e:
         exc_type, exc_value, exc_traceback = sys.exc_info()
@@ -164,7 +163,7 @@ if __name__ == '__main__':
     time_cost = int(time.time()) - int(timestamp)
     print("Finally exiting...")
     print("Time cost: {}min {}s, ns-3 time cost: {}min {:.2f}s".format(
-        time_cost//60, time_cost%60, ns3_time_cost//60, ns3_time_cost%60))
+        time_cost//60, time_cost%60, int(ns3_time_cost)//60, ns3_time_cost%60))
     if args.stats:
         agent_manager.reset()
         agent_manager.plot_episodes(result_dir)
