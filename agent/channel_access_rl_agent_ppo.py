@@ -7,6 +7,7 @@
 import os
 import math
 import random
+import csv
 import numpy as np
 import matplotlib.pyplot as plt
 from agent_utils import AgentType, AcIndex, Normalizer
@@ -40,6 +41,8 @@ class ChannelAccessRlAgent(RlAgent):
         self.backoff = 0
         self.backoff_log = []
         self.last_waited_slots = 8
+        self.debug_mode = True
+        self.obs_log = []
 
         # load pretrained model
         try:
@@ -103,6 +106,8 @@ class ChannelAccessRlAgent(RlAgent):
         b_ = obs.waitedSlots
 
         o = [self.equal_backoff, t_, ni_, ne_, nd_, ns_, na_, nl_, nh_, nb_, no_, n10_, n20_, n30_, n50_, n100_, cw_, da_, b_]
+        if self.debug_mode:
+            self.obs_log.append(o.copy())
         o = self.state_norm.normalize([o])[0]
         next_state = o.tolist() #np.clip(o, -5.0, 5.0).tolist()
         if self.state:
@@ -145,8 +150,21 @@ class ChannelAccessRlAgent(RlAgent):
         prefix = '{}/node_{}_{}_'.format(save_dir, self.node_id, self.agent_type.name)
         self.model.save_model(prefix+'actor.pt', prefix+'critic.pt')
 
+    def write_to_csv(self, save_dir=None):
+        save_dir = save_dir if save_dir is not None else self.save_dir
+        with open(os.path.join(save_dir, 'debug.csv'), 'w') as f:
+            writer = csv.writer(f)
+            writer.writerow(['equal_backoff', 'delta_time', 'n_in_queue', 'n_expired', 'n_dropped', 
+                             'n_sending', 'n_acked', 'n_low_delay', 'n_high_delay', 'n_bss', 'n_obss', 
+                             'n10', 'n20', 'n30', 'n50', 'n100', 'cw', 'n_deferred', 'n_waited_slots', 
+                             'action', 'new_backoff'])
+            for i in range(len(self.obs_log)):
+                writer.writerow(self.obs_log[i] + [self.action_log[i][1]] + [self.backoff_log[i][1]])
+
     def plot_results(self, save_dir=None):
         save_dir = save_dir if save_dir is not None else self.save_dir
+        if self.debug_mode:
+            self.write_to_csv(save_dir)
 
         y = self.reward_log
         fig, ax1 = plt.subplots(figsize=(10,6))
