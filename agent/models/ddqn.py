@@ -11,16 +11,12 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-# Hyperparameters
-GAMMA = 0.99
-BATCH_SIZE = 32
-MEMORY_SIZE = 2000
-LEARNING_RATE = 1e-4
+
+# hyperparameters
 TARGET_UPDATE_FREQUENCY = 100
-EPSILON_START = 1.0
 EPSILON_END = 0.01
 EPSILON_DECAY = 0.99
-HIDDEN_SIZE = 64
+
 
 # Neural Network for Q-value approximation
 class QNet(nn.Module):
@@ -54,16 +50,19 @@ class ReplayMemory(object):
 
 # DQN
 class DQN:
-    def __init__(self, state_size, action_size,
-                 hidden_size=HIDDEN_SIZE):
-        self.state_size = state_size
-        self.action_size = action_size
-        self.epsilon = EPSILON_START
+    def __init__(self, state_size, action_size, hidden_size,
+                 batch_size, gamma, epsilon, learning_rate, memory_size):
         self.eval_net = QNet(state_size, action_size, hidden_size)
         self.target_net = QNet(state_size, action_size, hidden_size)
-        self.optimizer = optim.Adam(self.eval_net.parameters(), lr=LEARNING_RATE)
-        self.memory = ReplayMemory(MEMORY_SIZE)
+        self.optimizer = optim.Adam(self.eval_net.parameters(), lr=learning_rate)
+        self.memory = ReplayMemory(memory_size)
         self.update_target_network()
+
+        self.state_size = state_size
+        self.action_size = action_size
+        self.batch_size = batch_size
+        self.gamma = gamma
+        self.epsilon = epsilon
         self.steps_done = 0
         self.loss_log = []
 
@@ -76,8 +75,8 @@ class DQN:
 
         if random.random() > self.epsilon: # greedy
             with torch.no_grad():
-                state = torch.FloatTensor(state).unsqueeze(0)
-                action_mask = torch.BoolTensor(action_mask).unsqueeze(0)
+                state = torch.tensor(state, dtype=torch.float).unsqueeze(0)
+                action_mask = torch.tensor(action_mask, dtype=torch.bool).unsqueeze(0)
                 q_values = self.eval_net(state)
                 q_values[~action_mask] = -float('inf') # mask out illegal actions
                 return q_values.max(1)[1].item()
@@ -91,21 +90,20 @@ class DQN:
         self.memory.push((state, action, reward, next_state, action_mask))
 
     def learn(self):
-        if len(self.memory) < BATCH_SIZE:
+        if len(self.memory) < self.batch_size:
             return
 
-        minibatch = self.memory.sample(BATCH_SIZE)
+        minibatch = self.memory.sample(self.batch_size)
         s, a, r, s_, mask = zip(*minibatch)
 
-        s = torch.FloatTensor(s)
-        a = torch.LongTensor(a).unsqueeze(1)
-        r = torch.FloatTensor(r).unsqueeze(1)
-        s_ = torch.FloatTensor(s_)
-        mask = torch.BoolTensor(mask)
+        s = torch.tensor(s, dtype=torch.float)
+        a = torch.tensor(a).unsqueeze(1)
+        r = torch.tensor(r, dtype=torch.float).unsqueeze(1)
+        s_ = torch.tensor(s_, dtype=torch.float)
 
         q_values = self.eval_net(s).gather(1, a)
         next_q_values = self.target_net(s_).max(1, True)[0].detach()    # assume no mask for next action
-        target_q_values = r + GAMMA * next_q_values
+        target_q_values = r + self.gamma * next_q_values
 
         loss = nn.MSELoss()(q_values, target_q_values)
 
@@ -133,22 +131,21 @@ class DQN:
 # DDQN
 class DDQN(DQN):
     def learn(self):
-        if len(self.memory) < BATCH_SIZE:
+        if len(self.memory) < self.batch_size:
             return
 
-        minibatch = self.memory.sample(BATCH_SIZE)
+        minibatch = self.memory.sample(self.batch_size)
         s, a, r, s_, mask = zip(*minibatch)
 
-        s = torch.FloatTensor(s)
-        a = torch.LongTensor(a).unsqueeze(1)
-        r = torch.FloatTensor(r).unsqueeze(1)
-        s_ = torch.FloatTensor(s_)
-        mask = torch.BoolTensor(mask)
+        s = torch.tensor(s, dtype=torch.float)
+        a = torch.tensor(a).unsqueeze(1)
+        r = torch.tensor(r, dtype=torch.float).unsqueeze(1)
+        s_ = torch.tensor(s_, dtype=torch.float)
 
         q_values = self.eval_net(s).gather(1, a)
         a_ = self.eval_net(s_).max(1, True)[1]  # assume no mask for next action
         next_q_values = self.target_net(s_).gather(1, a_).detach()
-        target_q_values = r + GAMMA * next_q_values
+        target_q_values = r + self.gamma * next_q_values
 
         loss = nn.MSELoss()(q_values, target_q_values)
 

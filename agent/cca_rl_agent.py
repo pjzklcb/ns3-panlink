@@ -10,6 +10,15 @@ from rl_agent import RlAgent
 from models.ddqn import DDQN
 
 
+# hyperparameters
+GAMMA = 0.99
+BATCH_SIZE = 32
+MEMORY_SIZE = 2000
+LEARNING_RATE = 1e-4
+EPSILON_START = 1.0
+HIDDEN_SIZE = 64
+
+
 class CcaRlAgent(RlAgent):
     def __init__(self, node_id, memory_id, enable_learning=True):
         super().__init__(node_id, memory_id, enable_learning)
@@ -17,7 +26,10 @@ class CcaRlAgent(RlAgent):
         
         state_size = 6
         action_size = (-62) - (-82) + 1
-        self.model = DDQN(state_size, action_size)
+        self.model = DDQN(state_size, action_size, hidden_size=HIDDEN_SIZE, 
+                         batch_size=BATCH_SIZE, gamma=GAMMA, 
+                         epsilon=EPSILON_START if self.enable_learning else 0, 
+                         learning_rate=LEARNING_RATE, memory_size=MEMORY_SIZE)
         self.new_cca = -82
         self.cca_log = []
 
