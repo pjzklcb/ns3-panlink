@@ -78,7 +78,9 @@ class CcaRlAgent(RlAgent):
         super().reset()
         self.cca_log = []
 
-    def plot_results(self, save_dir):
+    def plot_results(self, save_dir=None):
+        save_dir = save_dir if save_dir is not None else self.save_dir
+        
         y = self.reward_log
         plt.figure()
         plt.plot(range(len(y)), y, 'g-', linewidth=1)

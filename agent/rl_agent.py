@@ -25,6 +25,7 @@ class RlAgent():
 
         self.enable_learning = enable_learning
         self.show_log = True
+        self.save_dir = '.'
 
     def is_active(self, msg_interface):
         env = msg_interface.GetCpp2PyVector()[self.memory_id]
@@ -63,13 +64,17 @@ class RlAgent():
     def choose_action(self):
         pass
 
-    def save_model(self, save_dir):
+    def save_model(self, save_dir=None):
+        save_dir = save_dir if save_dir is not None else self.save_dir
+        if hasattr(self, 'model'):
+            self.model.save_model('{}/node_{}_{}_model.pt'.format(save_dir, self.node_id, self.agent_type.name))
+
+    def plot_results(self, save_dir=None):
         pass
 
-    def plot_results(self, save_dir):
-        pass
+    def plot_episodes(self, save_dir=None):
+        save_dir = save_dir if save_dir is not None else self.save_dir
 
-    def plot_episodes(self, save_dir):
         y = self.episode_log
         plt.figure()
         plt.plot(range(len(y)), y, 'b-', linewidth=1)

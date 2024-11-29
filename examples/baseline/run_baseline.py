@@ -137,8 +137,10 @@ if __name__ == '__main__':
         if args.stats:
             if i_episode % STATS_RECORD_STEP == 0 or i_episode == args.n_episodes - 1:
                 episode_dir = os.path.join(result_dir, 'episode_' + str(i_episode))
-                if not os.path.exists(episode_dir):
-                    os.makedirs(episode_dir)
+                os.makedirs(episode_dir)
+                learn_dir = os.path.join(episode_dir, 'learn')
+                os.makedirs(learn_dir)
+                agent_manager.set_save_dir(learn_dir)
 
                 ns3_settings['stats'] = True
                 with open(os.path.join(episode_dir, 'ns3_settings.json'), 'w') as f:
@@ -151,11 +153,8 @@ if __name__ == '__main__':
 
         if args.stats:
             if i_episode % STATS_RECORD_STEP == 0 or i_episode == args.n_episodes - 1:
-                learn_dir = os.path.join(episode_dir, 'learn')
-                if not os.path.exists(learn_dir):
-                    os.makedirs(learn_dir)
-                agent_manager.plot_results(learn_dir)
-                agent_manager.save_models(learn_dir)
+                agent_manager.plot_results()
+                agent_manager.save_models()
         
         # reset env. Training if model is on-policy
         agent_manager.reset()

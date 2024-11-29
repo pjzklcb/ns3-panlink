@@ -79,22 +79,27 @@ class AgentManager:
     def set_action(self, msg_interface):
         self.active_agent.set_action(msg_interface)
     
+    def set_save_dir(self, save_dir):
+        for node, agents in self.agent_dict.items():
+            for agent in agents:
+                agent.save_dir = save_dir
+
     def reset(self):
         for node, agents in self.agent_dict.items():
             for agent in agents:
                 agent.reset()
 
-    def save_models(self, save_dir):
+    def save_models(self, save_dir=None):
         for node, agents in self.agent_dict.items():
             for agent in agents:
                 agent.save_model(save_dir)
 
-    def plot_results(self, save_dir):
+    def plot_results(self, save_dir=None):
         for node, agents in self.agent_dict.items():
             for agent in agents:
                 agent.plot_results(save_dir)
     
-    def plot_episodes(self, save_dir):
+    def plot_episodes(self, save_dir=None):
         for node, agents in self.agent_dict.items():
             for agent in agents:
                 agent.plot_episodes(save_dir)
