@@ -13,22 +13,20 @@ from channel_access_rl_agent_ppo import ChannelAccessRlAgent
 class AgentManager:
     def __init__(self):
         self.agent_dict = {}
+        self.memory_id = {}
         self.active_agent = None
     
-    def create_agent(self, node_id, memory_id, agent_type):
+    def create_agent(self, node_id, agent_type):
+        memory_id = self.memory_id[node_id]
         if agent_type == "dummy":
             return RlAgent(node_id, memory_id)
-        elif agent_type in {"cca", "CCA", "cca sensitivity", "CCA Sensitivity",
-                            "cca-sensitivity", "cca_sensitivity",
-                            "CCA-Sensitivity", "CCA_Sensitivity"}:
+        elif agent_type in {"cca", "Cca"}:
             return CcaRlAgent(node_id, memory_id)
-        elif agent_type in {"channel access", "channel-access", "channel_access",
-                            "Channel Access", "Channel-Access", "Channel_Access"}:
+        elif agent_type in {"channel_access", "Channel_Access"}:
             return ChannelAccessRlAgent(node_id, memory_id)
-        elif agent_type in {"rate control", "rate_control", "rate-control",
-                             "Rate Control", "Rate_Control", "Rate-Control"}:
+        elif agent_type in {"rate_control", "Rate_Control"}:
             pass
-        elif agent_type in {"aggre", "aggregation", "Aggre", "Aggregation"}:
+        elif agent_type in {"aggregation", "Aggregation"}:
             pass
         else:
             print("Agent type error.")
@@ -51,11 +49,13 @@ class AgentManager:
                     print("Node-{} has no agent.".format(node_id))
                     continue
                 
-                memory_id = len(self.agent_dict)
+                if node_id not in self.memory_id:
+                    self.memory_id[node_id] = len(self.agent_dict)
+                
                 self.agent_dict[node_id] = []
                 for agent_info in agents_info:
                     agent_type = agent_info["type"]
-                    rl_agent = self.create_agent(node_id, memory_id, agent_type)
+                    rl_agent = self.create_agent(node_id, agent_type)
                     self.agent_dict[node_id].append(rl_agent)
             
         if len(self.agent_dict) == 0:

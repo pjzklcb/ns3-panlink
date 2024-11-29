@@ -32,33 +32,14 @@ EnvAgentHelper::Create(Ptr<Node> node) const
 {
     NS_LOG_FUNCTION(this << node);
 
-    auto agentManager = EnvAgentManager::Get();
+    auto memoryId = EnvAgentManager::Get()->GetMemoryId(node);
 
     ObjectFactory agentFactory = m_agent;
-    agentFactory.Set("MemoryId", UintegerValue(agentManager->GetMemoryId(node)));
+    agentFactory.Set("MemoryId", UintegerValue(memoryId));
     auto agent = agentFactory.Create<EnvAgent>();
     agent->SetNode(node);
 
     return agent;
-}
-
-std::string 
-EnvAgentHelper::GetAgentName(AgentType type) const
-{
-    NS_LOG_FUNCTION(this << type);
-
-    switch (type)
-    {
-    case AgentType::NO_RL:
-        return "ns3::EnvAgent";
-    case AgentType::RL_CCA_SENSITIVITY:
-        return "ns3::CcaEnvAgent";
-    case AgentType::RL_CHANNEL_ACCESS:
-        return "ns3::ChannelAccessEnvAgent";
-    default:
-        NS_ABORT_MSG("Unrecognized agent type");
-        break;
-    }
 }
 
 } // namespace ns3
