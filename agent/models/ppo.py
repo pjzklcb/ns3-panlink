@@ -74,14 +74,11 @@ class PPO:
         self.transition_dict.append((state, action, reward, next_state, action_mask))
 
     def compute_advantage(self, td_delta):
-        td_delta = td_delta.detach().numpy()
-        advantage_list = []
-        advantage = 0.0
-        for delta in reversed(td_delta):
-            advantage = self.gamma * self.lmbda * advantage + delta
-            advantage_list.append(advantage)
-        advantage_list.reverse()
-        return torch.tensor(np.array(advantage_list), dtype=torch.float)
+        advantage = torch.zeros_like(td_delta)
+        advantage[-1] = td_delta[-1]
+        for t in range(len(td_delta)-2, -1, -1):
+            advantage[t] = td_delta[t] + self.gamma * self.lmbda * advantage[t+1]
+        return advantage
 
     def learn(self):
         s, a, r, s_, mask = zip(*self.transition_dict)
@@ -92,7 +89,7 @@ class PPO:
 
         td_target = rewards + self.gamma * self.critic(next_states)
         td_delta = td_target - self.critic(states)
-        advantage = self.compute_advantage(td_delta.cpu()).to(self.device)
+        advantage = self.compute_advantage(td_delta.detach()).to(self.device)
         advantage = (advantage - advantage.mean()) / (advantage.std() + 1e-8)
         old_log_probs = torch.log(self.actor(states).gather(1, actions)).detach()
 
