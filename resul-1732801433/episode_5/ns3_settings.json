@@ -1,0 +1,12 @@
+{
+    "timestamp": "1732801433",
+    "seed": 11,
+    "configPanlink": "/home/jzpan/workspace/ns-3-panlink/contrib/panlink/configs/panlink_channel_access.json",
+    "configIntf": "/home/jzpan/workspace/ns-3-panlink/contrib/panlink/configs/intf_polar.json",
+    "simulationTime": 6.0,
+    "enableIntf": true,
+    "pcap": false,
+    "stats": false,
+    "verbose": false,
+    "episode": 5
+}
