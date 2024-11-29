@@ -115,6 +115,9 @@ class ChannelAccessRlAgent(RlAgent):
         super().reset()
         self.backoff_log = []
 
+    def save_model(self, save_dir):
+        self.model.save_model('{}/node_{}_{}_model.pt'.format(save_dir, self.node_id, self.agent_type.name))
+        
     def plot_results(self, save_dir):
         y = self.reward_log
         plt.figure()
