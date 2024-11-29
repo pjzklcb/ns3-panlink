@@ -163,7 +163,7 @@ if __name__ == '__main__':
     del exp
     time_cost = int(time.time()) - int(timestamp)
     print("Finally exiting...")
-    print("Time cost: {}min {}s, ns-3 time cost: {}min {}s".format(
+    print("Time cost: {}min {}s, ns-3 time cost: {}min {:.2f}s".format(
         time_cost//60, time_cost%60, ns3_time_cost//60, ns3_time_cost%60))
     if args.stats:
         agent_manager.reset()
