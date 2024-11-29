@@ -46,11 +46,6 @@ class EnvAgentHelper
      */
     virtual Ptr<EnvAgent> Create(Ptr<Node> node) const;
 
-    /**
-     * @returns the name of the Env Agent
-     */
-    std::string GetAgentName(AgentType type) const;
-
   private:
     ObjectFactory m_agent;
 };

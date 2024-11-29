@@ -122,6 +122,7 @@ if __name__ == '__main__':
         if not os.path.exists(result_dir):
             os.makedirs(result_dir)
 
+    # create interprocess interface
     exp = Experiment("panlink_baseline", ns3_dir, py_binding, 
                     handleFinish=True, useVector=True, vectorSize=n_vec_size,
                     segName = timestamp + ' Seg',
@@ -134,38 +135,38 @@ if __name__ == '__main__':
         print("Episode {} starts".format(i_episode))
         ns3_settings['episode'] = i_episode
         if args.stats:
-            episode_dir = os.path.join(result_dir, 'episode_' + str(i_episode))
-            if not os.path.exists(episode_dir):
-                os.makedirs(episode_dir)
-            
             if i_episode % STATS_RECORD_STEP == 0 or i_episode == args.n_episodes - 1:
+                episode_dir = os.path.join(result_dir, 'episode_' + str(i_episode))
+                if not os.path.exists(episode_dir):
+                    os.makedirs(episode_dir)
+
                 ns3_settings['stats'] = True
+                with open(os.path.join(episode_dir, 'ns3_settings.json'), 'w') as f:
+                    json.dump(ns3_settings, f, indent=4)
             else:
                 ns3_settings['stats'] = False
-
-            with open(os.path.join(episode_dir, 'ns3_settings.json'), 'w') as f:
-                json.dump(ns3_settings, f, indent=4)
         
-        if i_episode != 0:
-            agent_manager.reset()
-            agent_manager.plot_episodes(result_dir)
-        
+        # run ns-3 simulation
         ns3_time_cost += run_new_episode(exp, ns3_settings, agent_manager, episode=i_episode)
-        
+
         if args.stats:
-            learn_dir = os.path.join(episode_dir, 'learn')
-            if not os.path.exists(learn_dir):
-                os.makedirs(learn_dir)
-            agent_manager.plot_results(learn_dir)
-            agent_manager.save_models(learn_dir)
+            if i_episode % STATS_RECORD_STEP == 0 or i_episode == args.n_episodes - 1:
+                learn_dir = os.path.join(episode_dir, 'learn')
+                if not os.path.exists(learn_dir):
+                    os.makedirs(learn_dir)
+                agent_manager.plot_results(learn_dir)
+                agent_manager.save_models(learn_dir)
+        
+        # reset env. Training if model is on-policy
+        agent_manager.reset()
+        if args.stats:
+            agent_manager.plot_episodes(result_dir)
 
     del exp
     time_cost = int(time.time()) - int(timestamp)
     print("Finally exiting...")
     print("Time cost: {}min {}s, ns-3 time cost: {}min {:.2f}s".format(
         time_cost//60, time_cost%60, int(ns3_time_cost)//60, ns3_time_cost%60))
+    
     if args.stats:
-        agent_manager.reset()
-        agent_manager.plot_episodes(result_dir)
-
-    PlotResults(timestamp, args.n_episodes-1, target_nodes=[0, 1, 2, 3, 4]).do_plot()
+        PlotResults(timestamp, args.n_episodes-1, target_nodes=[0, 1, 2, 3, 4]).do_plot()
