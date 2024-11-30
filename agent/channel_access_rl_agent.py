@@ -6,6 +6,8 @@
 
 import os
 import math
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import random
 from agent_utils import AgentType, AcIndex, Normalizer

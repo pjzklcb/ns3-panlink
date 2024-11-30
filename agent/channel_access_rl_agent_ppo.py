@@ -9,6 +9,8 @@ import math
 import random
 import csv
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from agent_utils import AgentType, AcIndex, Normalizer
 from rl_agent import RlAgent
@@ -41,7 +43,7 @@ class ChannelAccessRlAgent(RlAgent):
         self.backoff = 0
         self.backoff_log = []
         self.last_waited_slots = 8
-        self.debug_mode = True
+        self.debug_mode = False
         self.obs_log = []
 
         # load pretrained model
@@ -119,8 +121,9 @@ class ChannelAccessRlAgent(RlAgent):
             self.model.store_transition(self.state, self.action, reward, next_state, self.action_mask)
 
         # get action mask
-        scale = (obs.cw + 1) / self.action_size
-        valid_size = math.ceil((obs.cw + 1 - obs.waitedSlots) / max(1, scale))
+        scale,valid_size = 1, self.action_size
+        # scale = (obs.cw + 1) / self.action_size
+        # valid_size = math.ceil((obs.cw + 1 - obs.waitedSlots) / max(1, scale))
         self.action_mask = [True]*valid_size + [False]*(self.action_size - valid_size)
 
         # choose action

@@ -4,6 +4,8 @@
 #
 # Author: Pan Jinzhe <pjzklcb@gmail.com>
 
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from agent_utils import AgentType, AcIndex
 from rl_agent import RlAgent
