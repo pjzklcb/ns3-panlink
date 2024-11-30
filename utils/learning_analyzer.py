@@ -42,6 +42,18 @@ if __name__ == "__main__":
     # plt.ylabel('Count')
     # plt.savefig('{}/action_dist.png'.format(result_dir))
     # plt.close()
+
+    # plot backoff distribution
+    # backoff = np.array(data['new_backoff'])
+    # plt.figure()
+    # backoff = [v if v!=0 else 0.5 for v in backoff]
+    # bin_edges = np.logspace(np.log2(min(backoff)), np.log2(max(backoff)), 20, base=2)
+    # plt.hist(backoff, bins=bin_edges, log=True)
+    # plt.xscale('log', base=2)
+    # plt.xlabel('Backoff')
+    # plt.ylabel('Count')
+    # plt.savefig('{}/backoff_dist.png'.format(result_dir))
+    # plt.close()
     
     # classify action space based on the dist
     labels = ['0-0', '1-3', '4-6', '7-9', '10-14', '15-15']
