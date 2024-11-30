@@ -39,7 +39,6 @@ class ChannelAccessRlAgent(RlAgent):
                          actor_lr=ACTOR_LR, critic_lr=CRITIC_LR, gamma=GAMMA, 
                          lmbda=LMBDA, n_epochs=N_EPOCHS, eps=EPS)
         self.state_norm = Normalizer(state_size)
-        self.action_mask = [True]*self.action_size
         self.backoff = 0
         self.backoff_log = []
         self.last_waited_slots = 8
@@ -118,23 +117,15 @@ class ChannelAccessRlAgent(RlAgent):
             r_tx_fail = -1 if (ns_ > 0 and na_ == 0) else 0
             reward = r_tx_fail + r_packet
             self.reward_log.append(reward)
-            self.model.store_transition(self.state, self.action, reward, next_state, self.action_mask)
-
-        # get action mask
-        scale,valid_size = 1, self.action_size
-        # scale = (obs.cw + 1) / self.action_size
-        # valid_size = math.ceil((obs.cw + 1 - obs.waitedSlots) / max(1, scale))
-        self.action_mask = [True]*valid_size + [False]*(self.action_size - valid_size)
+            self.model.store_transition(self.state, self.action, reward, next_state)
 
         # choose action
-        self.action = self.model.choose_action(next_state, self.action_mask, self.enable_learning)
-        self.action_log.append((valid_size-1, self.action))
+        self.action = self.model.choose_action(next_state, enable_learning=self.enable_learning)
+        self.action_log.append(self.action)
         
-        self.backoff = min(int(self.action*scale) + random.randint(0, scale-1), 
-                           obs.cw - obs.waitedSlots) if scale > 1 else self.action
-        self.backoff_log.append((obs.cw - obs.waitedSlots, self.backoff))
+        self.backoff = self.action
         if self.show_log:
-            print("New Backoff={} from [0, {}-{}]".format(self.backoff, obs.cw, obs.waitedSlots))
+            print("New Backoff={}".format(self.backoff))
         self.state = next_state
 
     def reset(self):
@@ -178,26 +169,13 @@ class ChannelAccessRlAgent(RlAgent):
         fig.savefig('{}/node_{}_{}_reward.png'.format(save_dir, self.node_id, self.agent_type.name))
         plt.close(fig)
 
-        y1, y2 = zip(*self.action_log)
+        y = self.action_log
         fig, ax1 = plt.subplots(figsize=(10,6))
-        ax1.scatter(self.step_time[:len(y1)], y1, c='b', marker='+', s=8)
-        ax1.scatter(self.step_time[:len(y2)], y2, c='r', marker='.', s=8, alpha=0.5)
+        ax1.scatter(self.step_time[:len(y)], y, c='r', marker='.', s=8, alpha=0.5)
         ax1.scatter(self.step_time[::100], ax1.get_ylim()[1]*np.ones(len(self.step_time[::100])), c='k', marker='|')
         ax1.set_xlabel('Time (s)')
         ax1.set_ylabel('Action')
         fig.savefig('{}/node_{}_{}_action.png'.format(save_dir, self.node_id, self.agent_type.name), dpi=250)
-        plt.pause(0.1)
-        plt.close(fig)
-
-        y1, y2 = zip(*self.backoff_log)
-        fig, ax1 = plt.subplots(figsize=(10,6))
-        ax1.scatter(self.step_time[:len(y1)], [0.5 if x == 0 else x for x in y1], c='b', marker='+', s=8)
-        ax1.scatter(self.step_time[:len(y2)], [0.5 if x == 0 else x for x in y2], c='r', marker='.', s=8, alpha=0.5)
-        ax1.scatter(self.step_time[::100], ax1.get_ylim()[1]*np.ones(len(self.step_time[::100])), c='k', marker='|')
-        ax1.set_yscale('log', base=2)
-        ax1.set_xlabel('Time (s)')
-        ax1.set_ylabel('Backoff')
-        fig.savefig('{}/node_{}_{}_backoff.png'.format(save_dir, self.node_id, self.agent_type.name), dpi=250)
         plt.pause(0.1)
         plt.close(fig)
 
