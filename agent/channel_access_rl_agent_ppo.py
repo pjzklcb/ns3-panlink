@@ -33,9 +33,11 @@ class ChannelAccessRlAgent(RlAgent):
         super().__init__(node_id, memory_id, enable_learning)
         self.agent_type = AgentType.RL_CHANNEL_ACCESS
         
-        state_size = 19
-        self.action_size = 16
-        self.model = PPO(state_size, self.action_size, hidden_size=HIDDEN_SIZE, 
+        # state_size = 19
+        # action_size = 16
+        state_size = 15
+        action_size = 8
+        self.model = PPO(state_size, action_size, hidden_size=HIDDEN_SIZE, 
                          actor_lr=ACTOR_LR, critic_lr=CRITIC_LR, gamma=GAMMA, 
                          lmbda=LMBDA, n_epochs=N_EPOCHS, eps=EPS)
         self.state_norm = Normalizer(state_size)
@@ -106,16 +108,18 @@ class ChannelAccessRlAgent(RlAgent):
         da_ = obs.nDeferredAccess
         b_ = obs.waitedSlots
 
-        o = [self.equal_backoff, t_, ni_, ne_, nd_, ns_, na_, nl_, nh_, nb_, no_, n10_, n20_, n30_, n50_, n100_, cw_, da_, b_]
+        # o = [self.equal_backoff, t_, ni_, ne_, nd_, ns_, na_, nl_, nh_, nb_, no_, n10_, n20_, n30_, n50_, n100_, cw_, da_, b_]
+        o = [self.equal_backoff, t_, ni_, ns_, na_, nb_, no_, n10_, n20_, n30_, n50_, n100_, cw_, da_, b_]
         if self.debug_mode:
             self.obs_log.append(o.copy())
         o = self.state_norm.normalize([o])[0]
-        next_state = o.tolist() #np.clip(o, -5.0, 5.0).tolist()
+        next_state = o.tolist()
         if self.state:
             # caculate reward
-            r_packet = nl_ + 0.5*(na_-nl_-nh_) + 0.1*nh_ - 0.1*nd_ - ne_
-            r_tx_fail = -1 if (ns_ > 0 and na_ == 0) else 0
-            reward = r_tx_fail + r_packet
+            # r_packet = nl_ + 0.5*(na_-nl_-nh_) + 0.1*nh_ - 0.1*nd_ - ne_
+            # r_tx_fail = -1 if (ns_ > 0 and na_ == 0) else 0
+            r_tx = 0 if ns_==0 else (1 if na_ else -1)
+            reward = r_tx #r_tx_fail + r_packet
             self.reward_log.append(reward)
             self.model.store_transition(self.state, self.action, reward, next_state)
 
@@ -123,7 +127,8 @@ class ChannelAccessRlAgent(RlAgent):
         self.action = self.model.choose_action(next_state, enable_learning=self.enable_learning)
         self.action_log.append(self.action)
         
-        self.backoff = self.action
+        # self.backoff = self.action
+        self.backoff = self.action*3
         if self.show_log:
             print("New Backoff={}".format(self.backoff))
         self.state = next_state
