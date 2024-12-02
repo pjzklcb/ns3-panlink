@@ -28,7 +28,7 @@ def csv_to_dict(filename):
 
 
 if __name__ == "__main__":
-    timestamp = '1732874469'
+    timestamp = '1733132397'
     episode = 0
     result_dir = "contrib/panlink/result-" + timestamp + "-debug/episode_" + str(episode) + "/learn/"
     filename = result_dir + "debug.csv"
@@ -37,7 +37,7 @@ if __name__ == "__main__":
     # plot action distribution
     action = data['action']
     # plt.figure()
-    # plt.hist(action, bins=max(action)+1)
+    # plt.hist(action, bins=int(max(action))+1)
     # plt.xlabel('Action')
     # plt.ylabel('Count')
     # plt.savefig('{}/action_dist.png'.format(result_dir))
@@ -56,10 +56,13 @@ if __name__ == "__main__":
     # plt.close()
     
     # classify action space based on the dist
-    labels = ['0-0', '1-3', '4-6', '7-9', '10-14', '15-15']
+    labels = ['0', '1', '2', '3', '4', '5', '6', '7']
     ref_ratio = [0] * len(labels)
     for i in range(len(labels)):
-        left, right = [int(v) for v in labels[i].split('-')]
+        if '-' in labels[i]:
+            left, right = [int(v) for v in labels[i].split('-')]
+        else:
+            left, right = int(labels[i]), int(labels[i])
         ref_ratio[i] = np.sum((action >= left) & (action <= right))
     ref_ratio /= sum(ref_ratio)
 
@@ -88,7 +91,10 @@ if __name__ == "__main__":
             action_slice = action[(obs >= obs_bins[i]) & (obs < obs_bins[i+1])]
             if len(action_slice) > 0:
                 for j in range(len(labels)):
-                    left, right = [int(v) for v in labels[j].split('-')]
+                    if '-' in labels[j]:
+                        left, right = [int(v) for v in labels[j].split('-')]
+                    else:
+                        left, right = int(labels[j]), int(labels[j])
                     counts[j][i] = np.sum((action_slice >= left) & (action_slice <= right))
 
         ratios = [np.zeros(len(obs_bins)-1) for _ in range(len(labels))]

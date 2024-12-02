@@ -129,6 +129,7 @@ class ChannelAccessRlAgent(RlAgent):
         
         # self.backoff = self.action
         self.backoff = self.action*3
+        self.backoff_log.append(self.backoff)
         if self.show_log:
             print("New Backoff={}".format(self.backoff))
         self.state = next_state
@@ -155,12 +156,12 @@ class ChannelAccessRlAgent(RlAgent):
         save_dir = save_dir if save_dir is not None else self.save_dir
         with open(os.path.join(save_dir, 'debug.csv'), 'w') as f:
             writer = csv.writer(f)
-            writer.writerow(['equal_backoff', 'delta_time', 'n_in_queue', 'n_expired', 'n_dropped', 
-                             'n_sending', 'n_acked', 'n_low_delay', 'n_high_delay', 'n_bss', 'n_obss', 
+            writer.writerow(['equal_backoff', 'delta_time', 'n_in_queue', 
+                             'n_sending', 'n_acked', 'n_bss', 'n_obss', 
                              'n10', 'n20', 'n30', 'n50', 'n100', 'cw', 'n_deferred', 'n_waited_slots', 
                              'action', 'new_backoff'])
             for i in range(len(self.obs_log)):
-                writer.writerow(self.obs_log[i] + [self.action_log[i][1]] + [self.backoff_log[i][1]])
+                writer.writerow(self.obs_log[i] + [self.action_log[i]] + [self.backoff_log[i]])
 
     def plot_results(self, save_dir=None):
         save_dir = save_dir if save_dir is not None else self.save_dir
