@@ -140,6 +140,7 @@ class ChannelAccessRlAgent(RlAgent):
             self.model.learn()
             self.plot_loss()
             self.model.reset()
+            self.debug_mode = True if self.episode==199 else False
             # update learning rate
             actor_lr = ACTOR_LR * (1-self.episode/N_EPISODES)
             critic_lr = CRITIC_LR * (1-self.episode/N_EPISODES)
