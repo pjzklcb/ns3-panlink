@@ -103,7 +103,7 @@ class ChannelAccessRlAgent(RlAgent):
         na_ = obs.nAckedPackets
         nl_, nh_ = obs.nLowDelayPackets, obs.nHighDelayPackets
         cw_ = math.log(obs.cw+1, 2) / 10
-        da_ = obs.nDeferredAccess / (obs.cw + 1)
+        da_ = obs.nDeferredAccess
         b_ = obs.waitedSlots
 
         o = [self.equal_backoff, t_, ni_, ne_, nd_, ns_, na_, nl_, nh_, nb_, no_, n10_, n20_, n30_, n50_, n100_, cw_, da_, b_]
@@ -134,10 +134,11 @@ class ChannelAccessRlAgent(RlAgent):
         if self.enable_learning:
             self.model.learn()
             self.plot_loss()
+            self.model.reset()
+            # update learning rate
             actor_lr = ACTOR_LR * (1-self.episode/N_EPISODES)
             critic_lr = CRITIC_LR * (1-self.episode/N_EPISODES)
             self.model.update_learning_rate(actor_lr, critic_lr)
-        self.model.reset()
     
     def save_model(self, save_dir=None):
         save_dir = save_dir if save_dir is not None else self.save_dir
