@@ -248,9 +248,29 @@ class PlotResults(object):
                 
                 if phy_tx_time[0] != 0 and phy_tx_time[1] != 0:
                     self.channel_load.add(tuple(phy_tx_time) + (node_id,))
-            
+        
+        if self.target_nodes is None or node_id in self.target_nodes:
+            self.print_tx_stats(packet_map, node_id)
         return packet_map
     
+    def print_tx_stats(self, packet_map, node_id):
+        n_tx_data = 0
+        n_tx_fail = 0
+        for uid, info in packet_map.items():
+            if not info.is_data:
+                continue
+            if info.phy_tx_time[0][0] == 0:
+                continue
+
+            n_tx_data += info.tx_counter
+            if info.acked:
+                n_tx_fail += info.tx_counter - 1
+
+        fail_rate = round(n_tx_fail*100 / n_tx_data, 2)
+        # write to txt
+        with open(self.result_dir + "figures/channel_load.txt", 'a') as f:
+            f.write('Node-{}: tx_data={},  tx_fail={}, fail_rate={}%\n'.format(node_id, n_tx_data, n_tx_fail, fail_rate))
+
     def plot_bss_l2_thpt(self, bss_packet_map):
         time_slot = 0.001   # in seconds
         window_size = 500   # number of slots
@@ -466,15 +486,13 @@ class PlotResults(object):
         util_rate = round(util_time*100 / self.sim_time, 2)
         print('idle rate = {}%'.format(idle_rate))
         print('util rate = {}%'.format(util_rate))
-        for id, n in n_collisions.items():
-            collision_rate = round(n*100 / n_transmits[id], 2)
-            print('node-{} transmits {} times, collides {} times, collision rate={}%'.format(
-                id, n_transmits[id], n, collision_rate))
+
         # write to txt
-        with open(self.result_dir + "figures/channel_load.txt", 'w') as f:
+        with open(self.result_dir + "figures/channel_load.txt", 'a') as f:
             f.write('idle rate = {}%\n'.format(idle_rate))
             f.write('util rate = {}%\n'.format(util_rate))
             for id, n in n_collisions.items():
+                collision_rate = round(n*100 / n_transmits[id], 2)
                 f.write('node-{} transmits {} times, collides {} times, collision rate={}% \n'.format(
                 id, n_transmits[id], n, collision_rate))
 
@@ -529,5 +547,5 @@ class PlotResults(object):
         
 
 if __name__ == '__main__':
-    timestamp = "1732155235"
-    PlotResults(timestamp, target_nodes=[0,1,2,3,4]).do_plot()
+    timestamp = "1732947315"
+    PlotResults(timestamp, episode=199, target_nodes=[0,1,2,3,4]).do_plot()
