@@ -28,9 +28,9 @@ def csv_to_dict(filename):
 
 
 if __name__ == "__main__":
-    timestamp = '1733132397'
-    episode = 0
-    result_dir = "contrib/panlink/result-" + timestamp + "-debug/episode_" + str(episode) + "/learn/"
+    prefix = "contrib/panlink/"
+    episode = 199
+    result_dir = prefix + "result-1733188616-8fix3-rm-centering/episode_" + str(episode) + "/learn/"
     filename = result_dir + "debug.csv"
     data = csv_to_dict(filename)
 
@@ -42,21 +42,9 @@ if __name__ == "__main__":
     # plt.ylabel('Count')
     # plt.savefig('{}/action_dist.png'.format(result_dir))
     # plt.close()
-
-    # plot backoff distribution
-    # backoff = np.array(data['new_backoff'])
-    # plt.figure()
-    # backoff = [v if v!=0 else 0.5 for v in backoff]
-    # bin_edges = np.logspace(np.log2(min(backoff)), np.log2(max(backoff)), 20, base=2)
-    # plt.hist(backoff, bins=bin_edges, log=True)
-    # plt.xscale('log', base=2)
-    # plt.xlabel('Backoff')
-    # plt.ylabel('Count')
-    # plt.savefig('{}/backoff_dist.png'.format(result_dir))
-    # plt.close()
     
     # classify action space based on the dist
-    labels = ['0', '1', '2', '3', '4', '5', '6', '7']
+    labels = [str(v) for v in range(int(max(action))+1)]
     ref_ratio = [0] * len(labels)
     for i in range(len(labels)):
         if '-' in labels[i]:

@@ -36,7 +36,7 @@ class ChannelAccessRlAgent(RlAgent):
         # state_size = 19
         # action_size = 16
         state_size = 15
-        action_size = 8
+        action_size = 16
         self.model = PPO(state_size, action_size, hidden_size=HIDDEN_SIZE, 
                          actor_lr=ACTOR_LR, critic_lr=CRITIC_LR, gamma=GAMMA, 
                          lmbda=LMBDA, n_epochs=N_EPOCHS, eps=EPS)
@@ -118,8 +118,8 @@ class ChannelAccessRlAgent(RlAgent):
             # caculate reward
             # r_packet = nl_ + 0.5*(na_-nl_-nh_) + 0.1*nh_ - 0.1*nd_ - ne_
             # r_tx_fail = -1 if (ns_ > 0 and na_ == 0) else 0
-            r_tx = 0 if ns_==0 else (1 if na_ else -1)
-            reward = r_tx #r_tx_fail + r_packet
+            r_tx = 0 if ns_==0 else (na_ if na_ else -ns_)
+            reward = r_tx#_fail + r_packet
             self.reward_log.append(reward)
             self.model.store_transition(self.state, self.action, reward, next_state)
 
@@ -128,7 +128,7 @@ class ChannelAccessRlAgent(RlAgent):
         self.action_log.append(self.action)
         
         # self.backoff = self.action
-        self.backoff = self.action*3
+        self.backoff = self.action * 2
         self.backoff_log.append(self.backoff)
         if self.show_log:
             print("New Backoff={}".format(self.backoff))
@@ -156,10 +156,10 @@ class ChannelAccessRlAgent(RlAgent):
         save_dir = save_dir if save_dir is not None else self.save_dir
         with open(os.path.join(save_dir, 'debug.csv'), 'w') as f:
             writer = csv.writer(f)
-            writer.writerow(['equal_backoff', 'delta_time', 'n_in_queue', 
-                             'n_sending', 'n_acked', 'n_bss', 'n_obss', 
-                             'n10', 'n20', 'n30', 'n50', 'n100', 'cw', 'n_deferred', 'n_waited_slots', 
-                             'action', 'new_backoff'])
+            writer.writerow(['equal_backoff', 'delta_time', 'n_in_queue', #'n_expired', 'n_dropped', 
+                             'n_sending', 'n_acked', #'n_low_delay', 'n_high_delay', 
+                             'n_bss', 'n_obss', 'n10', 'n20', 'n30', 'n50', 'n100', 
+                             'cw', 'n_deferred', 'n_waited_slots', 'action', 'new_backoff'])
             for i in range(len(self.obs_log)):
                 writer.writerow(self.obs_log[i] + [self.action_log[i]] + [self.backoff_log[i]])
 
