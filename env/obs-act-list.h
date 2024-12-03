@@ -41,8 +41,8 @@ struct Obs
     // neighbor
     uint32_t nBssStas;
     uint32_t nObssStas;
-    std::array<uint32_t, 5> nTxOkDelay;    // <10/20/30/50/100ms
-    std::array<uint32_t, 5> nTxOkInterval; // <10/20/30/50/100ms
+    std::array<uint32_t, 6> nTxOkDelay;    // <5/10/20/30/50/100ms
+    std::array<uint32_t, 6> nTxOkInterval; // <5/10/20/30/50/100ms
     double bssRssi;
     double obssRssi;
     double bssChannelUtil;

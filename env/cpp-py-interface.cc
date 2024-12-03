@@ -32,32 +32,40 @@ PYBIND11_MAKE_OPAQUE(ns3::Ns3AiMsgInterfaceImpl<Obs, Act>::Py2CppMsgVector);
 
 PYBIND11_MODULE(cpp_py_interface, m)
 {
-    py::class_<std::array<double, 4>>(m, "QosArray")
+    py::class_<std::array<double, 4>>(m, "Double4Array")
         .def(py::init<>())
         .def("size", &std::array<double, 4>::size)
         .def("__len__", [](const std::array<double, 4>& arr) { return arr.size(); })
-        .def("__getitem__", [](const std::array<double, 4>& arr, uint32_t i) {
-            if (i >= arr.size())
-            {
-                std::cerr << "Invalid index " << i << " for std::array, whose size is "
-                          << arr.size() << std::endl;
-                exit(1);
-            }
-            return arr.at(i);
+        .def("__getitem__",
+             [](const std::array<double, 4>& arr, uint32_t i) {
+                 if (i >= arr.size())
+                 {
+                     std::cerr << "Invalid index " << i << " for std::array, whose size is "
+                               << arr.size() << std::endl;
+                     exit(1);
+                 }
+                 return arr.at(i);
+             })
+        .def("__iter__", [](const std::array<double, 4>& arr) {
+            return py::make_iterator(arr.begin(), arr.end());
         });
-    
-    py::class_<std::array<uint32_t, 5>>(m, "Array5Uint")
+
+    py::class_<std::array<uint32_t, 6>>(m, "Uint6Array")
         .def(py::init<>())
-        .def("size", &std::array<uint32_t, 5>::size)
-        .def("__len__", [](const std::array<uint32_t, 5>& arr) { return arr.size(); })
-        .def("__getitem__", [](const std::array<uint32_t, 5>& arr, uint32_t i) {
-            if (i >= arr.size())
-            {
-                std::cerr << "Invalid index " << i << " for std::array, whose size is "
-                          << arr.size() << std::endl;
-                exit(1);
-            }
-            return arr.at(i);
+        .def("size", &std::array<uint32_t, 6>::size)
+        .def("__len__", [](const std::array<uint32_t, 6>& arr) { return arr.size(); })
+        .def("__getitem__",
+             [](const std::array<uint32_t, 6>& arr, uint32_t i) {
+                 if (i >= arr.size())
+                 {
+                     std::cerr << "Invalid index " << i << " for std::array, whose size is "
+                               << arr.size() << std::endl;
+                     exit(1);
+                 }
+                 return arr.at(i);
+             })
+        .def("__iter__", [](const std::array<uint32_t, 6>& arr) {
+            return py::make_iterator(arr.begin(), arr.end());
         });
 
     py::class_<Obs>(m, "PyEnvStruct")
