@@ -82,7 +82,8 @@ class SensingMac : public Object
     {
         NeighborStaRole role{UNKNOWN};
         uint8_t linkId;
-        Time lastTxOkTime;
+        Time lastTxOkTime{Seconds(0)};     // the time of the last successful transmission
+        Time lastTxOkInterval{Seconds(1)}; // the interval between two successful transmissions
         std::map<Time /* Rx End */, Time /* duration */> channelUtil;
         double rssi;
     };
@@ -120,11 +121,18 @@ class SensingMac : public Object
      */
     Time GetOtherLastTxOk(uint8_t linkId) const;
     /**
-     * @param delay the delay
+     * @param delay the threshold delay
      * @param linkId the link ID
      * @returns the number of STAs whose last successful transmission was less than the given delay
      */
     uint32_t GetNStaTxOkDelayLessThan(Time delay, uint8_t linkId) const;
+    /**
+     * @param interval the threshold interval
+     * @param linkId the link ID
+     * @returns the number of STAs whose interval between recent two successful transmissions was
+     * less than the given delay
+     */
+    uint32_t GetNStaTxOkIntervalLessThan(Time interval, uint8_t linkId) const;
 
     /**
      * Get the number of STAs in the same BSS on the given link.
@@ -171,7 +179,7 @@ class SensingMac : public Object
         uint32_t nDroppedPackets{0};
         uint32_t nSendingPackets{0};
         uint32_t nAckedPackets{0};
-        uint32_t nLowDelayPackets{0}; // latency <= 10ms
+        uint32_t nLowDelayPackets{0};  // latency <= 10ms
         uint32_t nHighDelayPackets{0}; // latency > 30ms
     };
 

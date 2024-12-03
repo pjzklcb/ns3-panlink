@@ -115,27 +115,20 @@ SensingMac::NotifyFrameInfo(const WifiMacHeader& hdr, double rssi, uint8_t linkI
         }
     }
 
-    auto it = m_neighborStaMap.find(sender);
-    if (it != m_neighborStaMap.end())
+    auto [it, inserted] = m_neighborStaMap.try_emplace(sender);
+    if (inserted)
     {
-        NS_ASSERT(it->second.linkId == linkId);
+        it->second.linkId = linkId;
+        it->second.role = role;
+    }
+    NS_ASSERT(it->second.linkId == linkId);
 
-        if (role != UNKNOWN)
-        {
-            it->second.role = role;
-        }
-        it->second.channelUtil[Simulator::Now()] = hdr.GetDuration();
-        it->second.rssi = rssi;
-    }
-    else
+    if (role != UNKNOWN)
     {
-        NeighborStaInfo info;
-        info.role = role;
-        info.linkId = linkId;
-        info.channelUtil[Simulator::Now()] = hdr.GetDuration();
-        info.rssi = rssi;
-        m_neighborStaMap[sender] = info;
+        it->second.role = role;
     }
+    it->second.channelUtil[Simulator::Now()] = hdr.GetDuration();
+    it->second.rssi = rssi;
 
     // Remove stale packets
     auto& util = m_neighborStaMap[sender].channelUtil;
@@ -178,19 +171,14 @@ SensingMac::NotifyLastTxOkSta(Mac48Address sta, uint8_t linkId)
         return;
     }
 
-    auto it = m_neighborStaMap.find(sta);
-    if (it != m_neighborStaMap.end())
+    auto [it, inserted] = m_neighborStaMap.try_emplace(sta);
+    if (inserted)
     {
-        NS_ASSERT(it->second.linkId == linkId);
-        it->second.lastTxOkTime = Simulator::Now();
+        it->second.linkId = linkId;
     }
-    else
-    {
-        NeighborStaInfo info;
-        info.linkId = linkId;
-        info.lastTxOkTime = Simulator::Now();
-        m_neighborStaMap[sta] = info;
-    }
+    NS_ASSERT(it->second.linkId == linkId);
+    it->second.lastTxOkInterval = Simulator::Now() - it->second.lastTxOkTime;
+    it->second.lastTxOkTime = Simulator::Now();
 }
 
 void
@@ -507,6 +495,26 @@ SensingMac::GetNStaTxOkDelayLessThan(Time delay, uint8_t linkId) const
         if (sta.linkId == linkId)
         {
             if (Simulator::Now() - sta.lastTxOkTime <= delay)
+            {
+                nStas++;
+            }
+        }
+    }
+
+    return nStas;
+}
+
+uint32_t
+SensingMac::GetNStaTxOkIntervalLessThan(Time interval, uint8_t linkId) const
+{
+    NS_LOG_FUNCTION(this << interval << linkId);
+
+    uint32_t nStas = 0;
+    for (auto& [_, sta] : m_neighborStaMap)
+    {
+        if (sta.linkId == linkId)
+        {
+            if (sta.lastTxOkInterval <= interval)
             {
                 nStas++;
             }

@@ -46,7 +46,7 @@ PYBIND11_MODULE(cpp_py_interface, m)
             return arr.at(i);
         });
     
-    py::class_<std::array<uint32_t, 5>>(m, "TxOkDelayArray")
+    py::class_<std::array<uint32_t, 5>>(m, "Array5Uint")
         .def(py::init<>())
         .def("size", &std::array<uint32_t, 5>::size)
         .def("__len__", [](const std::array<uint32_t, 5>& arr) { return arr.size(); })
@@ -85,6 +85,7 @@ PYBIND11_MODULE(cpp_py_interface, m)
         .def_readwrite("nBssStas", &Obs::nBssStas)
         .def_readwrite("nObssStas", &Obs::nObssStas)
         .def_readwrite("nTxOkDelay", &Obs::nTxOkDelay)
+        .def_readwrite("nTxOkInterval", &Obs::nTxOkInterval)
         .def_readwrite("bssRssi", &Obs::bssRssi)
         .def_readwrite("obssRssi", &Obs::obssRssi)
         .def_readwrite("bssChannelUtil", &Obs::bssChannelUtil)
