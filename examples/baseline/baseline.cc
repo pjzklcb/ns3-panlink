@@ -272,7 +272,7 @@ main(int argc, char* argv[])
                                       "Period",
                                       TimeValue(Seconds(period)));
                 g_envHelper.Install(g_agentHelper, panlinkNodes.Get(nodeId));
-                std::cout << "Node-" << nodeId << " installs an agent " << agentType << std::endl;
+                std::cout << "Node-" << nodeId << " installs " << agentType << "EnvAgent" << std::endl;
             }
 
             bool enableChannelAccess =

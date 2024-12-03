@@ -22,7 +22,7 @@ class AgentManager:
         enable_learning = agent_info["enable_learning"] if "enable_learning" in agent_info else True
         pretrained_model = agent_info["pretrained_model"] if "pretrained_model" in agent_info else None
         
-        print("Node-{} installing {}_agent".format(node_id, agent_type))
+        print("Node-{} installing {}_rl_agent".format(node_id, agent_type))
         if agent_type == "dummy":
             return RlAgent(node_id, memory_id, enable_learning)
         elif agent_type in {"cca", "Cca"}:
