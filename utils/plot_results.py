@@ -263,8 +263,7 @@ class PlotResults(object):
                 continue
 
             n_tx_data += info.tx_counter
-            if info.acked:
-                n_tx_fail += info.tx_counter - 1
+            n_tx_fail += info.tx_counter - 1 if info.acked else info.tx_counter
 
         fail_rate = round(n_tx_fail*100 / n_tx_data, 2)
         # write to txt
@@ -547,5 +546,5 @@ class PlotResults(object):
         
 
 if __name__ == '__main__':
-    timestamp = "1732947315"
+    timestamp = "1733199126"
     PlotResults(timestamp, episode=199, target_nodes=[0,1,2,3,4]).do_plot()
