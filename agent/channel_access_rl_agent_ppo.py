@@ -33,7 +33,7 @@ class ChannelAccessRlAgent(RlAgent):
         super().__init__(node_id, memory_id, enable_learning)
         self.agent_type = AgentType.RL_CHANNEL_ACCESS
         
-        state_size = 21
+        state_size = 25
         action_size = 16
         self.model = PPO(state_size, action_size, hidden_size=HIDDEN_SIZE, 
                          actor_lr=ACTOR_LR, critic_lr=CRITIC_LR, gamma=GAMMA, 
@@ -101,17 +101,16 @@ class ChannelAccessRlAgent(RlAgent):
         n1_, n5_, n10_, n20_, n50_, n100_ = [v/total_stas for v in obs.nTxOkDelay]
         ni1_, ni5_, ni10_, ni20_, ni50_, ni100_ = [v/total_stas for v in obs.nTxOkInterval]
         ni_ = obs.nInQueuePackets
-        # ne_ = obs.nExpiredPackets
-        # nd_ = obs.nDroppedPackets
+        ne_ = obs.nExpiredPackets
+        nd_ = obs.nDroppedPackets
         ns_ = obs.nSendingPackets
         na_ = obs.nAckedPackets
-        # nl_, nh_ = obs.nLowDelayPackets, obs.nHighDelayPackets
+        nl_, nh_ = obs.nLowDelayPackets, obs.nHighDelayPackets
         cw_ = math.log(obs.cw+1, 2) / 10
         da_ = obs.nDeferredAccess
         b_ = obs.waitedSlots
 
-        # o = [self.equal_backoff, t_, ni_, ne_, nd_, ns_, na_, nl_, nh_, nb_, no_, n10_, n20_, n30_, n50_, n100_, cw_, da_, b_]
-        o = [self.equal_backoff, t_, total_stas, ni_, ns_, na_,
+        o = [self.equal_backoff, t_, total_stas, ni_, ns_, na_, ne_, nd_, nl_, nh_,
              n1_, n5_, n10_, n20_, n50_, n100_, ni1_, ni5_, ni10_, ni20_, ni50_, ni100_,
              cw_, da_, b_]
         if self.debug_mode:
@@ -120,10 +119,10 @@ class ChannelAccessRlAgent(RlAgent):
         next_state = o.tolist()
         if self.state:
             # caculate reward
-            # r_packet = nl_ + 0.5*(na_-nl_-nh_) + 0.1*nh_ - 0.1*nd_ - ne_
-            # r_tx_fail = -1 if (ns_ > 0 and na_ == 0) else 0
-            r_tx = 0 if ns_==0 else (na_ if na_ else -ns_)
-            reward = r_tx#_fail + r_packet
+            r_packet = nl_ + 0.5*(na_-nl_-nh_) + 0.1*nh_ - 0.1*nd_ - ne_
+            r_tx_fail = 0 if na_ else -ns_
+            # r_tx = na_ if na_ else -ns_
+            reward = r_tx_fail + r_packet
             self.reward_log.append(reward)
             self.model.store_transition(self.state, self.action, reward, next_state)
 
@@ -132,7 +131,7 @@ class ChannelAccessRlAgent(RlAgent):
         self.action_log.append(self.action)
         
         # self.backoff = self.action
-        self.backoff = self.action * 2
+        self.backoff = self.action
         self.backoff_log.append(self.backoff)
         if self.show_log:
             print("New Backoff={}".format(self.backoff))
@@ -161,7 +160,7 @@ class ChannelAccessRlAgent(RlAgent):
         with open(os.path.join(save_dir, 'debug.csv'), 'w') as f:
             writer = csv.writer(f)
             writer.writerow(['equal_backoff', 'delta_time', 'n_sta', 'n_in_queue', 
-                             'n_sending', 'n_acked', #'n_expired', 'n_dropped', 'n_low_delay', 'n_high_delay',
+                             'n_sending', 'n_acked', 'n_expired', 'n_dropped', 'n_low_delay', 'n_high_delay',
                              'n1', 'n5', 'n10', 'n20', 'n50', 'n100', 
                              'ni1', 'ni5', 'ni10', 'ni20', 'ni50', 'ni100',
                              'cw', 'n_deferred', 'n_waited_slots', 'action', 'new_backoff'])
