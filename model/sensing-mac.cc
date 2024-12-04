@@ -177,7 +177,12 @@ SensingMac::NotifyLastTxOkSta(Mac48Address sta, uint8_t linkId)
         it->second.linkId = linkId;
     }
     NS_ASSERT(it->second.linkId == linkId);
-    it->second.lastTxOkInterval = Simulator::Now() - it->second.lastTxOkTime;
+
+    if (it->second.TxOkIntervalList.size() >= 10)
+    {
+        it->second.TxOkIntervalList.pop_front();
+    }
+    it->second.TxOkIntervalList.push_back(Simulator::Now() - it->second.lastTxOkTime);
     it->second.lastTxOkTime = Simulator::Now();
 }
 
@@ -505,23 +510,26 @@ SensingMac::GetNStaTxOkDelayLessThan(Time delay, uint8_t linkId) const
 }
 
 uint32_t
-SensingMac::GetNStaTxOkIntervalLessThan(Time interval, uint8_t linkId) const
+SensingMac::GetNTxOkIntervalLessThan(Time interval, uint8_t linkId) const
 {
     NS_LOG_FUNCTION(this << interval << linkId);
 
-    uint32_t nStas = 0;
+    uint32_t counter = 0;
     for (auto& [_, sta] : m_neighborStaMap)
     {
         if (sta.linkId == linkId)
         {
-            if (sta.lastTxOkInterval <= interval)
+            for (auto in : sta.TxOkIntervalList)
             {
-                nStas++;
+                if (in <= interval)
+                {
+                    counter++;
+                }
             }
         }
     }
 
-    return nStas;
+    return counter;
 }
 
 uint32_t

@@ -33,7 +33,7 @@ class ChannelAccessRlAgent(RlAgent):
         super().__init__(node_id, memory_id, enable_learning)
         self.agent_type = AgentType.RL_CHANNEL_ACCESS
         
-        state_size = 18
+        state_size = 21
         action_size = 16
         self.model = PPO(state_size, action_size, hidden_size=HIDDEN_SIZE, 
                          actor_lr=ACTOR_LR, critic_lr=CRITIC_LR, gamma=GAMMA, 
@@ -69,8 +69,8 @@ class ChannelAccessRlAgent(RlAgent):
         n_waited_slot = env.waitedSlots
         n_bss_stas = env.nBssStas
         n_obss_stas = env.nObssStas
-        n_5, n_10, n_20, n_30, n_50, n_100 = env.nTxOkDelay
-        n_i5, n_i10, n_i20, n_i30, n_i50, n_i100 = env.nTxOkInterval
+        n_1, n_5, n_10, n_20, n_50, n_100 = env.nTxOkDelay
+        n_i1, n_i5, n_i10, n_i20, n_i50, n_i100 = env.nTxOkInterval
 
         # get last equivalent backoff
         if n_deferred_access == 0:
@@ -79,11 +79,11 @@ class ChannelAccessRlAgent(RlAgent):
 
         if self.show_log:
             print("At {:6f}s, delta_time={:.3f}ms, n_bss_stas={}, n_obss_stas={}, \n \
-                  delay<5/10/20/30/50/100ms={}/{}/{}/{}/{}/{}, interval<5/10/20/30/50/100ms={}/{}/{}/{}/{}/{}, \n \
+                  delay<1/5/10/20/50/100ms={}/{}/{}/{}/{}/{}, interval<1/5/10/20/50/100ms={}/{}/{}/{}/{}/{}, \n \
                   in_queue/expired/dropped/sending/acked={}/{}/{}/{}/{}, low/high={}/{}, \n \
                   ac={}, cw={}, n_deferred_access={}, n_waited_slot={}, last_equal_backoff={}".format(
                 self.sim_time, self.delta_time, n_bss_stas, n_obss_stas, 
-                n_5, n_10, n_20, n_30, n_50, n_100, n_i5, n_i10, n_i20, n_i30, n_i50, n_i100,
+                n_1, n_5, n_10, n_20, n_50, n_100, n_i1, n_i5, n_i10, n_i20, n_i50, n_i100,
                 n_in_queue, n_expired, n_dropped, n_sending, n_acked, 
                 n_low_delay, n_high_delay, ac.name, cw, n_deferred_access, n_waited_slot, self.equal_backoff
             ))
@@ -98,8 +98,8 @@ class ChannelAccessRlAgent(RlAgent):
         t_ = self.delta_time
         # nb_, no_ = obs.nBssStas, obs.nObssStas
         total_stas = max(1, obs.nBssStas + obs.nObssStas)
-        n5_, n10_, n20_, n30_, n50_, n100_ = [v/total_stas for v in obs.nTxOkDelay]
-        ni5_, ni10_, ni20_, ni30_, ni50_, ni100_ = [v/total_stas for v in obs.nTxOkInterval]
+        n1_, n5_, n10_, n20_, n50_, n100_ = [v/total_stas for v in obs.nTxOkDelay]
+        ni1_, ni5_, ni10_, ni20_, ni50_, ni100_ = [v/total_stas for v in obs.nTxOkInterval]
         ni_ = obs.nInQueuePackets
         # ne_ = obs.nExpiredPackets
         # nd_ = obs.nDroppedPackets
@@ -111,8 +111,8 @@ class ChannelAccessRlAgent(RlAgent):
         b_ = obs.waitedSlots
 
         # o = [self.equal_backoff, t_, ni_, ne_, nd_, ns_, na_, nl_, nh_, nb_, no_, n10_, n20_, n30_, n50_, n100_, cw_, da_, b_]
-        o = [self.equal_backoff, t_, ni_, #ns_, na_, nb_, no_, 
-             n5_, n10_, n20_, n30_, n50_, n100_, ni5_, ni10_, ni20_, ni30_, ni50_, ni100_,
+        o = [self.equal_backoff, t_, total_stas, ni_, ns_, na_,
+             n1_, n5_, n10_, n20_, n50_, n100_, ni1_, ni5_, ni10_, ni20_, ni50_, ni100_,
              cw_, da_, b_]
         if self.debug_mode:
             self.obs_log.append(o.copy())
@@ -160,10 +160,10 @@ class ChannelAccessRlAgent(RlAgent):
         save_dir = save_dir if save_dir is not None else self.save_dir
         with open(os.path.join(save_dir, 'debug.csv'), 'w') as f:
             writer = csv.writer(f)
-            writer.writerow(['equal_backoff', 'delta_time', 'n_in_queue', #'n_expired', 'n_dropped', 
-                             #'n_sending', 'n_acked', 'n_low_delay', 'n_high_delay', 'n_bss', 'n_obss', 
-                             'n5', 'n10', 'n20', 'n30', 'n50', 'n100', 
-                             'ni5', 'ni10', 'ni20', 'ni30', 'ni50', 'ni100',
+            writer.writerow(['equal_backoff', 'delta_time', 'n_sta', 'n_in_queue', 
+                             'n_sending', 'n_acked', #'n_expired', 'n_dropped', 'n_low_delay', 'n_high_delay',
+                             'n1', 'n5', 'n10', 'n20', 'n50', 'n100', 
+                             'ni1', 'ni5', 'ni10', 'ni20', 'ni50', 'ni100',
                              'cw', 'n_deferred', 'n_waited_slots', 'action', 'new_backoff'])
             for i in range(len(self.obs_log)):
                 writer.writerow(self.obs_log[i] + [self.action_log[i]] + [self.backoff_log[i]])

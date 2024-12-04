@@ -16,6 +16,8 @@
 #include "ns3/object.h"
 #include "ns3/packet.h"
 
+#include <deque>
+
 namespace ns3
 {
 
@@ -83,7 +85,7 @@ class SensingMac : public Object
         NeighborStaRole role{UNKNOWN};
         uint8_t linkId;
         Time lastTxOkTime{Seconds(0)};     // the time of the last successful transmission
-        Time lastTxOkInterval{Seconds(1)}; // the interval between two successful transmissions
+        std::deque<Time> TxOkIntervalList; // the intervals between two successful transmissions
         std::map<Time /* Rx End */, Time /* duration */> channelUtil;
         double rssi;
     };
@@ -129,10 +131,10 @@ class SensingMac : public Object
     /**
      * @param interval the threshold interval
      * @param linkId the link ID
-     * @returns the number of STAs whose interval between recent two successful transmissions was
-     * less than the given delay
+     * @returns the number of intervals between recent two successful transmissions was less than
+     * the given delay
      */
-    uint32_t GetNStaTxOkIntervalLessThan(Time interval, uint8_t linkId) const;
+    uint32_t GetNTxOkIntervalLessThan(Time interval, uint8_t linkId) const;
 
     /**
      * Get the number of STAs in the same BSS on the given link.

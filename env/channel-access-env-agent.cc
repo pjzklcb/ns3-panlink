@@ -53,21 +53,21 @@ ChannelAccessEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, 
 
     // Get obs from sensing MAC
     auto sensingMac = GetSensingMac();
+    uint32_t n1 = sensingMac->GetNStaTxOkDelayLessThan(MilliSeconds(1), obs.linkId);
     uint32_t n5 = sensingMac->GetNStaTxOkDelayLessThan(MilliSeconds(5), obs.linkId);
     uint32_t n10 = sensingMac->GetNStaTxOkDelayLessThan(MilliSeconds(10), obs.linkId);
     uint32_t n20 = sensingMac->GetNStaTxOkDelayLessThan(MilliSeconds(20), obs.linkId);
-    uint32_t n30 = sensingMac->GetNStaTxOkDelayLessThan(MilliSeconds(30), obs.linkId);
     uint32_t n50 = sensingMac->GetNStaTxOkDelayLessThan(MilliSeconds(50), obs.linkId);
     uint32_t n100 = sensingMac->GetNStaTxOkDelayLessThan(MilliSeconds(100), obs.linkId);
-    env.nTxOkDelay = {n5, n10-n5, n20-n10, n30-n20, n50-n30, n100-n50};
+    env.nTxOkDelay = {n1, n5-n1, n10-n5, n20-n10, n50-n20, n100-n50};
     
-    uint32_t nI5 = sensingMac->GetNStaTxOkIntervalLessThan(MilliSeconds(5), obs.linkId);
-    uint32_t nI10 = sensingMac->GetNStaTxOkIntervalLessThan(MilliSeconds(10), obs.linkId);
-    uint32_t nI20 = sensingMac->GetNStaTxOkIntervalLessThan(MilliSeconds(20), obs.linkId);
-    uint32_t nI30 = sensingMac->GetNStaTxOkIntervalLessThan(MilliSeconds(30), obs.linkId);
-    uint32_t nI50 = sensingMac->GetNStaTxOkIntervalLessThan(MilliSeconds(50), obs.linkId);
-    uint32_t nI100 = sensingMac->GetNStaTxOkIntervalLessThan(MilliSeconds(100), obs.linkId);
-    env.nTxOkInterval = {nI5, nI10-nI5, nI20-nI10, nI30-nI20, nI50-nI30, nI100-nI50};
+    uint32_t nI1 = sensingMac->GetNTxOkIntervalLessThan(MilliSeconds(1), obs.linkId);
+    uint32_t nI5 = sensingMac->GetNTxOkIntervalLessThan(MilliSeconds(5), obs.linkId);
+    uint32_t nI10 = sensingMac->GetNTxOkIntervalLessThan(MilliSeconds(10), obs.linkId);
+    uint32_t nI20 = sensingMac->GetNTxOkIntervalLessThan(MilliSeconds(20), obs.linkId);
+    uint32_t nI50 = sensingMac->GetNTxOkIntervalLessThan(MilliSeconds(50), obs.linkId);
+    uint32_t nI100 = sensingMac->GetNTxOkIntervalLessThan(MilliSeconds(100), obs.linkId);
+    env.nTxOkInterval = {nI1, nI5-nI1, nI10-nI5, nI20-nI10, nI50-nI20, nI100-nI50};
 
     auto info = sensingMac->GetLastAccessInfo(obs.linkId);
     env.nInQueuePackets = info.nInQueuePackets;
