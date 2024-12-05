@@ -30,8 +30,8 @@ def csv_to_dict(filename):
 
 if __name__ == "__main__":
     prefix = "contrib/panlink/result-"
-    timestamp = "1733214721"
-    suffix = "-16fix2-rm-centering-interval"
+    timestamp = "1733380492"
+    suffix = "-16scaling-rtx-centering-dist3"
     episode = 199
     result_dir = prefix + timestamp + suffix + "/episode_" + str(episode) + "/learn/"
     filename = result_dir + "debug.csv"

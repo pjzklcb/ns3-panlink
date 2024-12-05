@@ -84,8 +84,10 @@ class SensingMac : public Object
     {
         NeighborStaRole role{UNKNOWN};
         uint8_t linkId;
-        Time lastTxOkTime{Seconds(0)};     // the time of the last successful transmission
-        std::deque<Time> TxOkIntervalList; // the intervals between two successful transmissions
+        Time lastTxOkTime{Seconds(0)};   // the time of the last successful transmission
+        Time lastTxTime{Seconds(0)};     // the time of the last transmission
+        std::deque<Time> txIntervalList; // the intervals between two transmissions
+        std::map<double /* bin */, double> txIntervalHist;
         std::map<Time /* Rx End */, Time /* duration */> channelUtil;
         double rssi;
     };
@@ -115,10 +117,11 @@ class SensingMac : public Object
      */
     uint32_t GetNStaTxOkDelayLessThan(Time delay, uint8_t linkId) const;
     /**
+     * @param time the time
      * @param linkId the link ID
-     * @returns the expectation of number of contention STAs now
+     * @returns the expectation of number of contention STAs at the given time on the given link
      */
-    double GetNExpectedContentionStasNow(uint8_t linkId) const;
+    double GetNExpectedContentionStasAt(Time time, uint8_t linkId) const;
     /**
      * @param period the given period
      * @param linkId the link ID
@@ -324,10 +327,10 @@ class SensingMac : public Object
     /**
      * @param sta the STA
      * @param interval the given interval
-     * @returns the probability of the given STA having two successful transmissions less than the
-     * given interval
+     * @returns the probability of the given STA having two transmissions less than the given
+     * interval
      */
-    double GetProbOfTxOkIntervalLessThan(Mac48Address sta, Time interval) const;
+    double GetProbOfTxIntervalLessThan(Mac48Address sta, Time interval) const;
 
     Ptr<WifiMac> m_mac; //!< associated MAC
     Time m_duration;    //!< maximum duration of the data stored

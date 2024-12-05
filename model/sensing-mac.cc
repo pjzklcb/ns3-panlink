@@ -130,6 +130,23 @@ SensingMac::NotifyFrameInfo(const WifiMacHeader& hdr, double rssi, uint8_t linkI
     it->second.channelUtil[Simulator::Now()] = hdr.GetDuration();
     it->second.rssi = rssi;
 
+    auto& intervals = it->second.txIntervalList;
+    if (intervals.size() >= 50)
+    {
+        double key = std::floor(intervals.front().ToDouble(Time::MS));
+        it->second.txIntervalHist[key]--;
+        if (it->second.txIntervalHist[key] == 0)
+        {
+            it->second.txIntervalHist.erase(key);
+        }
+        intervals.pop_front();
+    }
+    auto interval = Simulator::Now() - it->second.lastTxTime;
+    intervals.push_back(interval);
+    double key = std::floor(interval.ToDouble(Time::MS));
+    it->second.txIntervalHist[key]++;
+    it->second.lastTxTime = Simulator::Now();
+
     // Remove stale packets
     auto& util = m_neighborStaMap[sender].channelUtil;
     for (auto it = util.begin(); it != util.end();)
@@ -177,12 +194,6 @@ SensingMac::NotifyLastTxOkSta(Mac48Address sta, uint8_t linkId)
         it->second.linkId = linkId;
     }
     NS_ASSERT(it->second.linkId == linkId);
-
-    if (it->second.TxOkIntervalList.size() >= 50)
-    {
-        it->second.TxOkIntervalList.pop_front();
-    }
-    it->second.TxOkIntervalList.push_back(Simulator::Now() - it->second.lastTxOkTime);
     it->second.lastTxOkTime = Simulator::Now();
 }
 
@@ -476,21 +487,30 @@ SensingMac::GetNStaTxOkDelayLessThan(Time delay, uint8_t linkId) const
 }
 
 double
-SensingMac::GetNExpectedContentionStasNow(uint8_t linkId) const
+SensingMac::GetNExpectedContentionStasAt(Time time, uint8_t linkId) const
 {
-    NS_LOG_FUNCTION(this << linkId);
+    NS_LOG_FUNCTION(this << time << linkId);
 
-    Time now = Simulator::Now();
     double expectation = 0;
     for (auto& [sta, info] : m_neighborStaMap)
     {
-        if (info.linkId != linkId)
+        if (info.linkId != linkId || time < info.lastTxTime)
         {
             continue;
         }
 
-        double prob = GetProbOfTxOkIntervalLessThan(sta, now - info.lastTxOkTime);
-        expectation += prob;
+        double key = std::floor((time - info.lastTxTime).ToDouble(Time::MS));
+        if (auto it = info.txIntervalHist.find(key); it != info.txIntervalHist.end())
+        {
+            expectation += it->second / info.txIntervalList.size();
+            // std::cout << "prob=" << it->second / info.txIntervalList.size() << std::endl;
+        }
+        // std::cout << "MAC:" << sta << ", list=[";
+        // for (auto [k, v] : info.txIntervalHist)
+        // {
+        //     std::cout << "[" << k << ", " << v << "], ";
+        // }
+        // std::cout << "last tx=" << info.lastTxTime.ToDouble(Time::MS) << std::endl;
     }
 
     return expectation;
@@ -510,40 +530,45 @@ SensingMac::GetNExpectedContentionStasInNext(Time period, uint8_t linkId) const
             continue;
         }
 
-        double prob_now = GetProbOfTxOkIntervalLessThan(sta, now - info.lastTxOkTime);
-        if (prob_now == 1)
+        double keyLeft = std::floor((now - info.lastTxTime).ToDouble(Time::MS));
+        double keyRight = std::floor((now - info.lastTxTime + period).ToDouble(Time::MS));
+        double counter = 0;
+        for (auto [k, v] : info.txIntervalHist)
         {
-            continue;
+            if (k >= keyLeft && k <= keyRight)
+            {
+                counter += v;
+            }
         }
-        double prob = GetProbOfTxOkIntervalLessThan(sta, now - info.lastTxOkTime + period);
-        expectation += (prob - prob_now) / (1 - prob_now);
+
+        expectation += counter / info.txIntervalList.size();
     }
 
     return expectation;
 }
 
 double
-SensingMac::GetProbOfTxOkIntervalLessThan(Mac48Address sta, Time interval) const
+SensingMac::GetProbOfTxIntervalLessThan(Mac48Address sta, Time interval) const
 {
     NS_LOG_FUNCTION(this << sta << interval);
 
     double prob = 0;
     if (auto it = m_neighborStaMap.find(sta); it != m_neighborStaMap.end())
     {
-        if (it->second.TxOkIntervalList.size() == 0)
+        if (it->second.txIntervalList.size() == 0)
         {
             return prob;
         }
 
         double counter = 0;
-        for (auto in : it->second.TxOkIntervalList)
+        for (auto in : it->second.txIntervalList)
         {
             if (in <= interval)
             {
                 counter++;
             }
         }
-        prob = counter / it->second.TxOkIntervalList.size();
+        prob = counter / it->second.txIntervalList.size();
     }
 
     return prob;
