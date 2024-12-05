@@ -178,7 +178,7 @@ SensingMac::NotifyLastTxOkSta(Mac48Address sta, uint8_t linkId)
     }
     NS_ASSERT(it->second.linkId == linkId);
 
-    if (it->second.TxOkIntervalList.size() >= 20)
+    if (it->second.TxOkIntervalList.size() >= 50)
     {
         it->second.TxOkIntervalList.pop_front();
     }
@@ -455,40 +455,6 @@ SensingMac::GetSelfLastTxOk(uint8_t linkId) const
     return linkIt->second.lastTxOkTime;
 }
 
-Time
-SensingMac::GetBssLastTxOk(uint8_t linkId) const
-{
-    NS_LOG_FUNCTION(this << linkId);
-
-    Time lastTxOkTime = Seconds(0);
-    for (auto& [_, sta] : m_neighborStaMap)
-    {
-        if (sta.linkId == linkId && (sta.role == ASSOCIATED_AP || sta.role == BSS_STA))
-        {
-            lastTxOkTime = std::max(lastTxOkTime, sta.lastTxOkTime);
-        }
-    }
-
-    return lastTxOkTime;
-}
-
-Time
-SensingMac::GetOtherLastTxOk(uint8_t linkId) const
-{
-    NS_LOG_FUNCTION(this << linkId);
-
-    Time lastTxOkTime = Seconds(0);
-    for (auto& [_, sta] : m_neighborStaMap)
-    {
-        if (sta.linkId == linkId && sta.role != ASSOCIATED_AP && sta.role != BSS_STA)
-        {
-            lastTxOkTime = std::max(lastTxOkTime, sta.lastTxOkTime);
-        }
-    }
-
-    return lastTxOkTime;
-}
-
 uint32_t
 SensingMac::GetNStaTxOkDelayLessThan(Time delay, uint8_t linkId) const
 {
@@ -510,6 +476,27 @@ SensingMac::GetNStaTxOkDelayLessThan(Time delay, uint8_t linkId) const
 }
 
 double
+SensingMac::GetNExpectedContentionStasNow(uint8_t linkId) const
+{
+    NS_LOG_FUNCTION(this << linkId);
+
+    Time now = Simulator::Now();
+    double expectation = 0;
+    for (auto& [sta, info] : m_neighborStaMap)
+    {
+        if (info.linkId != linkId)
+        {
+            continue;
+        }
+
+        double prob = GetProbOfTxOkIntervalLessThan(sta, now - info.lastTxOkTime);
+        expectation += prob;
+    }
+
+    return expectation;
+}
+
+double
 SensingMac::GetNExpectedContentionStasInNext(Time period, uint8_t linkId) const
 {
     NS_LOG_FUNCTION(this << period << linkId);
@@ -523,14 +510,19 @@ SensingMac::GetNExpectedContentionStasInNext(Time period, uint8_t linkId) const
             continue;
         }
 
+        double prob_now = GetProbOfTxOkIntervalLessThan(sta, now - info.lastTxOkTime);
+        if (prob_now == 1)
+        {
+            continue;
+        }
         double prob = GetProbOfTxOkIntervalLessThan(sta, now - info.lastTxOkTime + period);
-        expectation += prob;
+        expectation += (prob - prob_now) / (1 - prob_now);
     }
 
     return expectation;
 }
 
-double 
+double
 SensingMac::GetProbOfTxOkIntervalLessThan(Mac48Address sta, Time interval) const
 {
     NS_LOG_FUNCTION(this << sta << interval);

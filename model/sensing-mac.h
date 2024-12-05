@@ -104,30 +104,21 @@ class SensingMac : public Object
     double GetMaxObssRssi(uint8_t linkId) const;
 
     /**
-     * Get the time of the last successful transmission of this STA on the given link.
-     *
      * @param linkId the link ID
+     * @returns the last successful transmission time of this STA on the given link
      */
     Time GetSelfLastTxOk(uint8_t linkId) const;
-    /**
-     * Get the time of the last successful transmission of STAs within the same BSS on the given
-     * link.
-     *
-     * @param linkId the link ID
-     */
-    Time GetBssLastTxOk(uint8_t linkId) const;
-    /**
-     * Get the time of the last successful transmission of other STAs on the given link.
-     *
-     * @param linkId the link ID
-     */
-    Time GetOtherLastTxOk(uint8_t linkId) const;
     /**
      * @param delay the threshold delay
      * @param linkId the link ID
      * @returns the number of STAs whose last successful transmission was less than the given delay
      */
     uint32_t GetNStaTxOkDelayLessThan(Time delay, uint8_t linkId) const;
+    /**
+     * @param linkId the link ID
+     * @returns the expectation of number of contention STAs now
+     */
+    double GetNExpectedContentionStasNow(uint8_t linkId) const;
     /**
      * @param period the given period
      * @param linkId the link ID
