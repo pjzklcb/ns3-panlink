@@ -30,43 +30,32 @@ namespace py = pybind11;
 PYBIND11_MAKE_OPAQUE(ns3::Ns3AiMsgInterfaceImpl<Obs, Act>::Cpp2PyMsgVector);
 PYBIND11_MAKE_OPAQUE(ns3::Ns3AiMsgInterfaceImpl<Obs, Act>::Py2CppMsgVector);
 
+template <typename T, size_t N>
+void bind_array(py::module& m, const std::string& name) {
+    py::class_<std::array<T, N>>(m, name.c_str())
+        .def(py::init<>())
+        .def("size", &std::array<T, N>::size)
+        .def("__len__", [](const std::array<T, N>& arr) { return arr.size(); })
+        .def("__getitem__",
+             [](const std::array<T, N>& arr, uint32_t i) {
+                 if (i >= arr.size())
+                 {
+                     std::cerr << "Invalid index " << i << " for std::array, whose size is "
+                               << arr.size() << std::endl;
+                     exit(1);
+                 }
+                 return arr.at(i);
+             })
+        .def("__iter__", [](const std::array<T, N>& arr) {
+            return py::make_iterator(arr.begin(), arr.end());
+        });
+}
+
 PYBIND11_MODULE(cpp_py_interface, m)
 {
-    py::class_<std::array<double, 4>>(m, "Double4Array")
-        .def(py::init<>())
-        .def("size", &std::array<double, 4>::size)
-        .def("__len__", [](const std::array<double, 4>& arr) { return arr.size(); })
-        .def("__getitem__",
-             [](const std::array<double, 4>& arr, uint32_t i) {
-                 if (i >= arr.size())
-                 {
-                     std::cerr << "Invalid index " << i << " for std::array, whose size is "
-                               << arr.size() << std::endl;
-                     exit(1);
-                 }
-                 return arr.at(i);
-             })
-        .def("__iter__", [](const std::array<double, 4>& arr) {
-            return py::make_iterator(arr.begin(), arr.end());
-        });
-
-    py::class_<std::array<uint32_t, 6>>(m, "Uint6Array")
-        .def(py::init<>())
-        .def("size", &std::array<uint32_t, 6>::size)
-        .def("__len__", [](const std::array<uint32_t, 6>& arr) { return arr.size(); })
-        .def("__getitem__",
-             [](const std::array<uint32_t, 6>& arr, uint32_t i) {
-                 if (i >= arr.size())
-                 {
-                     std::cerr << "Invalid index " << i << " for std::array, whose size is "
-                               << arr.size() << std::endl;
-                     exit(1);
-                 }
-                 return arr.at(i);
-             })
-        .def("__iter__", [](const std::array<uint32_t, 6>& arr) {
-            return py::make_iterator(arr.begin(), arr.end());
-        });
+    bind_array<uint32_t, 6>(m, "Uint6Array");
+    bind_array<double, 4>(m, "Double4Array");
+    bind_array<double, 6>(m, "Double6Array");
 
     py::class_<Obs>(m, "PyEnvStruct")
         .def(py::init<>())
@@ -93,7 +82,7 @@ PYBIND11_MODULE(cpp_py_interface, m)
         .def_readwrite("nBssStas", &Obs::nBssStas)
         .def_readwrite("nObssStas", &Obs::nObssStas)
         .def_readwrite("nTxOkDelay", &Obs::nTxOkDelay)
-        .def_readwrite("nTxOkInterval", &Obs::nTxOkInterval)
+        .def_readwrite("nExpectedContentionStas", &Obs::nExpectedContentionStas)
         .def_readwrite("bssRssi", &Obs::bssRssi)
         .def_readwrite("obssRssi", &Obs::obssRssi)
         .def_readwrite("bssChannelUtil", &Obs::bssChannelUtil)

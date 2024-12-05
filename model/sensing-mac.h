@@ -29,7 +29,7 @@ class SensingMac : public Object
   public:
     /**
      * \brief Get the type ID.
-     * \return the object TypeId
+     * @returns the object TypeId
      */
     static TypeId GetTypeId();
 
@@ -129,12 +129,11 @@ class SensingMac : public Object
      */
     uint32_t GetNStaTxOkDelayLessThan(Time delay, uint8_t linkId) const;
     /**
-     * @param interval the threshold interval
+     * @param period the given period
      * @param linkId the link ID
-     * @returns the number of intervals between recent two successful transmissions was less than
-     * the given delay
+     * @returns the expectation of number of contention STAs at the given time from now on
      */
-    uint32_t GetNTxOkIntervalLessThan(Time interval, uint8_t linkId) const;
+    double GetNExpectedContentionStasInNext(Time period, uint8_t linkId) const;
 
     /**
      * Get the number of STAs in the same BSS on the given link.
@@ -287,7 +286,7 @@ class SensingMac : public Object
      * @param period the period
      * @param ac the AC
      * @param linkId the ID of the link
-     * \return the throughput in Mbps
+     * @returns the throughput in Mbps
      */
     double GetThptReq(Time period, AcIndex ac, uint8_t linkId = SINGLE_LINK_OP_ID) const;
 
@@ -297,7 +296,7 @@ class SensingMac : public Object
      * @param period the period
      * @param ac the AC
      * @param linkId the ID of the link
-     * \return the throughput in Mbps
+     * @returns the throughput in Mbps
      */
     double GetThpt(Time period, AcIndex ac, uint8_t linkId = SINGLE_LINK_OP_ID) const;
 
@@ -307,7 +306,7 @@ class SensingMac : public Object
      * @param period the period
      * @param ac the AC
      * @param linkId the ID of the link
-     * \return the average delay in milliseconds (0 if no packet tx successfully)
+     * @returns the average delay in milliseconds (0 if no packet tx successfully)
      */
     double GetDelay(Time period, AcIndex ac, uint8_t linkId = SINGLE_LINK_OP_ID) const;
 
@@ -331,6 +330,14 @@ class SensingMac : public Object
     virtual void WipeAllExpiredPackets();
 
   private:
+    /**
+     * @param sta the STA
+     * @param interval the given interval
+     * @returns the probability of the given STA having two successful transmissions less than the
+     * given interval
+     */
+    double GetProbOfTxOkIntervalLessThan(Mac48Address sta, Time interval) const;
+
     Ptr<WifiMac> m_mac; //!< associated MAC
     Time m_duration;    //!< maximum duration of the data stored
     std::map<uint64_t /* UID */, SelfPacketInfo> m_packetMap; //!< packets sent by this STA

@@ -42,7 +42,7 @@ struct Obs
     uint32_t nBssStas;
     uint32_t nObssStas;
     std::array<uint32_t, 6> nTxOkDelay;
-    std::array<uint32_t, 6> nTxOkInterval;
+    std::array<double, 6> nExpectedContentionStas;
     double bssRssi;
     double obssRssi;
     double bssChannelUtil;

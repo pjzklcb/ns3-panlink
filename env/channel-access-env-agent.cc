@@ -61,13 +61,13 @@ ChannelAccessEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, 
     uint32_t n100 = sensingMac->GetNStaTxOkDelayLessThan(MilliSeconds(100), obs.linkId);
     env.nTxOkDelay = {n1, n5-n1, n10-n5, n20-n10, n50-n20, n100-n50};
     
-    uint32_t nI1 = sensingMac->GetNTxOkIntervalLessThan(MilliSeconds(1), obs.linkId);
-    uint32_t nI5 = sensingMac->GetNTxOkIntervalLessThan(MilliSeconds(5), obs.linkId);
-    uint32_t nI10 = sensingMac->GetNTxOkIntervalLessThan(MilliSeconds(10), obs.linkId);
-    uint32_t nI20 = sensingMac->GetNTxOkIntervalLessThan(MilliSeconds(20), obs.linkId);
-    uint32_t nI50 = sensingMac->GetNTxOkIntervalLessThan(MilliSeconds(50), obs.linkId);
-    uint32_t nI100 = sensingMac->GetNTxOkIntervalLessThan(MilliSeconds(100), obs.linkId);
-    env.nTxOkInterval = {nI1, nI5-nI1, nI10-nI5, nI20-nI10, nI50-nI20, nI100-nI50};
+    double nI0 = sensingMac->GetNExpectedContentionStasInNext(MicroSeconds(0), obs.linkId);
+    double nI1 = sensingMac->GetNExpectedContentionStasInNext(MicroSeconds(100), obs.linkId);
+    double nI5 = sensingMac->GetNExpectedContentionStasInNext(MicroSeconds(500), obs.linkId);
+    double nI10 = sensingMac->GetNExpectedContentionStasInNext(MicroSeconds(1000), obs.linkId);
+    double nI50 = sensingMac->GetNExpectedContentionStasInNext(MicroSeconds(5000), obs.linkId);
+    double nI100 = sensingMac->GetNExpectedContentionStasInNext(MicroSeconds(10000), obs.linkId);
+    env.nExpectedContentionStas = {nI0, nI1, nI5, nI10, nI50, nI100};
 
     auto info = sensingMac->GetLastAccessInfo(obs.linkId);
     env.nInQueuePackets = info.nInQueuePackets;

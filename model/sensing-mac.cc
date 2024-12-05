@@ -178,7 +178,7 @@ SensingMac::NotifyLastTxOkSta(Mac48Address sta, uint8_t linkId)
     }
     NS_ASSERT(it->second.linkId == linkId);
 
-    if (it->second.TxOkIntervalList.size() >= 10)
+    if (it->second.TxOkIntervalList.size() >= 20)
     {
         it->second.TxOkIntervalList.pop_front();
     }
@@ -509,27 +509,52 @@ SensingMac::GetNStaTxOkDelayLessThan(Time delay, uint8_t linkId) const
     return nStas;
 }
 
-uint32_t
-SensingMac::GetNTxOkIntervalLessThan(Time interval, uint8_t linkId) const
+double
+SensingMac::GetNExpectedContentionStasInNext(Time period, uint8_t linkId) const
 {
-    NS_LOG_FUNCTION(this << interval << linkId);
+    NS_LOG_FUNCTION(this << period << linkId);
 
-    uint32_t counter = 0;
-    for (auto& [_, sta] : m_neighborStaMap)
+    Time now = Simulator::Now();
+    double expectation = 0;
+    for (auto& [sta, info] : m_neighborStaMap)
     {
-        if (sta.linkId == linkId)
+        if (info.linkId != linkId)
         {
-            for (auto in : sta.TxOkIntervalList)
-            {
-                if (in <= interval)
-                {
-                    counter++;
-                }
-            }
+            continue;
         }
+
+        double prob = GetProbOfTxOkIntervalLessThan(sta, now - info.lastTxOkTime + period);
+        expectation += prob;
     }
 
-    return counter;
+    return expectation;
+}
+
+double 
+SensingMac::GetProbOfTxOkIntervalLessThan(Mac48Address sta, Time interval) const
+{
+    NS_LOG_FUNCTION(this << sta << interval);
+
+    double prob = 0;
+    if (auto it = m_neighborStaMap.find(sta); it != m_neighborStaMap.end())
+    {
+        if (it->second.TxOkIntervalList.size() == 0)
+        {
+            return prob;
+        }
+
+        double counter = 0;
+        for (auto in : it->second.TxOkIntervalList)
+        {
+            if (in <= interval)
+            {
+                counter++;
+            }
+        }
+        prob = counter / it->second.TxOkIntervalList.size();
+    }
+
+    return prob;
 }
 
 uint32_t
