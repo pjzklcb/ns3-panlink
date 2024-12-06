@@ -133,18 +133,18 @@ SensingMac::NotifyFrameInfo(const WifiMacHeader& hdr, double rssi, uint8_t linkI
     auto& intervals = it->second.txIntervalList;
     if (intervals.size() >= 50)
     {
-        double key = std::floor(intervals.front().ToDouble(Time::MS));
-        it->second.txIntervalHist[key]--;
-        if (it->second.txIntervalHist[key] == 0)
+        double bin = GetBinOfTxIntervalHist(intervals.front());
+        it->second.txIntervalHist[bin]--;
+        if (it->second.txIntervalHist[bin] == 0)
         {
-            it->second.txIntervalHist.erase(key);
+            it->second.txIntervalHist.erase(bin);
         }
         intervals.pop_front();
     }
     auto interval = Simulator::Now() - it->second.lastTxTime;
     intervals.push_back(interval);
-    double key = std::floor(interval.ToDouble(Time::MS));
-    it->second.txIntervalHist[key]++;
+    double bin = GetBinOfTxIntervalHist(interval);
+    it->second.txIntervalHist[bin]++;
     it->second.lastTxTime = Simulator::Now();
 
     // Remove stale packets
@@ -487,7 +487,7 @@ SensingMac::GetNStaTxOkDelayLessThan(Time delay, uint8_t linkId) const
 }
 
 double
-SensingMac::GetNExpectedContentionStasAt(Time time, uint8_t linkId) const
+SensingMac::GetNExpectedContentionStasAt(Time time, uint32_t granularity, uint8_t linkId) const
 {
     NS_LOG_FUNCTION(this << time << linkId);
 
@@ -499,49 +499,30 @@ SensingMac::GetNExpectedContentionStasAt(Time time, uint8_t linkId) const
             continue;
         }
 
-        double key = std::floor((time - info.lastTxTime).ToDouble(Time::MS));
-        if (auto it = info.txIntervalHist.find(key); it != info.txIntervalHist.end())
+        double bin = GetBinOfTxIntervalHist(time - info.lastTxTime);
+        double prob = 0;
+        for (auto [k, v] : info.txIntervalHist)
         {
-            expectation += it->second / info.txIntervalList.size();
-            // std::cout << "prob=" << it->second / info.txIntervalList.size() << std::endl;
+            if (k >= bin - granularity && k <= bin + granularity)
+            {
+                prob += v / info.txIntervalList.size();
+            }
+        }
+
+        double conditional_prob =
+            GetProbOfTxIntervalLessThan(sta, time - info.lastTxTime);
+        
+        if (conditional_prob != 1)
+        {
+            expectation += prob / (1 - conditional_prob);
         }
         // std::cout << "MAC:" << sta << ", list=[";
         // for (auto [k, v] : info.txIntervalHist)
         // {
         //     std::cout << "[" << k << ", " << v << "], ";
         // }
-        // std::cout << "last tx=" << info.lastTxTime.ToDouble(Time::MS) << std::endl;
-    }
-
-    return expectation;
-}
-
-double
-SensingMac::GetNExpectedContentionStasInNext(Time period, uint8_t linkId) const
-{
-    NS_LOG_FUNCTION(this << period << linkId);
-
-    Time now = Simulator::Now();
-    double expectation = 0;
-    for (auto& [sta, info] : m_neighborStaMap)
-    {
-        if (info.linkId != linkId)
-        {
-            continue;
-        }
-
-        double keyLeft = std::floor((now - info.lastTxTime).ToDouble(Time::MS));
-        double keyRight = std::floor((now - info.lastTxTime + period).ToDouble(Time::MS));
-        double counter = 0;
-        for (auto [k, v] : info.txIntervalHist)
-        {
-            if (k >= keyLeft && k <= keyRight)
-            {
-                counter += v;
-            }
-        }
-
-        expectation += counter / info.txIntervalList.size();
+        // std::cout << "last tx=" << info.lastTxTime.ToDouble(Time::MS) << "prob=" << prob <<
+        // std::endl;
     }
 
     return expectation;
@@ -572,6 +553,15 @@ SensingMac::GetProbOfTxIntervalLessThan(Mac48Address sta, Time interval) const
     }
 
     return prob;
+}
+
+double
+SensingMac::GetBinOfTxIntervalHist(Time interval) const
+{
+    NS_LOG_FUNCTION(this << interval);
+
+    double binWidth = 0.5; // ms
+    return std::floor(interval.ToDouble(Time::MS) / binWidth);
 }
 
 uint32_t

@@ -118,16 +118,12 @@ class SensingMac : public Object
     uint32_t GetNStaTxOkDelayLessThan(Time delay, uint8_t linkId) const;
     /**
      * @param time the time
+     * @param granularity the granularity
      * @param linkId the link ID
-     * @returns the expectation of number of contention STAs at the given time on the given link
+     * @returns the expectation the number of contention STAs at the given time with given
+     * granularity on the given link
      */
-    double GetNExpectedContentionStasAt(Time time, uint8_t linkId) const;
-    /**
-     * @param period the given period
-     * @param linkId the link ID
-     * @returns the expectation of number of contention STAs at the given time from now on
-     */
-    double GetNExpectedContentionStasInNext(Time period, uint8_t linkId) const;
+    double GetNExpectedContentionStasAt(Time time, uint32_t granularity, uint8_t linkId) const;
 
     /**
      * Get the number of STAs in the same BSS on the given link.
@@ -331,6 +327,12 @@ class SensingMac : public Object
      * interval
      */
     double GetProbOfTxIntervalLessThan(Mac48Address sta, Time interval) const;
+
+    /**
+     * @param interval the given interval
+     * @returns the bin of the given interval falls in the histogram of tx intervals
+     */
+    double GetBinOfTxIntervalHist(Time interval) const;
 
     Ptr<WifiMac> m_mac; //!< associated MAC
     Time m_duration;    //!< maximum duration of the data stored

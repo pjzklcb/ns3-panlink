@@ -70,7 +70,7 @@ class ChannelAccessRlAgent(RlAgent):
         n_bss_stas = env.nBssStas
         n_obss_stas = env.nObssStas
         n_1, n_5, n_10, n_20, n_50, n_100 = env.nTxOkDelay
-        n_i0, n_i1, n_i2, n_i3, n_i4, n_i5 = env.nExpectedContentionStas
+        n_i0, n_i1, n_i2, n_i5, n_i10, n_i20 = env.nExpectedContentionStas
 
         # get last equivalent backoff
         if n_deferred_access == 0:
@@ -80,11 +80,11 @@ class ChannelAccessRlAgent(RlAgent):
         if self.show_log:
             print("At {:6f}s, delta_time={:.3f}ms, n_bss_stas={}, n_obss_stas={}, \n \
                   delay<1/5/10/20/50/100ms={}/{}/{}/{}/{}/{}, \n \
-                  expected_n_stas<0/1/2/3/4/5ms={:.2f}/{:.2f}/{:.2f}/{:.2f}/{:.2f}/{:.2f}, \n \
+                  expected_n_stas within +-0/1/2/5/10/20ms={:.2f}/{:.2f}/{:.2f}/{:.2f}/{:.2f}/{:.2f}, \n \
                   in_queue/expired/dropped/sending/acked={}/{}/{}/{}/{}, low/high={}/{}, \n \
                   ac={}, cw={}, n_deferred_access={}, n_waited_slot={}, last_equal_backoff={}".format(
                 self.sim_time, self.delta_time, n_bss_stas, n_obss_stas, 
-                n_1, n_5, n_10, n_20, n_50, n_100, n_i0, n_i1, n_i2, n_i3, n_i4, n_i5,
+                n_1, n_5, n_10, n_20, n_50, n_100, n_i0, n_i1, n_i2, n_i5, n_i10, n_i20,
                 n_in_queue, n_expired, n_dropped, n_sending, n_acked, 
                 n_low_delay, n_high_delay, ac.name, cw, n_deferred_access, n_waited_slot, self.equal_backoff
             ))
@@ -100,7 +100,7 @@ class ChannelAccessRlAgent(RlAgent):
         # nb_, no_ = obs.nBssStas, obs.nObssStas
         total_stas = max(1, obs.nBssStas + obs.nObssStas)
         n1_, n5_, n10_, n20_, n50_, n100_ = [v/total_stas for v in obs.nTxOkDelay]
-        ni0_, ni1_, ni2_, ni3_, ni4_, ni5_ = [v/total_stas for v in obs.nExpectedContentionStas]
+        ni0_, ni1_, ni2_, ni5_, ni10_, ni20_ = [v/total_stas for v in obs.nExpectedContentionStas]
         ni_ = obs.nInQueuePackets
         # ne_ = obs.nExpiredPackets
         # nd_ = obs.nDroppedPackets
@@ -112,7 +112,7 @@ class ChannelAccessRlAgent(RlAgent):
         b_ = obs.waitedSlots
 
         o = [self.equal_backoff, t_, total_stas, ni_, ns_, na_, #ne_, nd_, nl_, nh_,
-             n1_, n5_, n10_, n20_, n50_, n100_, ni0_, ni1_, ni2_, ni3_, ni4_, ni5_,
+             n1_, n5_, n10_, n20_, n50_, n100_, ni0_, ni1_, ni2_, ni5_, ni10_, ni20_,
              cw_, da_, b_]
         if self.debug_mode:
             self.obs_log.append(o.copy())
@@ -162,7 +162,7 @@ class ChannelAccessRlAgent(RlAgent):
             writer.writerow(['equal_backoff', 'delta_time', 'n_sta', 'n_in_queue', 
                              'n_sending', 'n_acked', #'n_expired', 'n_dropped', 'n_low_delay', 'n_high_delay',
                              'n1', 'n5', 'n10', 'n20', 'n50', 'n100', 
-                             'ni0', 'ni1', 'ni2', 'ni3', 'ni4', 'ni5',
+                             'ni0', 'ni1', 'ni2', 'ni5', 'ni10', 'ni20',
                              'cw', 'n_deferred', 'n_waited_slots', 'action', 'new_backoff'])
             for i in range(len(self.obs_log)):
                 writer.writerow(self.obs_log[i] + [self.action_log[i]] + [self.backoff_log[i]])
@@ -188,7 +188,6 @@ class ChannelAccessRlAgent(RlAgent):
         ax1.set_xlabel('Time (s)')
         ax1.set_ylabel('Action')
         fig.savefig('{}/node_{}_{}_action.png'.format(save_dir, self.node_id, self.agent_type.name), dpi=250)
-        plt.pause(0.1)
         plt.close(fig)
 
     def plot_loss(self, save_dir=None):

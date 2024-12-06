@@ -61,13 +61,13 @@ ChannelAccessEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, 
     uint32_t n100 = sensingMac->GetNStaTxOkDelayLessThan(MilliSeconds(100), obs.linkId);
     env.nTxOkDelay = {n1, n5-n1, n10-n5, n20-n10, n50-n20, n100-n50};
     
-    double nI0 = sensingMac->GetNExpectedContentionStasAt(now, obs.linkId);
-    double nI1 = sensingMac->GetNExpectedContentionStasInNext(MilliSeconds(1), obs.linkId);
-    double nI2 = sensingMac->GetNExpectedContentionStasInNext(MilliSeconds(2), obs.linkId);
-    double nI3 = sensingMac->GetNExpectedContentionStasInNext(MilliSeconds(3), obs.linkId);
-    double nI4 = sensingMac->GetNExpectedContentionStasInNext(MilliSeconds(4), obs.linkId);
-    double nI5 = sensingMac->GetNExpectedContentionStasInNext(MilliSeconds(5), obs.linkId);
-    env.nExpectedContentionStas = {nI0, nI1, nI2, nI3, nI4, nI5};
+    double nI0 = sensingMac->GetNExpectedContentionStasAt(now, 0, obs.linkId);
+    double nI1 = sensingMac->GetNExpectedContentionStasAt(now, 1, obs.linkId);
+    double nI2 = sensingMac->GetNExpectedContentionStasAt(now, 2, obs.linkId);
+    double nI5 = sensingMac->GetNExpectedContentionStasAt(now, 5, obs.linkId);
+    double nI10 = sensingMac->GetNExpectedContentionStasAt(now, 10, obs.linkId);
+    double nI20 = sensingMac->GetNExpectedContentionStasAt(now, 20, obs.linkId);
+    env.nExpectedContentionStas = {nI0, nI1, nI2, nI5, nI10, nI20};
 
     auto info = sensingMac->GetLastAccessInfo(obs.linkId);
     env.nInQueuePackets = info.nInQueuePackets;
