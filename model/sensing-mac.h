@@ -227,23 +227,6 @@ class SensingMac : public Object
     void NotifyDroppedMpdu(WifiMacDropReason reason, Ptr<const WifiMpdu> mpdu);
 
     /**
-     * Handles frames comes from WifiMac::m_mpduResponseTimeoutCallback.
-     *
-     * @param reason the reason why the timer was started
-     * @param mpdu the MPDU whose response was not received before the timeout
-     * @param txVector the TXVECTOR used to transmit the MPDU
-     */
-    void NotifyMpduTimeout(uint8_t reason, Ptr<const WifiMpdu> mpdu, const WifiTxVector& txVector);
-    /**
-     * Handles frames comes from WifiMac::m_psduResponseTimeoutCallback.
-     *
-     * @param reason the reason why the timer was started
-     * @param psdu the PSDU whose response was not received before the timeout
-     * @param txVector the TXVECTOR used to transmit the PSDU
-     */
-    void NotifyPsduTimeout(uint8_t reason, Ptr<const WifiPsdu> psdu, const WifiTxVector& txVector);
-
-    /**
      * The information of the packets sent by this STA.
      */
     struct SelfPacketInfo
@@ -270,6 +253,15 @@ class SensingMac : public Object
         std::map<uint64_t /* UID */, std::pair<Time /* Tx Begin */, Time /* Tx End */>> channelUtil;
     };
 
+    /**
+     * The information of the queues of each AC.
+     */
+    struct MacQueueInfo
+    {
+        std::list<uint64_t> expiredPackets; // list of expired packets
+        std::list<uint64_t> droppedPackets; // list of dropped packets
+    };
+    
     /**
      * Get the required throughput for the given ac and link ID in the past period of time.
      *
@@ -299,16 +291,6 @@ class SensingMac : public Object
      * @returns the average delay in milliseconds (0 if no packet tx successfully)
      */
     double GetDelay(Time period, AcIndex ac, uint8_t linkId = SINGLE_LINK_OP_ID) const;
-
-    /**
-     * The information of the queues of each AC.
-     */
-    struct MacQueueInfo
-    {
-        std::list<uint64_t> inQueuePackets; // list of packets in queue
-        std::list<uint64_t> expiredPackets; // list of expired packets
-        std::list<uint64_t> droppedPackets; // list of dropped packets
-    };
 
   protected:
     void DoInitialize() override;

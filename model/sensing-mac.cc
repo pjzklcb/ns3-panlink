@@ -10,6 +10,7 @@
 
 #include "ns3/env-utils.h"
 #include "ns3/wifi-mpdu.h"
+#include "ns3/wifi-mac-queue.h"
 
 namespace ns3
 {
@@ -220,9 +221,6 @@ SensingMac::NotifyEdcaEnqueue(std::string ac, Ptr<const WifiMpdu> item)
     it->second.ac = aci;
     it->second.enqueueTime = Simulator::Now();
     it->second.duration = item->GetHeader().GetDuration();
-
-    // record in the queue
-    m_queueMap[aci].inQueuePackets.push_back(uid);
 }
 
 void
@@ -237,8 +235,7 @@ SensingMac::NotifyEdcaExpired(std::string ac, Ptr<const WifiMpdu> item)
     {
         it->second.isExpired = true;
 
-        // remove the packet from the queue
-        m_queueMap[aci].inQueuePackets.remove(uid);
+        // record expired packet
         m_queueMap[aci].expiredPackets.push_back(uid);
     }
 }
@@ -296,8 +293,6 @@ SensingMac::NotifyAckedMpdu(Ptr<const WifiMpdu> mpdu)
     {
         it->second.ackedTime = Simulator::Now();
         m_linkMap[it->second.linkId].lastTxOkTime = Simulator::Now();
-
-        m_queueMap[it->second.ac].inQueuePackets.remove(uid);
     }
 }
 
@@ -318,7 +313,6 @@ SensingMac::NotifyDroppedMpdu(WifiMacDropReason reason, Ptr<const WifiMpdu> mpdu
         it->second.isDropped = true;
 
         AcIndex aci = it->second.ac;
-        m_queueMap[aci].inQueuePackets.remove(uid);
         m_queueMap[aci].droppedPackets.push_back(uid);
     }
 }
@@ -332,22 +326,6 @@ SensingMac::WipeAllExpiredPackets()
     {
         if (Simulator::Now() - it->second.enqueueTime > m_duration)
         {
-            auto& list = m_queueMap[it->second.ac].inQueuePackets;
-            auto it2 = std::find(list.begin(), list.end(), it->first);
-            // NS_ABORT_MSG_IF(it2 != list.end(), "packet uid=" << it->first << " still in queue");
-            if (it2 != list.end())
-            {
-                // save to debug.txt
-                std::ofstream ofs("debug.txt", std::ios_base::app);
-                ofs << Simulator::Now() << ", uid=" << it->first
-                    << " still in queue, with txCounter=" << it->second.txCounter
-                    << ", ac=" << it->second.ac << ", packetSize=" << it->second.packetSize
-                    << ", equeueTime=" << it->second.enqueueTime
-                    << ", ackedTime=" << it->second.ackedTime
-                    << ", isDropped=" << it->second.isDropped
-                    << ", isExpired=" << it->second.isExpired << std::endl;
-                ofs.close();
-            }
             it = m_packetMap.erase(it);
         }
         else
@@ -737,7 +715,7 @@ SensingMac::GetLastAccessInfo(uint8_t linkId)
     AccessInfo result;
     for (auto& [aci, queue] : m_queueMap)
     {
-        result.nInQueuePackets += queue.inQueuePackets.size();
+        result.nInQueuePackets += m_mac->GetTxopQueue(aci)->GetNPackets();
         result.nDroppedPackets += queue.droppedPackets.size();
         result.nExpiredPackets += queue.expiredPackets.size();
 
