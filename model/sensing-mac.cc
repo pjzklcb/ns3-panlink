@@ -9,8 +9,11 @@
 #include "sensing-mac.h"
 
 #include "ns3/env-utils.h"
-#include "ns3/wifi-mpdu.h"
+#include "ns3/node-list.h"
+#include "ns3/node.h"
 #include "ns3/wifi-mac-queue.h"
+#include "ns3/wifi-mpdu.h"
+#include "ns3/wifi-net-device.h"
 
 namespace ns3
 {
@@ -470,37 +473,56 @@ SensingMac::GetNExpectedContentionStasAt(Time time, uint32_t granularity, uint8_
     NS_LOG_FUNCTION(this << time << linkId);
 
     double expectation = 0;
-    for (auto& [sta, info] : m_neighborStaMap)
+    // for (auto& [sta, info] : m_neighborStaMap)
+    // {
+    //     if (info.linkId != linkId || time < info.lastTxTime)
+    //     {
+    //         continue;
+    //     }
+
+    //     double bin = GetBinOfTxIntervalHist(time - info.lastTxTime);
+    //     double prob = 0;
+    //     for (auto [k, v] : info.txIntervalHist)
+    //     {
+    //         if (k >= bin - granularity && k <= bin + granularity)
+    //         {
+    //             prob += v / info.txIntervalList.size();
+    //         }
+    //     }
+
+    //     double conditional_prob =
+    //         GetProbOfTxIntervalLessThan(sta, time - info.lastTxTime);
+
+    //     if (conditional_prob != 1)
+    //     {
+    //         expectation += prob / (1 - conditional_prob);
+    //     }
+    //     // std::cout << "MAC:" << sta << ", list=[";
+    //     // for (auto [k, v] : info.txIntervalHist)
+    //     // {
+    //     //     std::cout << "[" << k << ", " << v << "], ";
+    //     // }
+    //     // std::cout << "last tx=" << info.lastTxTime.ToDouble(Time::MS) << "prob=" << prob <<
+    //     // std::endl;
+    // }
+    for (uint32_t i = 0; i < NodeList::GetNNodes(); i++)
     {
-        if (info.linkId != linkId || time < info.lastTxTime)
+        Ptr<Node> node = NodeList::GetNode(i);
+        Ptr<WifiNetDevice> device = DynamicCast<WifiNetDevice>(node->GetDevice(0));
+        Ptr<WifiMac> mac = device->GetMac();
+        if (mac->GetAddress() == m_mac->GetAddress())
         {
             continue;
         }
-
-        double bin = GetBinOfTxIntervalHist(time - info.lastTxTime);
-        double prob = 0;
-        for (auto [k, v] : info.txIntervalHist)
+        int counter = 0;
+        for (auto [aci, _] : wifiAcList)
         {
-            if (k >= bin - granularity && k <= bin + granularity)
-            {
-                prob += v / info.txIntervalList.size();
-            }
+            counter += mac->GetTxopQueue(aci)->GetNPackets();
         }
-
-        double conditional_prob =
-            GetProbOfTxIntervalLessThan(sta, time - info.lastTxTime);
-        
-        if (conditional_prob != 1)
+        if (counter > 0)
         {
-            expectation += prob / (1 - conditional_prob);
+            expectation++;
         }
-        // std::cout << "MAC:" << sta << ", list=[";
-        // for (auto [k, v] : info.txIntervalHist)
-        // {
-        //     std::cout << "[" << k << ", " << v << "], ";
-        // }
-        // std::cout << "last tx=" << info.lastTxTime.ToDouble(Time::MS) << "prob=" << prob <<
-        // std::endl;
     }
 
     return expectation;

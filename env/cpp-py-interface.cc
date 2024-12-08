@@ -55,7 +55,6 @@ PYBIND11_MODULE(cpp_py_interface, m)
 {
     bind_array<uint32_t, 6>(m, "Uint6Array");
     bind_array<double, 4>(m, "Double4Array");
-    bind_array<double, 6>(m, "Double6Array");
 
     py::class_<Obs>(m, "PyEnvStruct")
         .def(py::init<>())

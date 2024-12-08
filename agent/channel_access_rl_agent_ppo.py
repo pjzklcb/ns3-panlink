@@ -28,12 +28,25 @@ N_EPISODES = 500
 EPS = 0.2
 
 
+def manual_choose_action(ratio_list, n_waited_slots):
+    if ratio_list[-1] < 0.1:
+        return 0
+    
+    if n_waited_slots > 15 and ratio_list[-1] <= min(ratio_list):
+        return 0
+    
+    if len(ratio_list) > 8 and ratio_list[-1] <= min(ratio_list[-8:]):
+        return 0
+    
+    return 15
+        
+
 class ChannelAccessRlAgent(RlAgent):
     def __init__(self, node_id, memory_id, enable_learning=True, pretrained_model=None):
         super().__init__(node_id, memory_id, enable_learning)
         self.agent_type = AgentType.RL_CHANNEL_ACCESS
         
-        state_size = 21
+        state_size = 12
         action_size = 16
         self.model = PPO(state_size, action_size, hidden_size=HIDDEN_SIZE, 
                          actor_lr=ACTOR_LR, critic_lr=CRITIC_LR, gamma=GAMMA, 
@@ -42,7 +55,7 @@ class ChannelAccessRlAgent(RlAgent):
         self.backoff = 0
         self.backoff_log = []
         self.last_waited_slots = 8
-        self.debug_mode = False
+        self.debug_mode = True
         self.obs_log = []
 
         # load pretrained model
@@ -70,7 +83,7 @@ class ChannelAccessRlAgent(RlAgent):
         n_bss_stas = env.nBssStas
         n_obss_stas = env.nObssStas
         n_1, n_5, n_10, n_20, n_50, n_100 = env.nTxOkDelay
-        n_i0, n_i1, n_i2, n_i5, n_i10, n_i20 = env.nExpectedContentionStas
+        n_i0 = env.nExpectedContentionStas
 
         # get last equivalent backoff
         if n_deferred_access == 0:
@@ -79,12 +92,11 @@ class ChannelAccessRlAgent(RlAgent):
 
         if self.show_log:
             print("At {:6f}s, delta_time={:.3f}ms, n_bss_stas={}, n_obss_stas={}, \n \
-                  delay<1/5/10/20/50/100ms={}/{}/{}/{}/{}/{}, \n \
-                  expected_n_stas within +-0/1/2/5/10/20ms={:.2f}/{:.2f}/{:.2f}/{:.2f}/{:.2f}/{:.2f}, \n \
+                  delay<1/5/10/20/50/100ms={}/{}/{}/{}/{}/{}, n_expected_stas={}\n \
                   in_queue/expired/dropped/sending/acked={}/{}/{}/{}/{}, low/high={}/{}, \n \
                   ac={}, cw={}, n_deferred_access={}, n_waited_slot={}, last_equal_backoff={}".format(
                 self.sim_time, self.delta_time, n_bss_stas, n_obss_stas, 
-                n_1, n_5, n_10, n_20, n_50, n_100, n_i0, n_i1, n_i2, n_i5, n_i10, n_i20,
+                n_1, n_5, n_10, n_20, n_50, n_100, n_i0, #n_i1, n_i2, n_i5, n_i10, n_i20,
                 n_in_queue, n_expired, n_dropped, n_sending, n_acked, 
                 n_low_delay, n_high_delay, ac.name, cw, n_deferred_access, n_waited_slot, self.equal_backoff
             ))
@@ -99,20 +111,25 @@ class ChannelAccessRlAgent(RlAgent):
         t_ = self.delta_time
         # nb_, no_ = obs.nBssStas, obs.nObssStas
         total_stas = max(1, obs.nBssStas + obs.nObssStas)
-        n1_, n5_, n10_, n20_, n50_, n100_ = [v/total_stas for v in obs.nTxOkDelay]
-        ni0_, ni1_, ni2_, ni5_, ni10_, ni20_ = [v/total_stas for v in obs.nExpectedContentionStas]
+        # n1_, n5_, n10_, n20_, n50_, n100_ = [v/total_stas for v in obs.nTxOkDelay]
+        ni0_ = obs.nExpectedContentionStas / total_stas
         ni_ = obs.nInQueuePackets
         # ne_ = obs.nExpiredPackets
         # nd_ = obs.nDroppedPackets
         ns_ = obs.nSendingPackets
         na_ = obs.nAckedPackets
-        # nl_, nh_ = obs.nLowDelayPackets, obs.nHighDelayPackets
+        nl_, nh_ = obs.nLowDelayPackets, obs.nHighDelayPackets
         cw_ = math.log(obs.cw+1, 2) / 10
         da_ = obs.nDeferredAccess
         b_ = obs.waitedSlots
+        if da_ == 0:
+            self.ratio_list = [ni_]
+        else:
+            self.ratio_list.append(ni0_)
 
-        o = [self.equal_backoff, t_, total_stas, ni_, ns_, na_, #ne_, nd_, nl_, nh_,
-             n1_, n5_, n10_, n20_, n50_, n100_, ni0_, ni1_, ni2_, ni5_, ni10_, ni20_,
+        o = [self.equal_backoff, t_, total_stas, ni_, ns_, na_, nl_, nh_, #ne_, nd_, 
+             #n1_, n5_, n10_, n20_, n50_, n100_, \
+             ni0_, #ni1_, ni2_, ni5_, ni10_, ni20_,
              cw_, da_, b_]
         if self.debug_mode:
             self.obs_log.append(o.copy())
@@ -122,16 +139,17 @@ class ChannelAccessRlAgent(RlAgent):
             # caculate reward
             # r_packet = nl_ + 0.5*(na_-nl_-nh_) + 0.1*nh_ - 0.1*nd_ - ne_
             # r_tx_fail = 0 if na_ else -ns_
-            r_tx = na_ if na_ else -ns_
+            r_tx = 1 if na_ else -min(ns_, 1)
             reward = r_tx#_fail + r_packet
             self.reward_log.append(reward)
             self.model.store_transition(self.state, self.action, reward, next_state)
 
         # choose action
-        self.action = self.model.choose_action(next_state, enable_learning=self.enable_learning)
+        # self.action = self.model.choose_action(next_state, enable_learning=self.enable_learning)
+        self.action = manual_choose_action(self.ratio_list, b_)
         self.action_log.append(self.action)
         
-        self.backoff = self.action * 2
+        self.backoff = self.action
         self.backoff_log.append(self.backoff)
         if self.show_log:
             print("New Backoff={}".format(self.backoff))
@@ -140,11 +158,12 @@ class ChannelAccessRlAgent(RlAgent):
     def reset(self):
         super().reset()
         self.backoff_log = []
+        self.obs_log = []
         if self.enable_learning:
             self.model.learn()
             self.plot_loss()
             self.model.reset()
-            self.debug_mode = True if self.episode==199 else False
+            self.debug_mode = True if self.episode%50 == 0 else False
             # update learning rate
             actor_lr = ACTOR_LR * (1-self.episode/N_EPISODES)
             critic_lr = CRITIC_LR * (1-self.episode/N_EPISODES)
@@ -160,12 +179,13 @@ class ChannelAccessRlAgent(RlAgent):
         with open(os.path.join(save_dir, 'debug.csv'), 'w') as f:
             writer = csv.writer(f)
             writer.writerow(['equal_backoff', 'delta_time', 'n_sta', 'n_in_queue', 
-                             'n_sending', 'n_acked', #'n_expired', 'n_dropped', 'n_low_delay', 'n_high_delay',
-                             'n1', 'n5', 'n10', 'n20', 'n50', 'n100', 
-                             'ni0', 'ni1', 'ni2', 'ni5', 'ni10', 'ni20',
-                             'cw', 'n_deferred', 'n_waited_slots', 'action', 'new_backoff'])
-            for i in range(len(self.obs_log)):
-                writer.writerow(self.obs_log[i] + [self.action_log[i]] + [self.backoff_log[i]])
+                             'n_sending', 'n_acked', #'n_expired', 'n_dropped', 
+                             'n_low_delay', 'n_high_delay',
+                             #'n1', 'n5', 'n10', 'n20', 'n50', 'n100', 
+                             'ni0', 'cw', 'n_deferred', 'n_waited_slots', 
+                             'action', 'new_backoff', 'reward'])
+            for i in range(len(self.obs_log) - 1):
+                writer.writerow(self.obs_log[i] + [self.action_log[i]] + [self.backoff_log[i]] + [self.reward_log[i]])
 
     def plot_results(self, save_dir=None):
         save_dir = save_dir if save_dir is not None else self.save_dir

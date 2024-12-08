@@ -24,19 +24,10 @@ def csv_to_dict(filename):
                 data[headers[i]].append(float(row[i]))
         
         for k, v in data.items():
-            data[k] = np.array(v)
+            data[k] = np.array(v[20:])
         return data
 
-
-if __name__ == "__main__":
-    prefix = "contrib/panlink/result-"
-    timestamp = "1733380492"
-    suffix = "-16scaling-rtx-centering-dist3"
-    episode = 199
-    result_dir = prefix + timestamp + suffix + "/episode_" + str(episode) + "/learn/"
-    filename = result_dir + "debug.csv"
-    data = csv_to_dict(filename)
-
+def plot_action(data):
     action = data['action']
     
     # plot action distribution
@@ -71,56 +62,78 @@ if __name__ == "__main__":
             writer.writerow([key, mi])
 
     # plot the relationship between obs and action
-    # obs_name_list = ['n10', 'n20', 'n30', 'n50', 'n100', 'other']
+    # obs_name_list = ['n1', 'n5', 'n10', 'n20', 'n50', 'n100', 'other']
     # obs_name_list = ['n10+n20', 'n10+n20+n30', 'n10+n20+n30+n50']
     # obs_name_list = ['n100+n50', 'n100+n50+n30', 'n100+n50+n30+n20']
-    # obs_name_list = ['equal_backoff', 'n_deferred', 'n_waited_slots']
+    obs_name_list = ['ni0']
 
-    # use_ratio = False
-    # x_ref = -5
-    # for obs_name in obs_name_list:
-    #     if obs_name == 'other':
-    #         obs = 1 - sum([data[name] for name in obs_name_list if name != 'other'])
-    #     elif '+' in obs_name:
-    #         names = obs_name.split('+')
-    #         obs = sum([data[name] for name in names])
-    #     else:
-    #         obs = data[obs_name]
+    use_ratio = True
+    x_ref = -0.1
+    for obs_name in obs_name_list:
+        if obs_name == 'other':
+            obs = 1 - sum([data[name] for name in obs_name_list if name != 'other'])
+        elif '+' in obs_name:
+            names = obs_name.split('+')
+            obs = sum([data[name] for name in names])
+        else:
+            obs = data[obs_name]
         
-    #     obs_bins = np.linspace(min(obs), max(obs), 20)
-    #     width = obs_bins[1] - obs_bins[0]
-    #     hist, _ = np.histogram(obs, bins=obs_bins)
+        obs_bins = np.linspace(min(obs), max(obs), 20)
+        width = obs_bins[1] - obs_bins[0]
+        hist, _ = np.histogram(obs, bins=obs_bins)
 
-    #     counts = [np.zeros(len(obs_bins)-1) for _ in range(len(labels))]
-    #     for i in range(len(obs_bins)-1):
-    #         action_slice = action[(obs >= obs_bins[i]) & (obs < obs_bins[i+1])]
-    #         if len(action_slice) > 0:
-    #             for j in range(len(labels)):
-    #                 if '-' in labels[j]:
-    #                     left, right = [int(v) for v in labels[j].split('-')]
-    #                 else:
-    #                     left, right = int(labels[j]), int(labels[j])
-    #                 counts[j][i] = np.sum((action_slice >= left) & (action_slice <= right))
+        counts = [np.zeros(len(obs_bins)-1) for _ in range(len(labels))]
+        for i in range(len(obs_bins)-1):
+            action_slice = action[(obs >= obs_bins[i]) & (obs < obs_bins[i+1])]
+            if len(action_slice) > 0:
+                for j in range(len(labels)):
+                    if '-' in labels[j]:
+                        left, right = [int(v) for v in labels[j].split('-')]
+                    else:
+                        left, right = int(labels[j]), int(labels[j])
+                    counts[j][i] = np.sum((action_slice >= left) & (action_slice <= right))
 
-    #     ratios = [np.zeros(len(obs_bins)-1) for _ in range(len(labels))]
-    #     for i in range(len(labels)):
-    #         ratios[i] = np.divide(counts[i], [v if v != 0 else 1 for v in hist])
+        ratios = [np.zeros(len(obs_bins)-1) for _ in range(len(labels))]
+        for i in range(len(labels)):
+            ratios[i] = np.divide(counts[i], [v if v != 0 else 1 for v in hist])
 
-    #     values = ratios if use_ratio else counts
+        values = ratios if use_ratio else counts
 
-    #     # create stacked histogram
-    #     plt.figure()
-    #     x = obs_bins[:-1] if not use_ratio else np.append(obs_bins[:-1], x_ref)
-    #     bottom = np.zeros(len(obs_bins) - int(not use_ratio))
-    #     for i in range(len(labels)):
-    #         y = values[i] if not use_ratio else np.append(values[i], ref_ratio[i])
-    #         plt.bar(x, y, bottom=bottom, width=width, alpha=0.8, label=labels[i])
-    #         bottom += y
+        # create stacked histogram
+        plt.figure()
+        x = obs_bins[:-1] if not use_ratio else np.append(obs_bins[:-1], x_ref)
+        bottom = np.zeros(len(obs_bins) - int(not use_ratio))
+        for i in range(len(labels)):
+            y = values[i] if not use_ratio else np.append(values[i], ref_ratio[i])
+            plt.bar(x, y, bottom=bottom, width=width, alpha=0.8, label=labels[i])
+            bottom += y
 
-    #     if use_ratio:   
-    #         plt.xticks(np.append(plt.xticks()[0], x_ref), np.append(plt.xticks()[1], 'ref'))
-    #     plt.xlabel('Obs {}'.format(obs_name))
-    #     plt.ylabel('Ratio' if use_ratio else 'Count')
-    #     plt.legend(loc='upper right')
-    #     plt.savefig('{}/obs_{}_{}_action.png'.format(result_dir, obs_name, 'ratio' if use_ratio else 'count'))
-    #     plt.close()
+        if use_ratio:   
+            plt.xticks(np.append(plt.xticks()[0], x_ref), np.append(plt.xticks()[1], 'ref'))
+        plt.xlabel('Obs {}'.format(obs_name))
+        plt.ylabel('Ratio' if use_ratio else 'Count')
+        plt.legend(loc='upper right')
+        plt.savefig('{}/obs_{}_{}_action.png'.format(result_dir, obs_name, 'ratio' if use_ratio else 'count'))
+        plt.close()
+
+
+if __name__ == "__main__":
+    prefix = "contrib/panlink/result-"
+    timestamp = "1733655285"
+    suffix = "-manual"
+    episode = 0
+    result_dir = prefix + timestamp + suffix + "/episode_" + str(episode) + "/learn/"
+    filename = result_dir + "debug.csv"
+    data = csv_to_dict(filename)
+
+    # plot_action(data)
+    idx = data['action'] == 0
+    reward = data['reward'][idx]
+    ratio = data['ni0'][idx]
+
+    plt.figure()
+    # plt.hist(ratio, bins=20, alpha=0.5, density=True)
+    # plt.hist(ratio[reward==0], bins=20, alpha=0.5, density=True)
+    plt.hist(ratio[reward==1], bins=20, alpha=0.5, density=True)
+    plt.hist(ratio[reward==-1], bins=20, alpha=0.5, density=True)
+    plt.show()
