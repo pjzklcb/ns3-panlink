@@ -61,8 +61,7 @@ ChannelAccessEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, 
     uint32_t n100 = sensingMac->GetNStaTxOkDelayLessThan(MilliSeconds(100), obs.linkId);
     env.nTxOkDelay = {n1, n5-n1, n10-n5, n20-n10, n50-n20, n100-n50};
     
-    double nI0 = sensingMac->GetNExpectedContentionStasAt(now, 0, obs.linkId);
-    env.nExpectedContentionStas = nI0;
+    env.nStasWithPackets = sensingMac->GetNStasWithPacketsNow(obs.linkId);
 
     auto info = sensingMac->GetLastAccessInfo(obs.linkId);
     env.nInQueuePackets = info.nInQueuePackets;

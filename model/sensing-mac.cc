@@ -486,12 +486,41 @@ SensingMac::GetNStaTxOkDelayLessThan(Time delay, uint8_t linkId) const
     return nStas;
 }
 
-double
-SensingMac::GetNExpectedContentionStasAt(Time time, uint32_t granularity, uint8_t linkId) const
+uint32_t
+SensingMac::GetNStasWithPacketsNow(uint8_t linkId) const
 {
-    NS_LOG_FUNCTION(this << time << linkId);
+    NS_LOG_FUNCTION(this << linkId);
 
-    double expectation = 0;
+    uint32_t nStas = 0;
+    for (uint32_t i = 0; i < NodeList::GetNNodes(); i++)
+    {
+        Ptr<Node> node = NodeList::GetNode(i);
+        Ptr<WifiNetDevice> device = DynamicCast<WifiNetDevice>(node->GetDevice(0));
+        Ptr<WifiMac> mac = device->GetMac();
+        if (mac->GetAddress() == m_mac->GetAddress())
+        {
+            continue;
+        }
+        int counter = 0;
+        for (auto [aci, _] : wifiAcList)
+        {
+            counter += mac->GetTxopQueue(aci)->GetNPackets();
+        }
+        if (counter > 0)
+        {
+            nStas++;
+        }
+    }
+
+    return nStas;
+}
+
+// double
+// SensingMac::GetNExpectedContentionStasAt(Time time, uint32_t granularity, uint8_t linkId) const
+// {
+//     NS_LOG_FUNCTION(this << time << linkId);
+
+    // double expectation = 0;
     // for (auto& [sta, info] : m_neighborStaMap)
     // {
     //     if (info.linkId != linkId || time < info.lastTxTime)
@@ -524,28 +553,9 @@ SensingMac::GetNExpectedContentionStasAt(Time time, uint32_t granularity, uint8_
     //     // std::cout << "last tx=" << info.lastTxTime.ToDouble(Time::MS) << "prob=" << prob <<
     //     // std::endl;
     // }
-    for (uint32_t i = 0; i < NodeList::GetNNodes(); i++)
-    {
-        Ptr<Node> node = NodeList::GetNode(i);
-        Ptr<WifiNetDevice> device = DynamicCast<WifiNetDevice>(node->GetDevice(0));
-        Ptr<WifiMac> mac = device->GetMac();
-        if (mac->GetAddress() == m_mac->GetAddress())
-        {
-            continue;
-        }
-        int counter = 0;
-        for (auto [aci, _] : wifiAcList)
-        {
-            counter += mac->GetTxopQueue(aci)->GetNPackets();
-        }
-        if (counter > 0)
-        {
-            expectation++;
-        }
-    }
 
-    return expectation;
-}
+    // return expectation;
+// }
 
 double
 SensingMac::GetProbOfTxIntervalLessThan(Mac48Address sta, Time interval) const

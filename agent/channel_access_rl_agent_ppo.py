@@ -73,7 +73,7 @@ class ChannelAccessRlAgent(RlAgent):
         n_bss_stas = env.nBssStas
         n_obss_stas = env.nObssStas
         n_1, n_5, n_10, n_20, n_50, n_100 = env.nTxOkDelay
-        n_i0 = env.nExpectedContentionStas
+        n_i0 = env.nStasWithPackets
 
         # get last equivalent backoff
         if n_deferred_access == 0:
@@ -85,7 +85,7 @@ class ChannelAccessRlAgent(RlAgent):
                   ac={}, in_queue/expired/dropped/sending/acked={}/{}/{}/{}/{}, low/high={}/{}, \n \
                   n_bss_stas={}, n_obss_stas={}, neighbor tx/data/acked={}/{}/{}, \n \
                   delay<1/5/10/20/50/100ms={}/{}/{}/{}/{}/{}, \n \
-                  n_expected_stas={} \
+                  n_stas_with_packets={} \
                   ".format(
                 self.sim_time, self.delta_time, self.equal_backoff, cw, n_deferred_access, n_waited_slot, 
                 ac.name, n_in_queue, n_expired, n_dropped, n_sending, n_acked, n_low_delay, n_high_delay, 
@@ -117,7 +117,7 @@ class ChannelAccessRlAgent(RlAgent):
         # nb_, no_ = obs.nBssStas, obs.nObssStas
         total_stas = max(1, obs.nBssStas + obs.nObssStas)
         # n1_, n5_, n10_, n20_, n50_, n100_ = [v/total_stas for v in obs.nTxOkDelay]
-        ni0_ = obs.nExpectedContentionStas / total_stas
+        ni0_ = obs.nStasWithPackets / total_stas
 
         o = [t_, self.equal_backoff, cw_, da_, b_,
              ni_, ns_, na_, nl_, nh_, ne_, #nd_, 

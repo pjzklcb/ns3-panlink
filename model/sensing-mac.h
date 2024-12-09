@@ -238,14 +238,12 @@ class SensingMac : public Object
      * @returns the number of STAs whose last successful transmission was less than the given delay
      */
     uint32_t GetNStaTxOkDelayLessThan(Time delay, uint8_t linkId) const;
+
     /**
-     * @param time the time
-     * @param granularity the granularity
      * @param linkId the link ID
-     * @returns the expectation the number of contention STAs at the given time with given
-     * granularity on the given link
+     * @returns the number of STAs with non-empty MAC queue at the moment.
      */
-    double GetNExpectedContentionStasAt(Time time, uint32_t granularity, uint8_t linkId) const;
+    uint32_t GetNStasWithPacketsNow(uint8_t linkId) const;
 
     /**
      * Get the number of STAs in the same BSS on the given link.
