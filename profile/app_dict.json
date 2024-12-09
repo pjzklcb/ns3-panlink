@@ -8,14 +8,14 @@
         },
         {
             "name": "test",
-            "payload_interval": 0.1,
-            "payload_size": 8000,
+            "payload_interval": 0.068,
+            "payload_size": 4000,
             "fragment_size": 1500
         },
         {
             "name": "test2",
             "payload_interval": 0.016,
-            "payload_size": 80000,
+            "payload_size": 330000,
             "fragment_size": 1500
         },
         {

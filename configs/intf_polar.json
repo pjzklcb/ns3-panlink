@@ -98,7 +98,7 @@
                     "end_time": 0.8
                 },
                 {
-                    "name": "projection_4k",
+                    "name": "test2",
                     "dst": 1,
                     "qos": "BE",
                     "start_time": 2.0,
@@ -202,7 +202,7 @@
                     "end_time": 0.8
                 },
                 {
-                    "name": "projection_4k",
+                    "name": "test2",
                     "dst": 1,
                     "qos": "BE",
                     "start_time": 2.0,
@@ -306,7 +306,7 @@
                     "end_time": 0.8
                 },
                 {
-                    "name": "projection_4k",
+                    "name": "test2",
                     "dst": 1,
                     "qos": "BE",
                     "start_time": 2.0,
@@ -410,7 +410,7 @@
                     "end_time": 0.8
                 },
                 {
-                    "name": "projection_4k",
+                    "name": "test2",
                     "dst": 1,
                     "qos": "BE",
                     "start_time": 2.0,
