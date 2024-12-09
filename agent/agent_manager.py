@@ -63,7 +63,8 @@ class AgentManager:
                     self.agent_dict[node_id].append(rl_agent)
             
         if len(self.agent_dict) == 0:
-            dummy_agent = self.create_agent(0, 0, "dummy")
+            self.memory_id[0] = 0
+            dummy_agent = self.create_agent(0, {"type": "dummy"})
             self.agent_dict[0] = [dummy_agent]
         
         return len(self.agent_dict) # return the number of memory vectors used
