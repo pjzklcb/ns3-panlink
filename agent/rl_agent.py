@@ -4,6 +4,8 @@
 #
 # Author: Pan Jinzhe <pjzklcb@gmail.com>
 
+import os
+import csv
 from agent_utils import AgentType
 import matplotlib.pyplot as plt
 
@@ -75,6 +77,10 @@ class RlAgent():
     def plot_episodes(self, save_dir=None):
         save_dir = save_dir if save_dir is not None else self.save_dir
 
+        with open(os.path.join(save_dir, 'episode.csv'), 'w') as f:
+            writer = csv.writer(f)
+            writer.writerow(self.episode_log)
+            
         y = self.episode_log
         plt.figure()
         plt.plot(range(len(y)), y, 'b-', linewidth=1)
