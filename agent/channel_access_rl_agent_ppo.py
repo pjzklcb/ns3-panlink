@@ -26,19 +26,6 @@ LMBDA = 0.95
 N_EPOCHS = 50
 N_EPISODES = 500
 EPS = 0.2
-
-
-def manual_choose_action(ratio_list, n_waited_slots):
-    if ratio_list[-1] < 0.1:
-        return 0
-    
-    if n_waited_slots > 15 and ratio_list[-1] <= min(ratio_list):
-        return 0
-    
-    if len(ratio_list) > 8 and ratio_list[-1] <= min(ratio_list[-8:]):
-        return 0
-    
-    return 15
         
 
 class ChannelAccessRlAgent(RlAgent):
@@ -55,7 +42,7 @@ class ChannelAccessRlAgent(RlAgent):
         self.backoff = 0
         self.backoff_log = []
         self.last_waited_slots = 8
-        self.debug_mode = True
+        self.debug_mode = False
         self.obs_log = []
 
         # load pretrained model
@@ -122,10 +109,6 @@ class ChannelAccessRlAgent(RlAgent):
         cw_ = math.log(obs.cw+1, 2) / 10
         da_ = obs.nDeferredAccess
         b_ = obs.waitedSlots
-        if da_ == 0:
-            self.ratio_list = [ni_]
-        else:
-            self.ratio_list.append(ni0_)
 
         o = [self.equal_backoff, t_, total_stas, ni_, ns_, na_, nl_, nh_, #ne_, nd_, 
              #n1_, n5_, n10_, n20_, n50_, n100_, \
@@ -139,14 +122,13 @@ class ChannelAccessRlAgent(RlAgent):
             # caculate reward
             # r_packet = nl_ + 0.5*(na_-nl_-nh_) + 0.1*nh_ - 0.1*nd_ - ne_
             # r_tx_fail = 0 if na_ else -ns_
-            r_tx = 1 if na_ else -min(ns_, 1)
+            r_tx = na_ if na_ else -ns_
             reward = r_tx#_fail + r_packet
             self.reward_log.append(reward)
             self.model.store_transition(self.state, self.action, reward, next_state)
 
         # choose action
-        # self.action = self.model.choose_action(next_state, enable_learning=self.enable_learning)
-        self.action = manual_choose_action(self.ratio_list, b_)
+        self.action = self.model.choose_action(next_state, enable_learning=self.enable_learning)
         self.action_log.append(self.action)
         
         self.backoff = self.action
