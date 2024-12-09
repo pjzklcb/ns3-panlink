@@ -15,7 +15,7 @@
         {
             "name": "test2",
             "payload_interval": 0.016,
-            "payload_size": 330000,
+            "payload_size": 340000,
             "fragment_size": 1500
         },
         {
