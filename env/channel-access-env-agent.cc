@@ -61,7 +61,13 @@ ChannelAccessEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, 
     uint32_t n100 = sensingMac->GetNStaTxOkDelayLessThan(MilliSeconds(100), obs.linkId);
     env.nTxOkDelay = {n1, n5-n1, n10-n5, n20-n10, n50-n20, n100-n50};
     
-    env.nStasWithPackets = sensingMac->GetNStasWithPacketsNow(obs.linkId);
+    uint32_t nn = sensingMac->GetNStasWithPacketsNow(obs.linkId);
+    uint32_t nn1 = sensingMac->GetNStasHasPacketsCounterLargerThan(1, obs.linkId);
+    uint32_t nn5 = sensingMac->GetNStasHasPacketsCounterLargerThan(5, obs.linkId);
+    uint32_t nn10 = sensingMac->GetNStasHasPacketsCounterLargerThan(10, obs.linkId);
+    uint32_t nn20 = sensingMac->GetNStasHasPacketsCounterLargerThan(20, obs.linkId);
+    uint32_t nn30 = sensingMac->GetNStasHasPacketsCounterLargerThan(30, obs.linkId);
+    env.nStasWithPacketCounter = {nn-nn1, nn1-nn5, nn5-nn10, nn10-nn20, nn20-nn30, nn30};
 
     auto info = sensingMac->GetLastAccessInfo(obs.linkId);
     env.nInQueuePackets = info.nInQueuePackets;

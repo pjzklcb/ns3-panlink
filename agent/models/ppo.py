@@ -40,8 +40,7 @@ class PPO:
     def __init__(self, state_size, action_size, hidden_size, 
                  actor_lr, critic_lr, lmbda, n_epochs, eps, gamma):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.actor = PolicyNet(state_size, action_size, 
-                                         hidden_size).to(self.device)
+        self.actor = PolicyNet(state_size, action_size, hidden_size).to(self.device)
         self.critic = ValueNet(state_size, hidden_size).to(self.device)
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=actor_lr, eps=1e-5)
         self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=critic_lr, eps=1e-5)

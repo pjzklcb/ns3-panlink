@@ -487,7 +487,7 @@ SensingMac::GetNStaTxOkDelayLessThan(Time delay, uint8_t linkId) const
 }
 
 uint32_t
-SensingMac::GetNStasWithPacketsNow(uint8_t linkId) const
+SensingMac::GetNStasWithPacketsNow(uint8_t linkId)
 {
     NS_LOG_FUNCTION(this << linkId);
 
@@ -501,12 +501,40 @@ SensingMac::GetNStasWithPacketsNow(uint8_t linkId) const
         {
             continue;
         }
+        auto it = m_neighborStaMap.find(mac->GetAddress());
+        if (it == m_neighborStaMap.end() || it->second.linkId != linkId)
+        {
+            continue;
+        }
+
         int counter = 0;
         for (auto [aci, _] : wifiAcList)
         {
             counter += mac->GetTxopQueue(aci)->GetNPackets();
         }
         if (counter > 0)
+        {
+            it->second.hasPacketsCounter++;
+            nStas++;
+        }
+        else
+        {
+            it->second.hasPacketsCounter = 0;
+        }
+    }
+
+    return nStas;
+}
+
+uint32_t 
+SensingMac::GetNStasHasPacketsCounterLargerThan(uint32_t counter, uint8_t linkId)
+{
+    NS_LOG_FUNCTION(this << counter << linkId);
+
+    uint32_t nStas = 0;
+    for (auto& [_, sta] : m_neighborStaMap)
+    {
+        if (sta.linkId == linkId && sta.hasPacketsCounter > counter)
         {
             nStas++;
         }

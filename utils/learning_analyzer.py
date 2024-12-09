@@ -24,7 +24,7 @@ def csv_to_dict(filename):
                 data[headers[i]].append(float(row[i]))
         
         for k, v in data.items():
-            data[k] = np.array(v[20:])
+            data[k] = np.array(v)
         return data
 
 def plot_action(data):
