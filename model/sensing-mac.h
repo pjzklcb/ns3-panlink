@@ -50,135 +50,40 @@ class SensingMac : public Object
     void SetMaxDuration(Time duration);
 
     /**
-     * Handles received frames not matter the STA they are sent to.
-     *
-     * @param hdr the MAC header of the frame
-     * @param rssi the RSSI of the frame
-     * @param linkId the ID of the link
+     * The information of the packets sent by this STA.
      */
-    void NotifyFrameInfo(const WifiMacHeader& hdr, double rssi, uint8_t linkId);
-
-    /**
-     * Record the STA whose last transmission was successful.
-     *
-     * @param sta the MAC address of the STA
-     * @param linkId the ID of the link
-     */
-    void NotifyLastTxOkSta(Mac48Address sta, uint8_t linkId);
-
-    /**
-     * The role for neighboring STAs.
-     */
-    enum NeighborStaRole
+    struct SelfPacketInfo
     {
-        ASSOCIATED_AP = 0,
-        BSS_STA,
-        OBSS,
-        UNKNOWN
-    };
-
-    /**
-     * Information of the neighbor STAs.
-     */
-    struct NeighborStaInfo
-    {
-        NeighborStaRole role{UNKNOWN};
+        uint32_t packetSize;
+        AcIndex ac;
         uint8_t linkId;
-        Time lastTxOkTime{Seconds(0)};   // the time of the last successful transmission
-        Time lastTxTime{Seconds(0)};     // the time of the last transmission
-        std::deque<Time> txIntervalList; // the intervals between two transmissions
-        std::map<double /* bin */, double> txIntervalHist;
-        std::map<Time /* Rx End */, Time /* duration */> channelUtil;
-        double rssi;
+        Time enqueueTime;
+        Time duration;
+        Time ackedTime{Seconds(0)};
+        uint32_t txCounter{0};
+        bool isExpired{false};
+        bool isDropped{false};
+        double txPowerW;
     };
 
     /**
-     * Get the minimum RSSI of BSS STAs on the given link.
-     *
-     * @param linkId the link ID
+     * The channel utilization of this STA on the given link.
      */
-    double GetMinBssRssi(uint8_t linkId) const;
-    /**
-     * Get the maximum RSSI of OBSS STAs on the given link.
-     *
-     * @param linkId the link ID
-     */
-    double GetMaxObssRssi(uint8_t linkId) const;
-
-    /**
-     * @param linkId the link ID
-     * @returns the last successful transmission time of this STA on the given link
-     */
-    Time GetSelfLastTxOk(uint8_t linkId) const;
-    /**
-     * @param delay the threshold delay
-     * @param linkId the link ID
-     * @returns the number of STAs whose last successful transmission was less than the given delay
-     */
-    uint32_t GetNStaTxOkDelayLessThan(Time delay, uint8_t linkId) const;
-    /**
-     * @param time the time
-     * @param granularity the granularity
-     * @param linkId the link ID
-     * @returns the expectation the number of contention STAs at the given time with given
-     * granularity on the given link
-     */
-    double GetNExpectedContentionStasAt(Time time, uint32_t granularity, uint8_t linkId) const;
-
-    /**
-     * Get the number of STAs in the same BSS on the given link.
-     *
-     * @param linkId the link ID
-     */
-    uint32_t GetNBssStas(uint8_t linkId) const;
-    /**
-     * Get the number of STAs belongs to OBSS on the given link.
-     *
-     * @param linkId the link ID
-     */
-    uint32_t GetNObssStas(uint8_t linkId) const;
-
-    /**
-     * Get the channel utilization of previous period of this STA on the given link.
-     *
-     * @param period the period of time
-     * @param linkId the link ID
-     */
-    double GetSelfChannelUtil(Time period, uint8_t linkId) const;
-    /**
-     * Get the channel utilization of previous period of STAs within the same BSS on the given link.
-     *
-     * @param period the period of time
-     * @param linkId the link ID
-     */
-    double GetBssChannelUtil(Time period, uint8_t linkId) const;
-    /**
-     * Get the channel utilization of previous period of other STAs on the given link.
-     *
-     * @param period the period of time
-     * @param linkId the link ID
-     */
-    double GetOtherChannelUtil(Time period, uint8_t linkId) const;
-
-    /**
-     * The obs collected from the mac since the last access restore.
-     */
-    struct AccessInfo
+    struct SelfLinkInfo
     {
-        uint32_t nInQueuePackets{0};
-        uint32_t nExpiredPackets{0};
-        uint32_t nDroppedPackets{0};
-        uint32_t nSendingPackets{0};
-        uint32_t nAckedPackets{0};
-        uint32_t nLowDelayPackets{0};  // latency <= 10ms
-        uint32_t nHighDelayPackets{0}; // latency > 30ms
+        Time lastTxOkTime;
+        std::list<uint64_t> pendingPackets; //!< pending packets
+        std::map<uint64_t /* UID */, std::pair<Time /* Tx Begin */, Time /* Tx End */>> channelUtil;
     };
 
     /**
-     * @param linkId the link ID
-     * @return the obs of the link after the last access restore.
+     * The information of the queues of each AC.
      */
-    AccessInfo GetLastAccessInfo(uint8_t linkId);
+    struct MacQueueInfo
+    {
+        std::list<uint64_t> expiredPackets; // list of expired packets
+        std::list<uint64_t> droppedPackets; // list of dropped packets
+    };
 
     /**
      * Trace the packet that has been enqueued to the given AC MAC queue.
@@ -227,41 +132,19 @@ class SensingMac : public Object
     void NotifyDroppedMpdu(WifiMacDropReason reason, Ptr<const WifiMpdu> mpdu);
 
     /**
-     * The information of the packets sent by this STA.
+     * @param linkId the link ID
+     * @returns the last successful transmission time of this STA on the given link
      */
-    struct SelfPacketInfo
-    {
-        uint32_t packetSize;
-        AcIndex ac;
-        uint8_t linkId;
-        Time enqueueTime;
-        Time duration;
-        Time ackedTime{Seconds(0)};
-        uint32_t txCounter{0};
-        bool isExpired{false};
-        bool isDropped{false};
-        double txPowerW;
-    };
+    Time GetSelfLastTxOk(uint8_t linkId) const;
 
     /**
-     * The channel utilization of this STA on the given link.
+     * Get the channel utilization of previous period of this STA on the given link.
+     *
+     * @param period the period of time
+     * @param linkId the link ID
      */
-    struct SelfLinkInfo
-    {
-        Time lastTxOkTime;
-        std::list<uint64_t> pendingPackets; //!< pending packets
-        std::map<uint64_t /* UID */, std::pair<Time /* Tx Begin */, Time /* Tx End */>> channelUtil;
-    };
+    double GetSelfChannelUtil(Time period, uint8_t linkId) const;
 
-    /**
-     * The information of the queues of each AC.
-     */
-    struct MacQueueInfo
-    {
-        std::list<uint64_t> expiredPackets; // list of expired packets
-        std::list<uint64_t> droppedPackets; // list of dropped packets
-    };
-    
     /**
      * Get the required throughput for the given ac and link ID in the past period of time.
      *
@@ -291,6 +174,129 @@ class SensingMac : public Object
      * @returns the average delay in milliseconds (0 if no packet tx successfully)
      */
     double GetDelay(Time period, AcIndex ac, uint8_t linkId = SINGLE_LINK_OP_ID) const;
+
+    /**
+     * The role for neighboring STAs.
+     */
+    enum NeighborStaRole
+    {
+        ASSOCIATED_AP = 0,
+        BSS_STA,
+        OBSS,
+        UNKNOWN
+    };
+
+    /**
+     * Information of the neighbor STAs.
+     */
+    struct NeighborStaInfo
+    {
+        NeighborStaRole role{UNKNOWN};
+        uint8_t linkId;
+        Time lastTxOkTime{Seconds(0)};   // the time of the last successful transmission
+        Time lastTxTime{Seconds(0)};     // the time of the last transmission
+        uint32_t nTxPackets{0};
+        uint32_t nTxDataPackets{0};
+        uint32_t nAckedPackets{0};
+        std::map<Time /* Rx End */, Time /* duration */> channelUtil;
+        double rssi;
+    };
+
+    /**
+     * Handles received frames not matter the STA they are sent to.
+     *
+     * @param hdr the MAC header of the frame
+     * @param rssi the RSSI of the frame
+     * @param linkId the ID of the link
+     */
+    void NotifyFrameInfo(const WifiMacHeader& hdr, double rssi, uint8_t linkId);
+
+    /**
+     * Record the STA whose last transmission was successful.
+     *
+     * @param sta the MAC address of the STA
+     * @param linkId the ID of the link
+     */
+    void NotifyLastTxOkSta(Mac48Address sta, uint8_t linkId);
+
+    /**
+     * Get the minimum RSSI of BSS STAs on the given link.
+     *
+     * @param linkId the link ID
+     */
+    double GetMinBssRssi(uint8_t linkId) const;
+    /**
+     * Get the maximum RSSI of OBSS STAs on the given link.
+     *
+     * @param linkId the link ID
+     */
+    double GetMaxObssRssi(uint8_t linkId) const;
+
+    /**
+     * @param delay the threshold delay
+     * @param linkId the link ID
+     * @returns the number of STAs whose last successful transmission was less than the given delay
+     */
+    uint32_t GetNStaTxOkDelayLessThan(Time delay, uint8_t linkId) const;
+    /**
+     * @param time the time
+     * @param granularity the granularity
+     * @param linkId the link ID
+     * @returns the expectation the number of contention STAs at the given time with given
+     * granularity on the given link
+     */
+    double GetNExpectedContentionStasAt(Time time, uint32_t granularity, uint8_t linkId) const;
+
+    /**
+     * Get the number of STAs in the same BSS on the given link.
+     *
+     * @param linkId the link ID
+     */
+    uint32_t GetNBssStas(uint8_t linkId) const;
+    /**
+     * Get the number of STAs belongs to OBSS on the given link.
+     *
+     * @param linkId the link ID
+     */
+    uint32_t GetNObssStas(uint8_t linkId) const;
+
+    /**
+     * Get the channel utilization of previous period of STAs within the same BSS on the given link.
+     *
+     * @param period the period of time
+     * @param linkId the link ID
+     */
+    double GetBssChannelUtil(Time period, uint8_t linkId) const;
+    /**
+     * Get the channel utilization of previous period of other STAs on the given link.
+     *
+     * @param period the period of time
+     * @param linkId the link ID
+     */
+    double GetOtherChannelUtil(Time period, uint8_t linkId) const;
+
+    /**
+     * The obs collected from the mac since the last access restore.
+     */
+    struct AccessInfo
+    {
+        uint32_t nInQueuePackets{0};
+        uint32_t nExpiredPackets{0};
+        uint32_t nDroppedPackets{0};
+        uint32_t nSendingPackets{0};
+        uint32_t nAckedPackets{0};
+        uint32_t nLowDelayPackets{0};  // latency <= 10ms
+        uint32_t nHighDelayPackets{0}; // latency > 30ms
+        uint32_t nNeighborTxPackets{0};
+        uint32_t nNeighborTxDataPackets{0};
+        uint32_t nNeighborAckedPackets{0};
+    };
+
+    /**
+     * @param linkId the link ID
+     * @return the obs of the link after the last access restore.
+     */
+    AccessInfo GetLastAccessInfo(uint8_t linkId);
 
   protected:
     void DoInitialize() override;

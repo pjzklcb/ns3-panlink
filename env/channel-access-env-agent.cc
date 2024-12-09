@@ -72,6 +72,9 @@ ChannelAccessEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, 
     env.nAckedPackets = info.nAckedPackets;
     env.nLowDelayPackets = info.nLowDelayPackets;
     env.nHighDelayPackets = info.nHighDelayPackets;
+    env.nNeighborTxPackets = info.nNeighborTxPackets;
+    env.nNeighborTxDataPackets = info.nNeighborTxDataPackets;
+    env.nNeighborAckedPackets = info.nNeighborAckedPackets;
 
     // Get module obs
     auto& channelAccessObs = static_cast<ChannelAccessObs&>(obs);

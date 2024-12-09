@@ -43,6 +43,9 @@ struct Obs
     uint32_t nObssStas;
     std::array<uint32_t, 6> nTxOkDelay;
     double nExpectedContentionStas;
+    uint32_t nNeighborTxPackets;
+    uint32_t nNeighborTxDataPackets;
+    uint32_t nNeighborAckedPackets;
     double bssRssi;
     double obssRssi;
     double bssChannelUtil;

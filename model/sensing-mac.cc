@@ -89,119 +89,6 @@ SensingMac::SetMaxDuration(Time duration)
 }
 
 void
-SensingMac::NotifyFrameInfo(const WifiMacHeader& hdr, double rssi, uint8_t linkId)
-{
-    NS_LOG_FUNCTION(this << hdr << rssi << linkId);
-
-    Mac48Address sender = hdr.GetAddr2();
-    Mac48Address receiver = hdr.GetAddr1();
-
-    // Recognize the role of the sender
-    NeighborStaRole role = UNKNOWN;
-    if (m_mac->GetTypeOfStation() == STA)
-    {
-        auto staMac = DynamicCast<PanlinkStaWifiMac>(m_mac);
-        if (staMac->IsAssociated())
-        {
-            auto apAddr = staMac->GetLink(linkId).bssid;
-            if (sender == apAddr)
-            {
-                role = ASSOCIATED_AP;
-            }
-            else if (receiver == apAddr)
-            {
-                role = BSS_STA;
-            }
-            else
-            {
-                role = OBSS;
-            }
-        }
-    }
-
-    auto [it, inserted] = m_neighborStaMap.try_emplace(sender);
-    if (inserted)
-    {
-        it->second.linkId = linkId;
-        it->second.role = role;
-    }
-    NS_ASSERT(it->second.linkId == linkId);
-
-    if (role != UNKNOWN)
-    {
-        it->second.role = role;
-    }
-    it->second.channelUtil[Simulator::Now()] = hdr.GetDuration();
-    it->second.rssi = rssi;
-
-    auto& intervals = it->second.txIntervalList;
-    if (intervals.size() >= 50)
-    {
-        double bin = GetBinOfTxIntervalHist(intervals.front());
-        it->second.txIntervalHist[bin]--;
-        if (it->second.txIntervalHist[bin] == 0)
-        {
-            it->second.txIntervalHist.erase(bin);
-        }
-        intervals.pop_front();
-    }
-    auto interval = Simulator::Now() - it->second.lastTxTime;
-    intervals.push_back(interval);
-    double bin = GetBinOfTxIntervalHist(interval);
-    it->second.txIntervalHist[bin]++;
-    it->second.lastTxTime = Simulator::Now();
-
-    // Remove stale packets
-    auto& util = m_neighborStaMap[sender].channelUtil;
-    for (auto it = util.begin(); it != util.end();)
-    {
-        Time rxBegin = it->first - it->second;
-        if (Simulator::Now() - rxBegin > m_duration)
-        {
-            it = util.erase(it);
-        }
-        else
-        {
-            ++it;
-        }
-    }
-
-    // Remove inactive OBSS STAs
-    for (auto it = m_neighborStaMap.begin(); it != m_neighborStaMap.end();)
-    {
-        if ((it->second.role == OBSS || it->second.role == UNKNOWN) &&
-            it->second.channelUtil.size() == 0)
-        {
-            it = m_neighborStaMap.erase(it);
-        }
-        else
-        {
-            ++it;
-        }
-    }
-}
-
-void
-SensingMac::NotifyLastTxOkSta(Mac48Address sta, uint8_t linkId)
-{
-    NS_LOG_FUNCTION(this << sta << linkId);
-
-    // Self packets are handled by NotifyAckedMpdu
-    if (sta == m_mac->GetAddress())
-    {
-        return;
-    }
-
-    auto [it, inserted] = m_neighborStaMap.try_emplace(sta);
-    if (inserted)
-    {
-        it->second.linkId = linkId;
-    }
-    NS_ASSERT(it->second.linkId == linkId);
-    it->second.lastTxOkTime = Simulator::Now();
-}
-
-void
 SensingMac::NotifyEdcaEnqueue(std::string ac, Ptr<const WifiMpdu> item)
 {
     NS_LOG_FUNCTION(this << ac << item);
@@ -338,6 +225,46 @@ SensingMac::WipeAllExpiredPackets()
     }
 }
 
+Time
+SensingMac::GetSelfLastTxOk(uint8_t linkId) const
+{
+    NS_LOG_FUNCTION(this << linkId);
+
+    auto linkIt = m_linkMap.find(linkId);
+    NS_ASSERT_MSG(linkIt != m_linkMap.end(), "Link not found");
+
+    return linkIt->second.lastTxOkTime;
+}
+
+double
+SensingMac::GetSelfChannelUtil(Time period, uint8_t linkId) const
+{
+    NS_LOG_FUNCTION(this << period << linkId);
+
+    NS_ASSERT(period > Seconds(0));
+    NS_ASSERT_MSG(period <= m_duration, "Period surpass maximum duration");
+
+    auto linkIt = m_linkMap.find(linkId);
+    NS_ASSERT_MSG(linkIt != m_linkMap.end(), "Link not found");
+
+    // Get the segements in the period
+    Time prevEnd = Simulator::Now() - period;
+    double channelUtil = 0;
+    for (const auto& [uid, pair] : linkIt->second.channelUtil)
+    {
+        Time begin = pair.first;
+        Time end = (pair.second == Seconds(0)) ? Simulator::Now() : pair.second; // RX not end yet
+        if (end <= prevEnd)
+        {
+            continue;
+        }
+        channelUtil += (end - std::max(prevEnd, begin)).GetSeconds();
+        prevEnd = end;
+    }
+
+    return channelUtil / period.GetSeconds();
+}
+
 double
 SensingMac::GetThptReq(Time period, AcIndex ac, uint8_t linkId) const
 {
@@ -402,6 +329,109 @@ SensingMac::GetDelay(Time period, AcIndex ac, uint8_t linkId) const
     return counter == 0 ? 0 : delay.ToDouble(Time::MS) / counter; // ms
 }
 
+void
+SensingMac::NotifyFrameInfo(const WifiMacHeader& hdr, double rssi, uint8_t linkId)
+{
+    NS_LOG_FUNCTION(this << hdr << rssi << linkId);
+
+    Mac48Address sender = hdr.GetAddr2();
+    Mac48Address receiver = hdr.GetAddr1();
+
+    // Recognize the role of the sender
+    NeighborStaRole role = UNKNOWN;
+    if (m_mac->GetTypeOfStation() == STA)
+    {
+        auto staMac = DynamicCast<PanlinkStaWifiMac>(m_mac);
+        if (staMac->IsAssociated())
+        {
+            auto apAddr = staMac->GetLink(linkId).bssid;
+            if (sender == apAddr)
+            {
+                role = ASSOCIATED_AP;
+            }
+            else if (receiver == apAddr)
+            {
+                role = BSS_STA;
+            }
+            else
+            {
+                role = OBSS;
+            }
+        }
+    }
+
+    auto [it, inserted] = m_neighborStaMap.try_emplace(sender);
+    if (inserted)
+    {
+        it->second.linkId = linkId;
+        it->second.role = role;
+    }
+    NS_ASSERT(it->second.linkId == linkId);
+
+    if (role != UNKNOWN)
+    {
+        it->second.role = role;
+    }
+    it->second.channelUtil[Simulator::Now()] = hdr.GetDuration();
+    it->second.rssi = rssi;
+    it->second.lastTxTime = Simulator::Now();
+    it->second.nTxPackets++;
+    if (hdr.IsData())
+    {
+        it->second.nTxDataPackets++;
+    }
+
+    // Remove stale packets
+    auto& util = m_neighborStaMap[sender].channelUtil;
+    for (auto it = util.begin(); it != util.end();)
+    {
+        Time rxBegin = it->first - it->second;
+        if (Simulator::Now() - rxBegin > m_duration)
+        {
+            it = util.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+    }
+
+    // Remove inactive OBSS STAs
+    for (auto it = m_neighborStaMap.begin(); it != m_neighborStaMap.end();)
+    {
+        if ((it->second.role == OBSS || it->second.role == UNKNOWN) &&
+            it->second.channelUtil.size() == 0)
+        {
+            it = m_neighborStaMap.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+    }
+}
+
+void
+SensingMac::NotifyLastTxOkSta(Mac48Address sta, uint8_t linkId)
+{
+    NS_LOG_FUNCTION(this << sta << linkId);
+
+    // Self packets are handled by NotifyAckedMpdu
+    if (sta == m_mac->GetAddress())
+    {
+        return;
+    }
+
+    auto [it, inserted] = m_neighborStaMap.try_emplace(sta);
+    if (inserted)
+    {
+        it->second.linkId = linkId;
+    }
+    NS_ASSERT(it->second.linkId == linkId);
+    it->second.lastTxOkTime = Simulator::Now();
+    it->second.nAckedPackets++;
+}
+
 double
 SensingMac::GetMinBssRssi(uint8_t linkId) const
 {
@@ -434,17 +464,6 @@ SensingMac::GetMaxObssRssi(uint8_t linkId) const
     }
 
     return rssi;
-}
-
-Time
-SensingMac::GetSelfLastTxOk(uint8_t linkId) const
-{
-    NS_LOG_FUNCTION(this << linkId);
-
-    auto linkIt = m_linkMap.find(linkId);
-    NS_ASSERT_MSG(linkIt != m_linkMap.end(), "Link not found");
-
-    return linkIt->second.lastTxOkTime;
 }
 
 uint32_t
@@ -534,23 +553,23 @@ SensingMac::GetProbOfTxIntervalLessThan(Mac48Address sta, Time interval) const
     NS_LOG_FUNCTION(this << sta << interval);
 
     double prob = 0;
-    if (auto it = m_neighborStaMap.find(sta); it != m_neighborStaMap.end())
-    {
-        if (it->second.txIntervalList.size() == 0)
-        {
-            return prob;
-        }
+    // if (auto it = m_neighborStaMap.find(sta); it != m_neighborStaMap.end())
+    // {
+    //     if (it->second.txIntervalList.size() == 0)
+    //     {
+    //         return prob;
+    //     }
 
-        double counter = 0;
-        for (auto in : it->second.txIntervalList)
-        {
-            if (in <= interval)
-            {
-                counter++;
-            }
-        }
-        prob = counter / it->second.txIntervalList.size();
-    }
+    //     double counter = 0;
+    //     for (auto in : it->second.txIntervalList)
+    //     {
+    //         if (in <= interval)
+    //         {
+    //             counter++;
+    //         }
+    //     }
+    //     prob = counter / it->second.txIntervalList.size();
+    // }
 
     return prob;
 }
@@ -596,35 +615,6 @@ SensingMac::GetNObssStas(uint8_t linkId) const
     }
 
     return nStas;
-}
-
-double
-SensingMac::GetSelfChannelUtil(Time period, uint8_t linkId) const
-{
-    NS_LOG_FUNCTION(this << period << linkId);
-
-    NS_ASSERT(period > Seconds(0));
-    NS_ASSERT_MSG(period <= m_duration, "Period surpass maximum duration");
-
-    auto linkIt = m_linkMap.find(linkId);
-    NS_ASSERT_MSG(linkIt != m_linkMap.end(), "Link not found");
-
-    // Get the segements in the period
-    Time prevEnd = Simulator::Now() - period;
-    double channelUtil = 0;
-    for (const auto& [uid, pair] : linkIt->second.channelUtil)
-    {
-        Time begin = pair.first;
-        Time end = (pair.second == Seconds(0)) ? Simulator::Now() : pair.second; // RX not end yet
-        if (end <= prevEnd)
-        {
-            continue;
-        }
-        channelUtil += (end - std::max(prevEnd, begin)).GetSeconds();
-        prevEnd = end;
-    }
-
-    return channelUtil / period.GetSeconds();
 }
 
 double
@@ -735,6 +725,7 @@ SensingMac::GetLastAccessInfo(uint8_t linkId)
     NS_LOG_FUNCTION(this << linkId);
 
     AccessInfo result;
+    // self info
     for (auto& [aci, queue] : m_queueMap)
     {
         result.nInQueuePackets += m_mac->GetTxopQueue(aci)->GetNPackets();
@@ -767,6 +758,23 @@ SensingMac::GetLastAccessInfo(uint8_t linkId)
     }
 
     m_linkMap[linkId].pendingPackets.clear();
+
+    // neighbor info
+    for (auto& [sta, info] : m_neighborStaMap)
+    {
+        if (info.linkId != linkId)
+        {
+            continue;
+        }
+
+        result.nNeighborTxPackets += info.nTxPackets;
+        result.nNeighborTxDataPackets += info.nTxDataPackets;
+        result.nNeighborAckedPackets += info.nAckedPackets;
+
+        info.nTxPackets = 0;
+        info.nTxDataPackets = 0;
+        info.nAckedPackets = 0;
+    }
 
     return result;
 }
