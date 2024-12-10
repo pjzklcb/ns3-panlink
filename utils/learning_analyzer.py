@@ -65,7 +65,7 @@ def plot_action(data):
     # obs_name_list = ['n1', 'n5', 'n10', 'n20', 'n50', 'n100', 'other']
     # obs_name_list = ['n10+n20', 'n10+n20+n30', 'n10+n20+n30+n50']
     # obs_name_list = ['n100+n50', 'n100+n50+n30', 'n100+n50+n30+n20']
-    obs_name_list = ['ni0']
+    obs_name_list = ['nn']
 
     use_ratio = True
     x_ref = -0.1
@@ -116,24 +116,62 @@ def plot_action(data):
         plt.savefig('{}/obs_{}_{}_action.png'.format(result_dir, obs_name, 'ratio' if use_ratio else 'count'))
         plt.close()
 
+def plot_reward(data):
+    reward = data['reward']
+
+    use_ratio = True
+
+    obs_name = 'nn'
+    obs = data[obs_name]
+    obs_bins = np.linspace(min(obs), max(obs), 20)
+    width = obs_bins[1] - obs_bins[0]
+    hist, _ = np.histogram(obs, bins=obs_bins)
+    counts = [np.zeros(len(obs_bins)-1) for _ in range(3)]
+    for i in range(len(obs_bins)-1):
+        reward_slice = reward[(obs >= obs_bins[i]) & (obs < obs_bins[i+1])]
+        counts[0][i] = np.sum(reward_slice < 0)
+        counts[1][i] = np.sum(reward_slice == 0)
+        counts[2][i] = np.sum(reward_slice > 0)
+
+    ratios = [np.zeros(len(obs_bins)-1) for _ in range(3)]
+    for i in range(3):
+        ratios[i] = np.divide(counts[i], [v if v != 0 else 1 for v in hist])
+
+    values = ratios if use_ratio else counts
+
+    # create stacked histogram
+    plt.figure()
+    x = obs_bins[:-1]
+    bottom = np.zeros(len(obs_bins) - 1)
+    for i in range(3):
+        y = values[i]
+        plt.bar(x, y, bottom=bottom, width=width, alpha=0.8, label='<0' if i == 0 else '=0' if i == 1 else '>0')
+        bottom += y
+
+    plt.xlabel('Obs {}'.format(obs_name))
+    plt.ylabel('Ratio' if use_ratio else 'Count')
+    plt.legend(loc='upper right')
+    plt.savefig('{}/obs_{}_{}_action.png'.format(result_dir, obs_name, 'ratio' if use_ratio else 'count'))
+    plt.close()
+
 
 if __name__ == "__main__":
     prefix = "contrib/panlink/result-"
-    timestamp = "1733655285"
-    suffix = "-manual"
+    timestamp = "1733798820"
+    suffix = "-ideal-backoff"
     episode = 0
     result_dir = prefix + timestamp + suffix + "/episode_" + str(episode) + "/learn/"
     filename = result_dir + "debug.csv"
     data = csv_to_dict(filename)
 
     # plot_action(data)
-    idx = data['action'] == 0
-    reward = data['reward'][idx]
-    ratio = data['ni0'][idx]
+    # plot_reward(data)
+    ratio = data['nn']
+    backoff = data['min_neighbor_backoff']
+    idx = backoff != 1024
+    h_x = entropy(np.unique(backoff[idx], return_counts=True)[1])
+    h_y = entropy(np.unique(ratio[idx], return_counts=True)[1])
+    h_xy = entropy(np.histogram2d(backoff[idx], ratio[idx], bins=[len(np.unique(backoff[idx])), len(np.unique(ratio[idx]))])[0].flatten())
 
-    plt.figure()
-    # plt.hist(ratio, bins=20, alpha=0.5, density=True)
-    # plt.hist(ratio[reward==0], bins=20, alpha=0.5, density=True)
-    plt.hist(ratio[reward==1], bins=20, alpha=0.5, density=True)
-    plt.hist(ratio[reward==-1], bins=20, alpha=0.5, density=True)
-    plt.show()
+    mi = h_x + h_y - h_xy
+    print("MI: {}".format(mi))

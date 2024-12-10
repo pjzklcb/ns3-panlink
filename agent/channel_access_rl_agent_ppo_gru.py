@@ -35,7 +35,7 @@ class ChannelAccessRlAgent(RlAgent):
         super().__init__(node_id, memory_id, enable_learning)
         self.agent_type = AgentType.RL_CHANNEL_ACCESS
         
-        state_size = 16
+        state_size = 24
         action_size = 16
         self.model = PPO(state_size, action_size, hidden_size=HIDDEN_SIZE, 
                          actor_lr=ACTOR_LR, critic_lr=CRITIC_LR, gamma=GAMMA, 
@@ -109,7 +109,7 @@ class ChannelAccessRlAgent(RlAgent):
         b_ = obs.waitedSlots
         ni_ = obs.nInQueuePackets
         ne_ = obs.nExpiredPackets
-        # nd_ = obs.nDroppedPackets
+        nd_ = obs.nDroppedPackets
         ns_ = obs.nSendingPackets
         na_ = obs.nAckedPackets
         nl_, nh_ = obs.nLowDelayPackets, obs.nHighDelayPackets
@@ -117,14 +117,14 @@ class ChannelAccessRlAgent(RlAgent):
         nnd_ = obs.nNeighborTxDataPackets / max(1, nnt_)
         nna_ = obs.nNeighborAckedPackets / max(1, nnt_)
         total_stas = max(1, obs.nBssStas + obs.nObssStas)
-        # n1_, n5_, n10_, n20_, n50_, n100_ = [v/total_stas for v in obs.nTxOkDelay]
+        n1_, n5_, n10_, n20_, n50_, n100_ = [v/total_stas for v in obs.nTxOkDelay]
         nn_ = obs.nStasWithPackets / total_stas
         nb_ = obs.minNeighborBackoff
 
         o = [t_, self.equal_backoff, cw_, da_, b_,
-             ni_, ns_, na_, nl_, nh_, #ne_, nd_, 
+             ni_, ns_, na_, nl_, nh_, ne_, nd_, 
              total_stas, nnt_, nnd_, nna_,
-            #  n1_, n5_, n10_, n20_, n50_, n100_, 
+             n1_, n5_, n10_, n20_, n50_, n100_, 
              nn_, nb_
              ]
         
@@ -144,8 +144,8 @@ class ChannelAccessRlAgent(RlAgent):
 
         # choose action
         # self.action = self.model.choose_action(next_state, enable_learning=self.enable_learning)
-        # self.action = random.randint(0, obs.cw-obs.waitedSlots)
-        self.action = 0 if obs.minNeighborBackoff else 1
+        self.action = random.randint(0, obs.cw-obs.waitedSlots)
+        # self.action = 0 if obs.minNeighborBackoff else 1
         self.action_log.append(self.action)
         
         self.backoff = self.action
@@ -178,9 +178,9 @@ class ChannelAccessRlAgent(RlAgent):
         with open(os.path.join(save_dir, 'debug.csv'), 'w') as f:
             writer = csv.writer(f)
             writer.writerow(['delta_time', 'equal_backoff', 'cw', 'n_deferred', 'n_waited_slots', 
-                             'n_in_queue', 'n_sending', 'n_acked', 'n_low_delay', 'n_high_delay', #'n_expired', 'n_dropped', 
+                             'n_in_queue', 'n_sending', 'n_acked', 'n_low_delay', 'n_high_delay', 'n_expired', 'n_dropped', 
                              'n_sta', 'n_neighbor_tx', 'n_neighbor_tx_data', 'n_neighbor_acked',
-                            #  'n1', 'n5', 'n10', 'n20', 'n50', 'n100', 
+                             'n1', 'n5', 'n10', 'n20', 'n50', 'n100', 
                              'nn', 'min_neighbor_backoff',
                              'action', 'new_backoff', 'reward'])
             for i in range(len(self.obs_log) - 1):

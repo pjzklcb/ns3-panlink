@@ -120,6 +120,15 @@ IntfDeployer::DeployInterference(WifiHelper& wifiHelper,
                                    std::to_string(bandwidth) + ", BAND_5GHZ, 0}");
 
             /* Install Wi-Fi stack */
+            wifiHelper.SetRemoteStationManager("ns3::ConstantRateWifiManager",
+                                               "DataMode",
+                                               StringValue("HeMcs9"),
+                                               "ControlMode",
+                                               StringValue("HeMcs0"),
+                                               "RtsCtsThreshold",
+                                               UintegerValue(2346),
+                                               "RtsCtsTxDurationThresh",
+                                               TimeValue(MilliSeconds(1.0)));
             if (j == 0)
             {
                 macHelper.SetType("ns3::ApWifiMac",
@@ -151,8 +160,8 @@ IntfDeployer::DeployInterference(WifiHelper& wifiHelper,
                     auto& app = node["application_list"][k];
                     auto dst = (j != 0) ? nodes.Get(0)->GetId() // AP node ID
                                         : nodes.Get(staIndexMap[app["dst"].GetInt()])->GetId();
-                    
-                    auto srcApp = ParseApplicationFromJson(app, dst, 50001+uint(k));
+
+                    auto srcApp = ParseApplicationFromJson(app, dst, 50001 + uint(k));
                     srcAppMap[nodes.Get(j)->GetId()].emplace_back(srcApp);
                 }
             }
