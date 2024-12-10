@@ -28,7 +28,7 @@ N_EPOCHS = 50
 N_EPISODES = 500
 EPS = 0.2
 SEQ_LEN = 10
-        
+
 
 class ChannelAccessRlAgent(RlAgent):
     def __init__(self, node_id, memory_id, enable_learning=True, pretrained_model=None):
@@ -45,7 +45,7 @@ class ChannelAccessRlAgent(RlAgent):
         self.backoff = 0
         self.backoff_log = []
         self.last_waited_slots = 8
-        self.debug_mode = False
+        self.debug_mode = True
         self.obs_log = []
 
         # load pretrained model
@@ -77,7 +77,7 @@ class ChannelAccessRlAgent(RlAgent):
         n_obss_stas = env.nObssStas
         n_1, n_5, n_10, n_20, n_50, n_100 = env.nTxOkDelay
         nn = env.nStasWithPackets
-        # nn, nn1, nn2, nn3, nn4, nn5 = env.nStasWithPacketCounter
+        min_neighbor_backoff = env.minNeighborBackoff
 
         # get last equivalent backoff
         if n_deferred_access == 0:
@@ -89,11 +89,11 @@ class ChannelAccessRlAgent(RlAgent):
                   ac={}, in_queue/expired/dropped/sending/acked={}/{}/{}/{}/{}, low/high={}/{}, \n \
                   n_bss_stas={}, n_obss_stas={}, neighbor tx/data/acked={}/{}/{}, \n \
                   delay<1/5/10/20/50/100ms={}/{}/{}/{}/{}/{}, \n \
-                  n_stas_with_packet={}".format(
+                  n_stas_with_packet={}, min_neighbor_backoff={}".format(
                       self.sim_time, self.delta_time, self.equal_backoff, cw, n_deferred_access, n_waited_slot,
                       ac.name, n_in_queue, n_expired, n_dropped, n_sending, n_acked, n_low_delay, n_high_delay, 
                       n_bss_stas, n_obss_stas, n_neighbor_tx, n_neighbor_tx_data, n_neighbor_acked,
-                      n_1, n_5, n_10, n_20, n_50, n_100, nn#, nn1, nn2, nn3, nn4, nn5
+                      n_1, n_5, n_10, n_20, n_50, n_100, nn, min_neighbor_backoff
                       ))
         
         self.choose_action(env)
@@ -119,13 +119,13 @@ class ChannelAccessRlAgent(RlAgent):
         total_stas = max(1, obs.nBssStas + obs.nObssStas)
         # n1_, n5_, n10_, n20_, n50_, n100_ = [v/total_stas for v in obs.nTxOkDelay]
         nn_ = obs.nStasWithPackets / total_stas
-        # nn_,  nn1_, nn2_, nn3_, nn4_, nn5_= [v/total_stas for v in obs.nStasWithPacketCounter]
+        nb_ = obs.minNeighborBackoff
 
         o = [t_, self.equal_backoff, cw_, da_, b_,
-             ni_, ns_, na_, nl_, nh_, ne_, #nd_, 
-             #n1_, n5_, n10_, n20_, n50_, n100_, 
+             ni_, ns_, na_, nl_, nh_, #ne_, nd_, 
              total_stas, nnt_, nnd_, nna_,
-             nn_#, nn1_, nn2_, nn3_, nn4_, nn5_
+            #  n1_, n5_, n10_, n20_, n50_, n100_, 
+             nn_, nb_
              ]
         
         if self.debug_mode:
@@ -135,16 +135,17 @@ class ChannelAccessRlAgent(RlAgent):
         next_state = list(self.traj)
         if self.state:
             # caculate reward
-            r_packet = nl_ + 0.5*(na_-nl_-nh_) + 0.1*nh_ - ne_ #- 0.1*nd_
-            r_tx_fail = 0 if na_ else -ns_
-            # r_tx = na_ if na_ else -ns_
-            reward = r_tx_fail + r_packet
+            # r_packet = nl_ + 0.5*(na_-nl_-nh_) + 0.1*nh_ - ne_ #- 0.1*nd_
+            # r_tx_fail = 0 if na_ else -ns_
+            r_tx = na_ if na_ else -ns_
+            reward = r_tx#_fail + r_packet
             self.reward_log.append(reward)
             self.model.store_transition(self.state, self.action, reward, next_state)
 
         # choose action
-        self.action = self.model.choose_action(next_state, enable_learning=self.enable_learning)
+        # self.action = self.model.choose_action(next_state, enable_learning=self.enable_learning)
         # self.action = random.randint(0, obs.cw-obs.waitedSlots)
+        self.action = 0 if obs.minNeighborBackoff else 1
         self.action_log.append(self.action)
         
         self.backoff = self.action
@@ -177,10 +178,10 @@ class ChannelAccessRlAgent(RlAgent):
         with open(os.path.join(save_dir, 'debug.csv'), 'w') as f:
             writer = csv.writer(f)
             writer.writerow(['delta_time', 'equal_backoff', 'cw', 'n_deferred', 'n_waited_slots', 
-                             'n_in_queue', 'n_sending', 'n_acked', 'n_low_delay', 'n_high_delay', 'n_expired', #'n_dropped', 
+                             'n_in_queue', 'n_sending', 'n_acked', 'n_low_delay', 'n_high_delay', #'n_expired', 'n_dropped', 
                              'n_sta', 'n_neighbor_tx', 'n_neighbor_tx_data', 'n_neighbor_acked',
-                             #'n1', 'n5', 'n10', 'n20', 'n50', 'n100', 
-                             'nn', #  'nn1', 'nn2', 'nn3', 'nn4', 'nn5', 
+                            #  'n1', 'n5', 'n10', 'n20', 'n50', 'n100', 
+                             'nn', 'min_neighbor_backoff',
                              'action', 'new_backoff', 'reward'])
             for i in range(len(self.obs_log) - 1):
                 writer.writerow(self.obs_log[i] + [self.action_log[i]] + [self.backoff_log[i]] + [self.reward_log[i]])

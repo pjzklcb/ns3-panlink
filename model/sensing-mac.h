@@ -198,7 +198,6 @@ class SensingMac : public Object
         uint32_t nTxPackets{0};
         uint32_t nTxDataPackets{0};
         uint32_t nAckedPackets{0};
-        uint32_t hasPacketsCounter{0};
         std::map<Time /* Rx End */, Time /* duration */> channelUtil;
         double rssi;
     };
@@ -246,11 +245,10 @@ class SensingMac : public Object
      */
     uint32_t GetNStasWithPacketsNow(uint8_t linkId);
     /**
-     * @param counter the counter
      * @param linkId the link ID
-     * @returns the number of STAs with hasPacketsCounter larger than the given counter
+     * @returns the minimum backoff of neighbor STAs
      */
-    uint32_t GetNStasHasPacketsCounterLargerThan(uint32_t counter, uint8_t linkId);
+    uint32_t GetMinNeighborBackoff(uint8_t linkId);
 
     /**
      * Get the number of STAs in the same BSS on the given link.

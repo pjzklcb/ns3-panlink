@@ -14,6 +14,7 @@
 #include "ns3/wifi-mac-queue.h"
 #include "ns3/wifi-mpdu.h"
 #include "ns3/wifi-net-device.h"
+#include "ns3/qos-txop.h"
 
 namespace ns3
 {
@@ -514,12 +515,7 @@ SensingMac::GetNStasWithPacketsNow(uint8_t linkId)
         }
         if (counter > 0)
         {
-            it->second.hasPacketsCounter++;
             nStas++;
-        }
-        else
-        {
-            it->second.hasPacketsCounter = 0;
         }
     }
 
@@ -527,20 +523,46 @@ SensingMac::GetNStasWithPacketsNow(uint8_t linkId)
 }
 
 uint32_t 
-SensingMac::GetNStasHasPacketsCounterLargerThan(uint32_t counter, uint8_t linkId)
+SensingMac::GetMinNeighborBackoff(uint8_t linkId)
 {
-    NS_LOG_FUNCTION(this << counter << linkId);
+    NS_LOG_FUNCTION(this << linkId);
 
-    uint32_t nStas = 0;
-    for (auto& [_, sta] : m_neighborStaMap)
+    uint32_t backoff = 1024;
+    for (uint32_t i = 0; i < NodeList::GetNNodes(); i++)
     {
-        if (sta.linkId == linkId && sta.hasPacketsCounter > counter)
+        Ptr<Node> node = NodeList::GetNode(i);
+        Ptr<WifiNetDevice> device = DynamicCast<WifiNetDevice>(node->GetDevice(0));
+        Ptr<WifiMac> mac = device->GetMac();
+        if (mac->GetAddress() == m_mac->GetAddress())
         {
-            nStas++;
+            continue;
         }
+        auto it = m_neighborStaMap.find(mac->GetAddress());
+        if (it == m_neighborStaMap.end() || it->second.linkId != linkId)
+        {
+            continue;
+        }
+
+        uint32_t staBackoff = 1024;
+        if (auto queue = mac->GetTxopQueue(AC_BE_NQOS); queue != nullptr && queue->GetNPackets() > 0)
+        {
+            staBackoff = std::min(staBackoff, mac->GetTxop()->GetBackoffSlots(linkId));
+        }
+        for (auto [aci, _] : wifiAcList)
+        {
+            if (mac->GetTxopQueue(aci)->GetNPackets() > 0)
+            {
+                staBackoff = std::min(staBackoff, mac->GetQosTxop(aci)->GetBackoffSlots(linkId));
+            }
+        }
+        // if (staBackoff != 1024)
+        // {
+        //     std::cout << "STA: " << mac->GetAddress() << ", backoff=" << staBackoff << std::endl;
+        // }
+        backoff = std::min(backoff, staBackoff);
     }
 
-    return nStas;
+    return backoff;
 }
 
 // double
