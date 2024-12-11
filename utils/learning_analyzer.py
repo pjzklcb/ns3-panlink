@@ -162,8 +162,8 @@ def plot_reward(data):
 
 if __name__ == "__main__":
     prefix = "contrib/panlink/result-"
-    timestamp = "1733798820"
-    suffix = "-ideal-backoff"
+    timestamp = "1733902592"
+    suffix = ""
     episode = 0
     result_dir = prefix + timestamp + suffix + "/episode_" + str(episode) + "/learn/"
     filename = result_dir + "debug.csv"
@@ -171,10 +171,17 @@ if __name__ == "__main__":
 
     # plot_action(data)
     # plot_reward(data)
+
+    # backoff = data['min_neighbor_backoff']
+    # backoff[backoff > 15] = 16
+    # x = backoff
+    # # x = data['nn']
+    # for key, value in data.items():
+    #     metric = calculate_mutual_info(x, value)
+    #     print(f"{key:>20}  {metric:.4f}")
+
     backoff = data['min_neighbor_backoff']
-    backoff[backoff > 15] = 16
-    x = backoff
-    # x = data['nn']
-    for key, value in data.items():
-        metric = calculate_mutual_info(x, value)
-        print(f"{key:>20}  {metric:.4f}")
+    backoff[backoff > 0] = 1
+    action = data['action']
+    accuracy = 1 - sum(action == backoff) / len(action)
+    print('Accuracy={:.2f}%'.format(accuracy * 100))

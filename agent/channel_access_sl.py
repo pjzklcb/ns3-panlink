@@ -12,8 +12,9 @@ import numpy as np
 import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
-from collections import deque
-from models.gru import GRUModel
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+from models.model_library import DNNModel
 
 
 # hyperparameters
@@ -25,47 +26,20 @@ EPOCHS = 100
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-# z score normalization
-def z_score_normalize(data):
-    mean = np.mean(data, axis=0)
-    std = np.std(data, axis=0) + 1e-8
-    return (data - mean) / std
-
 # load data from csv file
-def load_data(filename, input_name, label_name, label_size=17):
-    data = pd.read_csv(filename)
-    inputs = z_score_normalize(data[input_name].values)
-    labels = np.clip(data[label_name].values, a_min=0, a_max=label_size-1)
-
-    traj = deque(np.zeros((SEQ_LEN, len(input_name))), maxlen=SEQ_LEN)
-    inputs_traj = []
-    for i in range(len(inputs)):
-        traj.append(inputs[i].tolist())
-        inputs_traj.append(list(traj))
-    
-    return inputs_traj, labels.tolist() # shape: (batch_size, seq_len, input_size)
-
-# create data loader
-def create_data_loader(result_dir, episode_list, input_name, label_name, label_size):
+def load_data(result_dir, episode_list, features_name, label_name, label_size):
     # load data
-    inputs_list = []
+    features_list = []
     labels_list = []
     for i in episode_list:
         filename = os.path.join(result_dir, 'dataset/episode_' + str(i), 'learn', 'debug.csv')
-        inputs, labels = load_data(filename, input_name, label_name, label_size)
+        data = pd.read_csv(filename)
+        features_list.append(data[features_name])
+        labels_list.append(data[label_name])
 
-        inputs_list += inputs
-        labels_list += labels
-    
-    inputs_list = torch.tensor(np.array(inputs_list), dtype=torch.float).to(DEVICE)
-    labels_list = torch.tensor(np.array(labels_list), dtype=torch.long).to(DEVICE)
-    # create data loader
-    data_loader = torch.utils.data.DataLoader(
-        torch.utils.data.TensorDataset(inputs_list, labels_list),
-        batch_size=BATCH_SIZE,
-        shuffle=True
-    )
-    return data_loader
+    features = pd.concat(features_list, axis=0)
+    labels = pd.concat(labels_list, axis=0).clip(lower=0, upper=label_size-1)
+    return features, labels
 
 # train model
 def train(model, train_loader, optimizer, criterion, save_dir):
@@ -131,7 +105,7 @@ def test(model, test_loader, criterion, save_dir):
 
 
 if __name__ == "__main__":
-    input_name = ['delta_time', 'equal_backoff', 'cw', 'n_deferred', 'n_waited_slots', 
+    features_name = ['delta_time', 'equal_backoff', 'cw', 'n_deferred', 'n_waited_slots', 
                   'n_in_queue', 'n_sending', 'n_acked', 'n_low_delay', 'n_high_delay', 'n_expired', 'n_dropped', 
                   'n_sta', 'n_neighbor_tx', 'n_neighbor_tx_data', 'n_neighbor_acked',
                   'n1', 'n5', 'n10', 'n20', 'n50', 'n100']
@@ -144,15 +118,35 @@ if __name__ == "__main__":
     sl_dir = os.path.join(result_dir, 'sl-' + timestamp)
     if not os.path.exists(sl_dir):
         os.makedirs(sl_dir)
-    train_episodes = np.arange(0, 100)
-    test_episodes = np.arange(100, 120)
 
-    # create dataloader
-    train_loader = create_data_loader(result_dir, train_episodes, input_name, label_name, label_size)
-    test_loader = create_data_loader(result_dir, test_episodes, input_name, label_name, label_size)
+    episode_list = np.arange(0, 200)
+
+    # load data
+    features, labels = load_data(result_dir, episode_list, features_name, label_name, label_size)
+    
+    scaler = StandardScaler()
+    features = scaler.fit_transform(features)
+
+    # divide train and test set
+    train_features, test_features, train_labels, test_labels = train_test_split(features, labels, test_size=0.2, random_state=42)
+    
+    # create data loader
+    train_loader = torch.utils.data.DataLoader(
+        torch.utils.data.TensorDataset(torch.tensor(train_features, dtype=torch.float).to(DEVICE), 
+                                       torch.tensor(train_labels.values, dtype=torch.long).to(DEVICE)),
+        batch_size=BATCH_SIZE,
+        shuffle=True
+    )
+
+    test_loader = torch.utils.data.DataLoader(
+        torch.utils.data.TensorDataset(torch.tensor(test_features, dtype=torch.float).to(DEVICE), 
+                                       torch.tensor(test_labels.values, dtype=torch.long).to(DEVICE)),
+        batch_size=BATCH_SIZE,
+        shuffle=False
+    )
 
     # create model
-    model = GRUModel(input_size=len(input_name), output_size=label_size, hidden_size=HIDDEN_SIZE)
+    model = DNNModel(input_size=len(features_name), output_size=label_size, hidden_size=HIDDEN_SIZE)
 
     # define loss function and optimizer
     criterion = nn.CrossEntropyLoss()
