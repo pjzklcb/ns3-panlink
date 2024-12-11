@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 from scipy.stats import entropy
+from sklearn.metrics import r2_score, normalized_mutual_info_score
 
 
 def csv_to_dict(filename):
@@ -26,6 +27,14 @@ def csv_to_dict(filename):
         for k, v in data.items():
             data[k] = np.array(v)
         return data
+
+def calculate_mutual_info(x, y):
+    h_x = entropy(np.unique(x, return_counts=True)[1])
+    h_y = entropy(np.unique(y, return_counts=True)[1])
+    h_xy = entropy(np.histogram2d(x, y, bins=[len(np.unique(x)), len(np.unique(y))])[0].flatten())
+
+    mi = h_x + h_y - h_xy
+    return mi
 
 def plot_action(data):
     action = data['action']
@@ -50,15 +59,11 @@ def plot_action(data):
     ref_ratio /= sum(ref_ratio)
 
     # calculate the mutual information between obs and action
-    h_action = entropy(np.unique(action, return_counts=True)[1])
     with open('{}/mutual_info.csv'.format(result_dir), 'w') as f:
         writer = csv.writer(f)
         writer.writerow(['obs', 'mi'])
         for key, value in data.items():
-            h_obs = entropy(np.unique(value, return_counts=True)[1])
-            h_oa = entropy(np.histogram2d(action, value, bins=[len(np.unique(action)), len(np.unique(value))])[0].flatten())
-
-            mi = h_action + h_obs - h_oa
+            mi = calculate_mutual_info(value, action)
             writer.writerow([key, mi])
 
     # plot the relationship between obs and action
@@ -166,12 +171,10 @@ if __name__ == "__main__":
 
     # plot_action(data)
     # plot_reward(data)
-    ratio = data['nn']
     backoff = data['min_neighbor_backoff']
-    idx = backoff != 1024
-    h_x = entropy(np.unique(backoff[idx], return_counts=True)[1])
-    h_y = entropy(np.unique(ratio[idx], return_counts=True)[1])
-    h_xy = entropy(np.histogram2d(backoff[idx], ratio[idx], bins=[len(np.unique(backoff[idx])), len(np.unique(ratio[idx]))])[0].flatten())
-
-    mi = h_x + h_y - h_xy
-    print("MI: {}".format(mi))
+    backoff[backoff > 15] = 16
+    x = backoff
+    # x = data['nn']
+    for key, value in data.items():
+        metric = calculate_mutual_info(x, value)
+        print(f"{key:>20}  {metric:.4f}")
