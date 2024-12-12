@@ -53,13 +53,13 @@ ChannelAccessEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, 
 
     // Get obs from sensing MAC
     auto sensingMac = GetSensingMac();
-    uint32_t n1 = sensingMac->GetNStaTxOkDelayLessThan(MilliSeconds(1), obs.linkId);
-    uint32_t n5 = sensingMac->GetNStaTxOkDelayLessThan(MilliSeconds(5), obs.linkId);
     uint32_t n10 = sensingMac->GetNStaTxOkDelayLessThan(MilliSeconds(10), obs.linkId);
     uint32_t n20 = sensingMac->GetNStaTxOkDelayLessThan(MilliSeconds(20), obs.linkId);
+    uint32_t n30 = sensingMac->GetNStaTxOkDelayLessThan(MilliSeconds(30), obs.linkId);
+    uint32_t n40 = sensingMac->GetNStaTxOkDelayLessThan(MilliSeconds(40), obs.linkId);
     uint32_t n50 = sensingMac->GetNStaTxOkDelayLessThan(MilliSeconds(50), obs.linkId);
     uint32_t n100 = sensingMac->GetNStaTxOkDelayLessThan(MilliSeconds(100), obs.linkId);
-    env.nTxOkDelay = {n1, n5-n1, n10-n5, n20-n10, n50-n20, n100-n50};
+    env.nTxOkDelay = {n10, n20-n10, n30-n20, n40-n30, n50-n40, n100-n50};
     
     env.nStasWithPackets = sensingMac->GetNStasWithPacketsNow(obs.linkId);
     env.minNeighborBackoff = sensingMac->GetMinNeighborBackoff(obs.linkId);

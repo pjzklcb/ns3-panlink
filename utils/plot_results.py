@@ -546,5 +546,5 @@ class PlotResults(object):
         
 
 if __name__ == '__main__':
-    timestamp = "1733199126"
-    PlotResults(timestamp, episode=199, target_nodes=[0,1,2,3,4]).do_plot()
+    timestamp = "1734005773"
+    PlotResults(timestamp, episode=60, target_nodes=[0,1,2,3,4]).do_plot()

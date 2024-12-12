@@ -8,7 +8,7 @@ import json
 from rl_agent import RlAgent
 from cca_rl_agent import CcaRlAgent
 # from channel_access_rl_agent import ChannelAccessRlAgent
-from channel_access_rl_agent_gru import ChannelAccessRlAgent
+from channel_access_rl_agent_ppo import ChannelAccessRlAgent
 
 class AgentManager:
     def __init__(self):

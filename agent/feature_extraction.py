@@ -44,8 +44,8 @@ if __name__ == "__main__":
     features_name = ['delta_time', 'equal_backoff', 'cw', 'n_deferred', 'n_waited_slots', 
                   'n_in_queue', 'n_sending', 'n_acked', 'n_low_delay', 'n_high_delay', 'n_expired', 'n_dropped', 
                   'n_sta', 'n_neighbor_tx', 'n_neighbor_tx_data', 'n_neighbor_acked',
-                  'n1', 'n5', 'n10', 'n20', 'n50', 'n100']
-    label_name = 'nn'
+                  'n1', 'n5', 'n10', 'n20', 'n50', 'n100', 'nn']
+    label_name = 'min_neighbor_backoff'
     label_size = 2
 
     prefix = 'contrib/panlink'
