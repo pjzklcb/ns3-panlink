@@ -36,7 +36,7 @@ def calculate_mutual_info(x, y):
     mi = h_x + h_y - h_xy
     return mi
 
-def plot_action(data):
+def plot_action(data, result_dir):
     action = data['action']
     
     # plot action distribution
@@ -72,7 +72,7 @@ def plot_action(data):
     # obs_name_list = ['n100+n50', 'n100+n50+n30', 'n100+n50+n30+n20']
     obs_name_list = ['nn']
 
-    use_ratio = True
+    use_ratio = False
     x_ref = -0.1
     for obs_name in obs_name_list:
         if obs_name == 'other':
@@ -121,26 +121,25 @@ def plot_action(data):
         plt.savefig('{}/obs_{}_{}_action.png'.format(result_dir, obs_name, 'ratio' if use_ratio else 'count'))
         plt.close()
 
-def plot_reward(data):
+def plot_reward(data, result_dir):
     reward = data['reward']
 
-    use_ratio = True
+    use_ratio = False
 
     obs_name = 'nn'
     obs = data[obs_name]
     obs_bins = np.linspace(min(obs), max(obs), 20)
     width = obs_bins[1] - obs_bins[0]
     hist, _ = np.histogram(obs, bins=obs_bins)
-    counts = [np.zeros(len(obs_bins)-1) for _ in range(3)]
+    counts = [np.zeros(len(obs_bins)-1) for _ in range(2)]
     for i in range(len(obs_bins)-1):
         reward_slice = reward[(obs >= obs_bins[i]) & (obs < obs_bins[i+1])]
         counts[0][i] = np.sum(reward_slice < 0)
-        counts[1][i] = np.sum(reward_slice == 0)
-        counts[2][i] = np.sum(reward_slice > 0)
+        counts[1][i] = np.sum(reward_slice > 0)
 
-    ratios = [np.zeros(len(obs_bins)-1) for _ in range(3)]
-    for i in range(3):
-        ratios[i] = np.divide(counts[i], [v if v != 0 else 1 for v in hist])
+    ratios = [np.zeros(len(obs_bins)-1) for _ in range(2)]
+    for i in range(2):
+        ratios[i] = np.divide(counts[i], [v if v != 0 else 1 for v in np.sum(counts, axis=0)])
 
     values = ratios if use_ratio else counts
 
@@ -148,29 +147,29 @@ def plot_reward(data):
     plt.figure()
     x = obs_bins[:-1]
     bottom = np.zeros(len(obs_bins) - 1)
-    for i in range(3):
+    for i in range(2):
         y = values[i]
-        plt.bar(x, y, bottom=bottom, width=width, alpha=0.8, label='<0' if i == 0 else '=0' if i == 1 else '>0')
+        plt.bar(x, y, bottom=bottom, width=width, alpha=0.8, label='<0' if i == 0 else '>0')
         bottom += y
 
     plt.xlabel('Obs {}'.format(obs_name))
     plt.ylabel('Ratio' if use_ratio else 'Count')
     plt.legend(loc='upper right')
-    plt.savefig('{}/obs_{}_{}_action.png'.format(result_dir, obs_name, 'ratio' if use_ratio else 'count'))
+    plt.savefig('{}/obs_{}_{}_reward.png'.format(result_dir, obs_name, 'ratio' if use_ratio else 'count'))
     plt.close()
 
 
 if __name__ == "__main__":
     prefix = "contrib/panlink/result-"
-    timestamp = "1733902592"
-    suffix = ""
-    episode = 0
+    timestamp = "1733747837"
+    suffix = "-ideal"
+    episode = 200
     result_dir = prefix + timestamp + suffix + "/episode_" + str(episode) + "/learn/"
     filename = result_dir + "debug.csv"
     data = csv_to_dict(filename)
 
-    # plot_action(data)
-    # plot_reward(data)
+    # plot_action(data, result_dir)
+    plot_reward(data, result_dir)
 
     # backoff = data['min_neighbor_backoff']
     # backoff[backoff > 15] = 16
@@ -180,8 +179,8 @@ if __name__ == "__main__":
     #     metric = calculate_mutual_info(x, value)
     #     print(f"{key:>20}  {metric:.4f}")
 
-    backoff = data['min_neighbor_backoff']
-    backoff[backoff > 0] = 1
-    action = data['action']
-    accuracy = 1 - sum(action == backoff) / len(action)
-    print('Accuracy={:.2f}%'.format(accuracy * 100))
+    # backoff = data['min_neighbor_backoff']
+    # backoff[backoff > 0] = 1
+    # action = data['action']
+    # accuracy = 1 - sum(action == backoff) / len(action)
+    # print('Accuracy={:.2f}%'.format(accuracy * 100))
