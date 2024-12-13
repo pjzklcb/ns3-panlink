@@ -88,9 +88,9 @@ class PPO:
         rewards = torch.tensor(r, dtype=torch.float, device=self.device).unsqueeze(1)
         next_states = torch.tensor(s_, dtype=torch.float, device=self.device)
 
-        # td_target = rewards + self.gamma * self.critic(next_states)
-        rewards_centered = rewards - rewards.mean()
-        td_target = rewards_centered + self.gamma * self.critic(next_states)
+        td_target = rewards + self.gamma * self.critic(next_states)
+        # rewards_centered = rewards - rewards.mean()
+        # td_target = rewards_centered + self.gamma * self.critic(next_states)
         td_delta = td_target - self.critic(states)
         advantage = self.compute_advantage(td_delta.detach()).to(self.device)
         advantage = (advantage - advantage.mean()) / (advantage.std() + 1e-8)
