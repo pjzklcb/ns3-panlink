@@ -43,7 +43,7 @@ class ChannelAccessRlAgent(RlAgent):
         self.backoff_log = []
         self.last_waited_slots = 8
         self.last_n_defer_access = 0
-        self.debug_mode = False
+        self.debug_mode = True
         self.obs_log = []
 
         # load pretrained model
@@ -101,7 +101,7 @@ class ChannelAccessRlAgent(RlAgent):
 
     def choose_action(self, obs):
         # process the obs
-        # t_ = self.delta_time
+        t_ = self.delta_time
         cw_ = math.log(obs.cw+1, 2) / 10
         da_ = obs.nDeferredAccess
         b_ = obs.waitedSlots
@@ -110,7 +110,7 @@ class ChannelAccessRlAgent(RlAgent):
         # nd_ = obs.nDroppedPackets
         ns_ = obs.nSendingPackets
         na_ = obs.nAckedPackets
-        nl_, nh_ = obs.nLowDelayPackets, obs.nHighDelayPackets
+        # nl_, nh_ = obs.nLowDelayPackets, obs.nHighDelayPackets
         # nnt_ = obs.nNeighborTxPackets
         # nnd_ = obs.nNeighborTxDataPackets / max(1, nnt_)
         # nna_ = obs.nNeighborAckedPackets / max(1, nnt_)
@@ -120,17 +120,20 @@ class ChannelAccessRlAgent(RlAgent):
         nn_ = obs.nStasWithPackets / total_stas
         nb_ = obs.minNeighborBackoff
 
-        o = [#t_, self.equal_backoff, 
-             cw_, da_, b_,
-             ni_, ns_, na_, #nl_, nh_, ne_, nd_, 
+        if self.debug_mode:
+            self.obs_log.append(
+                [t_, self.equal_backoff, cw_, da_, b_,
+                 ni_, ns_, na_, #nl_, nh_, ne_, nd_,
+                 total_stas, #nnt_, nnd_, nna_,
+                 n10_, n20_, n30_, n40_, n50_, n100_, 
+                 ni10_, ni20_, ni30_, ni40_, ni50_, ni100_,
+                 nn_, nb_])
+
+        o = [cw_, da_, b_, ni_, ns_, na_, #nl_, nh_, ne_, nd_, 
              total_stas, #nnt_, nnd_, nna_,
              n10_, n20_, n30_, n40_, n50_, n100_, 
              ni10_, ni20_, ni30_, ni40_, ni50_, ni100_,
-             nn_#, nb_
-             ]
-        
-        if self.debug_mode:
-            self.obs_log.append(o.copy() + [nb_])
+             nn_]
         o = self.state_norm.normalize([o])[0]
         next_state = o.tolist()
         if self.state:
@@ -178,7 +181,7 @@ class ChannelAccessRlAgent(RlAgent):
         save_dir = save_dir if save_dir is not None else self.save_dir
         with open(os.path.join(save_dir, 'debug.csv'), 'w') as f:
             writer = csv.writer(f)
-            writer.writerow([#'delta_time', 'equal_backoff', 
+            writer.writerow(['delta_time', 'equal_backoff', 
                              'cw', 'n_deferred', 'n_waited_slots', 
                              'n_in_queue', 'n_sending', 'n_acked', #'n_low_delay', 'n_high_delay', 'n_expired', 'n_dropped', 
                              'n_sta', #'n_neighbor_tx', 'n_neighbor_tx_data', 'n_neighbor_acked',

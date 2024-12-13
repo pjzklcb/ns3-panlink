@@ -29,6 +29,8 @@ class PanlinkTxop : public QosTxop
     PanlinkTxop();
     ~PanlinkTxop() override;
 
+    void NotifyChannelReleased(uint8_t linkId) override;
+
     /**
      * Set the backoff value of the given link.
      *
@@ -62,6 +64,7 @@ class PanlinkTxop : public QosTxop
     friend class PanlinkChannelAccessManager;
     friend class ::EmlsrUlTxopTest;
 
+    void DoInitialize() override;
     void GenerateBackoff(uint8_t linkId) override;
     void UpdateBackoffSlotsNow(uint32_t nSlots, Time backoffUpdateBound, uint8_t linkId) override;
 
