@@ -93,9 +93,9 @@ EnvHelper::ScheduleInitInfoExchange(Time startTime)
 void
 EnvHelper::SaveResults(std::string resultDir)
 {
-    std::filesystem::create_directory(resultDir + "csv/");
+    std::filesystem::create_directory(resultDir + "/csv/");
 
-    EnvMonitor::Get()->WriteResultsToCsv(resultDir + "csv/");
+    EnvMonitor::Get()->WriteResultsToCsv(resultDir + "/csv/");
 }
 
 } // namespace ns3

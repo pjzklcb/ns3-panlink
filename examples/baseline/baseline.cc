@@ -33,7 +33,6 @@ main(int argc, char* argv[])
 {
     std::string timestamp = "0";
     uint32_t seed = 10; // random seed
-    uint32_t episode = 0;
     Time simulationTime = Seconds(3);
     bool enableIntf{false};
     bool useExtendedBlockAck{true};
@@ -54,6 +53,7 @@ main(int argc, char* argv[])
     std::string configPanlink = configPath + "panlink_no_agent.json";
     std::string configIntf = configPath + "intf_test1.json";
     std::string configApp = "contrib/panlink/profile/app_dict.json";
+    std::string resultDir = "contrib/panlink/results-" + timestamp;
     bool pcap = false;
     bool stats = false;
     bool verbose = false;
@@ -61,11 +61,11 @@ main(int argc, char* argv[])
     CommandLine cmd(__FILE__);
     cmd.AddValue("timestamp", "The timestamp for this example to run", timestamp);
     cmd.AddValue("seed", "The random seed for this example to run", seed);
-    cmd.AddValue("episode", "The index of the episode", episode);
     cmd.AddValue("configPanlink", "The config file of panlink network", configPanlink);
     cmd.AddValue("configIntf", "The config file of interference", configIntf);
     cmd.AddValue("simulationTime", "Total simulation time", simulationTime);
     cmd.AddValue("enableIntf", "Enable interference", enableIntf);
+    cmd.AddValue("resultDir", "The directory for saving results", resultDir);
     cmd.AddValue("frequency",
                  "Whether working in the 2.4, 5 or 6 GHz band (other values gets rejected)",
                  frequency);
@@ -385,30 +385,18 @@ main(int argc, char* argv[])
     streamNumber += g_mobilityHelper.AssignStreams(g_nodes, streamNumber);
     streamNumber += g_appInstaller.AssignStreams(g_nodes, streamNumber);
 
-    /* Create result dir */
-    std::string resultDir =
-        "contrib/panlink/result-" + timestamp + "/episode_" + std::to_string(episode) + "/";
-    if (pcap || stats)
-    {
-        namespace fs = std::filesystem;
-        if (!fs::is_directory(resultDir) || !fs::exists(resultDir))
-        {
-            fs::create_directory(resultDir);
-        }
-        g_recorder.WriteToJson(resultDir + "topology.json");
-    }
-
     /* Create pcap file */
     if (pcap)
     {
-        // g_phyHelper.EnablePcap(resultDir + "node-", panlinkDevices.Get(0));
-        g_phyHelper.EnablePcap(resultDir + "node-", panlinkDevices.Get(1));
-        // g_phyHelper.EnablePcap(resultDir + "node-", g_devices.Get(8));
+        // g_phyHelper.EnablePcap(resultDir + "/node-", panlinkDevices.Get(0));
+        g_phyHelper.EnablePcap(resultDir + "/node-", panlinkDevices.Get(1));
+        // g_phyHelper.EnablePcap(resultDir + "/node-", g_devices.Get(8));
     }
 
     /* Create env monitor to record stats */
     if (stats)
     {
+        g_recorder.WriteToJson(resultDir + "/topology.json");
         g_envHelper.InitEnvMonitor(g_nodes, g_devices, g_interfaces, g_srcAppMap);
     }
 

@@ -26,7 +26,7 @@ from plot_results import PlotResults
 import cpp_py_interface as py_binding
 
 config_dir = os.path.join(panlink_dir, 'configs')
-STATS_RECORD_STEP = 10
+STATS_RECORD_STEP = 1
 
 
 def run_new_episode(exp, ns3_settings, agent_manager, episode=0):
@@ -133,7 +133,6 @@ if __name__ == '__main__':
     ns3_time_cost = 0
     for i_episode in range(args.n_episodes):
         print("Episode {} starts".format(i_episode))
-        ns3_settings['episode'] = i_episode
         if args.stats:
             if i_episode % STATS_RECORD_STEP == 0 or i_episode == args.n_episodes - 1:
                 episode_dir = os.path.join(result_dir, 'episode_' + str(i_episode))
@@ -142,6 +141,7 @@ if __name__ == '__main__':
                 os.makedirs(learn_dir)
                 agent_manager.set_save_dir(learn_dir)
 
+                ns3_settings['resultDir'] = episode_dir
                 ns3_settings['stats'] = True
                 with open(os.path.join(episode_dir, 'ns3_settings.json'), 'w') as f:
                     json.dump(ns3_settings, f, indent=4)
