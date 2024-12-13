@@ -44,69 +44,69 @@ PanlinkChannelAccessManager::~PanlinkChannelAccessManager()
 }
 
 void
-PanlinkChannelAccessManager::DoRestoreAccessIfNeeded()
+PanlinkChannelAccessManager::DoResumeAccessIfNeeded()
 {
     NS_LOG_FUNCTION(this);
 
     /**
      * Is there a Txop which needs to access the medium, and,
-     * if there is one, when does backoff procedure restart (access restore)?
+     * if there is one, when does backoff procedure restart (access resume)?
      */
     const auto accessGrant = GetAccessGrantStart();
     const auto now = Simulator::Now();
-    bool needAccessRestore = false;
+    bool needAccessResume = false;
     for (auto txop : m_txops)
     {
         if (txop->GetAccessStatus(m_linkId) == Txop::REQUESTED)
         {
             auto aci = txop->GetWifiMacQueue()->GetAc();
-            NS_LOG_DEBUG("expected access restore=" << accessGrant << " by " << aci);
-            needAccessRestore = true;
+            NS_LOG_DEBUG("expected access resume=" << accessGrant << " by " << aci);
+            needAccessResume = true;
         }
     }
-    NS_LOG_DEBUG("Access restore needed: " << needAccessRestore);
-    if (needAccessRestore)
+    NS_LOG_DEBUG("Access resume needed: " << needAccessResume);
+    if (needAccessResume)
     {
-        /* Add one time step to the access restore delay to guarantee that the restore event won't 
+        /* Add one time step to the access resume delay to guarantee that the resume event won't 
         happen before the ACK transmission event, which will trigger NotifyTxStartNow.
-        The expected time of restore event is in between [accessGrant, backoffStart], which won't 
+        The expected time of resume event is in between [accessGrant, backoffStart], which won't 
         influence the update of backoffStart in UpdateBackoff method. */
-        auto expectedRestoreDelay = accessGrant - now + TimeStep(1);
+        auto expectedResumeDelay = accessGrant - now + TimeStep(1);
 
         // Always set to the new access grant time as NAV may reset
-        if (m_accessRestore.IsPending())
+        if (m_accessResume.IsPending())
         {
-            m_accessRestore.Cancel();
+            m_accessResume.Cancel();
         }
-        if (m_accessRestore.IsExpired())
+        if (m_accessResume.IsExpired())
         {
-            m_accessRestore = Simulator::Schedule(expectedRestoreDelay,
-                                                  &PanlinkChannelAccessManager::AccessRestore,
+            m_accessResume = Simulator::Schedule(expectedResumeDelay,
+                                                  &PanlinkChannelAccessManager::AccessResume,
                                                   this);
         }
     }
 }
 
 void
-PanlinkChannelAccessManager::AccessRestore()
+PanlinkChannelAccessManager::AccessResume()
 {
     NS_LOG_FUNCTION(this);
 
     UpdateBackoff();
 
-    // determine the txop that restores access
-    bool needAccessRestore = false;
+    // determine the txop that resumes access
+    bool needAccessResume = false;
     for (auto txop : m_txops)
     {
         if (txop->GetAccessStatus(m_linkId) == Txop::REQUESTED)
         {
-            needAccessRestore = true;
+            needAccessResume = true;
             StaticCast<PanlinkTxop>(txop)->GenerateNewBackoff(m_linkId);
             const auto aci = txop->GetWifiMacQueue()->GetAc();
-            NS_LOG_DEBUG("access restored for " << aci);
+            NS_LOG_DEBUG("access resumed for " << aci);
         }
     }
-    NS_ASSERT(needAccessRestore);
+    NS_ASSERT(needAccessResume);
     DoRestartAccessTimeoutIfNeeded();
 }
 
@@ -116,7 +116,7 @@ PanlinkChannelAccessManager::DisableEdcaFor(Ptr<Txop> qosTxop, Time duration)
     NS_LOG_FUNCTION(this << qosTxop << duration);
 
     ChannelAccessManager::DisableEdcaFor(qosTxop, duration);
-    DoRestoreAccessIfNeeded();
+    DoResumeAccessIfNeeded();
 }
 
 void
@@ -125,7 +125,7 @@ PanlinkChannelAccessManager::NotifyRxStartNow(Time duration)
     NS_LOG_FUNCTION(this << duration);
 
     ChannelAccessManager::NotifyRxStartNow(duration);
-    DoRestoreAccessIfNeeded();
+    DoResumeAccessIfNeeded();
 }
 
 void 
@@ -135,7 +135,7 @@ PanlinkChannelAccessManager::NotifyTxStartNow(Time duration)
 
     ChannelAccessManager::NotifyTxStartNow(duration);
     // wait until the access status changed
-    Simulator::ScheduleNow(&PanlinkChannelAccessManager::DoRestoreAccessIfNeeded, this);
+    Simulator::ScheduleNow(&PanlinkChannelAccessManager::DoResumeAccessIfNeeded, this);
 }
 
 void
@@ -146,7 +146,7 @@ PanlinkChannelAccessManager::NotifyCcaBusyStartNow(Time duration,
     NS_LOG_FUNCTION(this << duration << channelType);
 
     ChannelAccessManager::NotifyCcaBusyStartNow(duration, channelType, per20MhzDurations);
-    DoRestoreAccessIfNeeded();
+    DoResumeAccessIfNeeded();
 }
 
 void
@@ -155,7 +155,7 @@ PanlinkChannelAccessManager::NotifyNavResetNow(Time duration)
     NS_LOG_FUNCTION(this << duration);
 
     ChannelAccessManager::NotifyNavResetNow(duration);
-    DoRestoreAccessIfNeeded();
+    DoResumeAccessIfNeeded();
 }
 
 void
@@ -164,7 +164,7 @@ PanlinkChannelAccessManager::NotifyNavStartNow(Time duration)
     NS_LOG_FUNCTION(this << duration);
 
     ChannelAccessManager::NotifyNavStartNow(duration);
-    DoRestoreAccessIfNeeded();
+    DoResumeAccessIfNeeded();
 }
 
 } // namespace ns3

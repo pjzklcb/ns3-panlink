@@ -43,17 +43,17 @@ class PanlinkChannelAccessManager : public ChannelAccessManager
 
   private:
     /**
-     * Restore the deferred access if needed.
+     * Resume the deferred access if needed.
      */
-    void DoRestoreAccessIfNeeded();
+    void DoResumeAccessIfNeeded();
 
     /**
-     * Called when access restored from deferring
+     * Called when access resumed from deferring
      * (e.g. backoff procedure restart).
      */
-    void AccessRestore();
+    void AccessResume();
 
-    EventId m_accessRestore; //!< the access restore event
+    EventId m_accessResume; //!< the access resume event
 };
 
 } // namespace ns3
