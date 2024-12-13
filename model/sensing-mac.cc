@@ -335,6 +335,7 @@ SensingMac::NotifyFrameInfo(const WifiMacHeader& hdr, double rssi, uint8_t linkI
 {
     NS_LOG_FUNCTION(this << hdr << rssi << linkId);
 
+    Time now = Simulator::Now();
     Mac48Address sender = hdr.GetAddr2();
     Mac48Address receiver = hdr.GetAddr1();
 
@@ -373,13 +374,18 @@ SensingMac::NotifyFrameInfo(const WifiMacHeader& hdr, double rssi, uint8_t linkI
     {
         it->second.role = role;
     }
-    it->second.channelUtil[Simulator::Now()] = hdr.GetDuration();
+    it->second.channelUtil[now] = hdr.GetDuration();
     it->second.rssi = rssi;
-    it->second.lastTxTime = Simulator::Now();
     it->second.nTxPackets++;
     if (hdr.IsData())
     {
         it->second.nTxDataPackets++;
+        it->second.txDataIntervals.push_back(now - it->second.lastTxDataTime);
+        it->second.lastTxDataTime = now;
+        while (it->second.txDataIntervals.size() > 10)
+        {
+            it->second.txDataIntervals.pop_front();
+        }
     }
 
     // Remove stale packets
@@ -387,7 +393,7 @@ SensingMac::NotifyFrameInfo(const WifiMacHeader& hdr, double rssi, uint8_t linkI
     for (auto it = util.begin(); it != util.end();)
     {
         Time rxBegin = it->first - it->second;
-        if (Simulator::Now() - rxBegin > m_duration)
+        if (now - rxBegin > m_duration)
         {
             it = util.erase(it);
         }
@@ -397,19 +403,8 @@ SensingMac::NotifyFrameInfo(const WifiMacHeader& hdr, double rssi, uint8_t linkI
         }
     }
 
-    // Remove inactive OBSS STAs
-    for (auto it = m_neighborStaMap.begin(); it != m_neighborStaMap.end();)
-    {
-        if ((it->second.role == OBSS || it->second.role == UNKNOWN) &&
-            it->second.channelUtil.size() == 0)
-        {
-            it = m_neighborStaMap.erase(it);
-        }
-        else
-        {
-            ++it;
-        }
-    }
+    // Remove inactive STAs
+    RemoveInactiveNeighborStas();
 }
 
 void
@@ -431,6 +426,24 @@ SensingMac::NotifyLastTxOkSta(Mac48Address sta, uint8_t linkId)
     NS_ASSERT(it->second.linkId == linkId);
     it->second.lastTxOkTime = Simulator::Now();
     it->second.nAckedPackets++;
+}
+
+void
+SensingMac::RemoveInactiveNeighborStas()
+{
+    NS_LOG_FUNCTION(this);
+
+    for (auto it = m_neighborStaMap.begin(); it != m_neighborStaMap.end();)
+    {
+        if (it->second.channelUtil.size() == 0)
+        {
+            it = m_neighborStaMap.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+    }
 }
 
 double
@@ -485,6 +498,47 @@ SensingMac::GetNStaTxOkDelayLessThan(Time delay, uint8_t linkId) const
     }
 
     return nStas;
+}
+
+double
+SensingMac::GetNTxDataIntervalLessThan(Time interval, uint8_t linkId) const
+{
+    NS_LOG_FUNCTION(this << interval << linkId);
+
+    double expectation = 0;
+    for (auto& [sta, info] : m_neighborStaMap)
+    {
+        if (info.linkId != linkId)
+        {
+            continue;
+        }
+
+        expectation += GetProbOfTxDataIntervalLessThan(sta, interval);
+    }
+
+    return expectation;
+}
+
+double
+SensingMac::GetProbOfTxDataIntervalLessThan(Mac48Address sta, Time interval) const
+{
+    NS_LOG_FUNCTION(this << sta << interval);
+
+    auto it = m_neighborStaMap.find(sta);
+    if (it == m_neighborStaMap.end() || it->second.txDataIntervals.size() == 0)
+    {
+        return 0;
+    }
+
+    double counter = 0;
+    for (auto in : it->second.txDataIntervals)
+    {
+        if (in <= interval)
+        {
+            counter++;
+        }
+    }
+    return counter / it->second.txDataIntervals.size();
 }
 
 uint32_t
@@ -563,84 +617,6 @@ SensingMac::GetMinNeighborBackoff(uint8_t linkId)
     }
 
     return backoff;
-}
-
-// double
-// SensingMac::GetNExpectedContentionStasAt(Time time, uint32_t granularity, uint8_t linkId) const
-// {
-//     NS_LOG_FUNCTION(this << time << linkId);
-
-    // double expectation = 0;
-    // for (auto& [sta, info] : m_neighborStaMap)
-    // {
-    //     if (info.linkId != linkId || time < info.lastTxTime)
-    //     {
-    //         continue;
-    //     }
-
-    //     double bin = GetBinOfTxIntervalHist(time - info.lastTxTime);
-    //     double prob = 0;
-    //     for (auto [k, v] : info.txIntervalHist)
-    //     {
-    //         if (k >= bin - granularity && k <= bin + granularity)
-    //         {
-    //             prob += v / info.txIntervalList.size();
-    //         }
-    //     }
-
-    //     double conditional_prob =
-    //         GetProbOfTxIntervalLessThan(sta, time - info.lastTxTime);
-
-    //     if (conditional_prob != 1)
-    //     {
-    //         expectation += prob / (1 - conditional_prob);
-    //     }
-    //     // std::cout << "MAC:" << sta << ", list=[";
-    //     // for (auto [k, v] : info.txIntervalHist)
-    //     // {
-    //     //     std::cout << "[" << k << ", " << v << "], ";
-    //     // }
-    //     // std::cout << "last tx=" << info.lastTxTime.ToDouble(Time::MS) << "prob=" << prob <<
-    //     // std::endl;
-    // }
-
-    // return expectation;
-// }
-
-double
-SensingMac::GetProbOfTxIntervalLessThan(Mac48Address sta, Time interval) const
-{
-    NS_LOG_FUNCTION(this << sta << interval);
-
-    double prob = 0;
-    // if (auto it = m_neighborStaMap.find(sta); it != m_neighborStaMap.end())
-    // {
-    //     if (it->second.txIntervalList.size() == 0)
-    //     {
-    //         return prob;
-    //     }
-
-    //     double counter = 0;
-    //     for (auto in : it->second.txIntervalList)
-    //     {
-    //         if (in <= interval)
-    //         {
-    //             counter++;
-    //         }
-    //     }
-    //     prob = counter / it->second.txIntervalList.size();
-    // }
-
-    return prob;
-}
-
-double
-SensingMac::GetBinOfTxIntervalHist(Time interval) const
-{
-    NS_LOG_FUNCTION(this << interval);
-
-    double binWidth = 0.5; // ms
-    return std::floor(interval.ToDouble(Time::MS) / binWidth);
 }
 
 uint32_t

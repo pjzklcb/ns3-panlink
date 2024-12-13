@@ -30,7 +30,7 @@ def load_data(result_dir, episode_list, features_name, label_name, label_size):
     features_list = []
     labels_list = []
     for i in episode_list:
-        filename = os.path.join(result_dir, 'dataset/episode_' + str(i), 'learn', 'debug.csv')
+        filename = os.path.join(result_dir, 'episode_' + str(i), 'learn', 'debug.csv')
         data = pd.read_csv(filename)
         features_list.append(data[features_name])
         labels_list.append(data[label_name])
@@ -41,22 +41,22 @@ def load_data(result_dir, episode_list, features_name, label_name, label_size):
 
 
 if __name__ == "__main__":
-    features_name = ['delta_time', 'equal_backoff', 'cw', 'n_deferred', 'n_waited_slots', 
-                  'n_in_queue', 'n_sending', 'n_acked', 'n_low_delay', 'n_high_delay', 'n_expired', 'n_dropped', 
-                  'n_sta', 'n_neighbor_tx', 'n_neighbor_tx_data', 'n_neighbor_acked',
-                  'n1', 'n5', 'n10', 'n20', 'n50', 'n100', 'nn']
+    features_name = [#'delta_time', 'equal_backoff', 
+                     'cw', 'n_deferred', 'n_waited_slots', 
+                     'n_in_queue', 'n_sending', 'n_acked', #'n_low_delay', 'n_high_delay', 'n_expired', 'n_dropped', 
+                     'n_sta', #'n_neighbor_tx', 'n_neighbor_tx_data', 'n_neighbor_acked',
+                     'n10', 'n20', 'n30', 'n40', 'n50', 'n100', 
+                     'ni10', 'ni20', 'ni30', 'ni40', 'ni50', 'ni100', 
+                     'nn']
     label_name = 'min_neighbor_backoff'
     label_size = 2
 
     prefix = 'contrib/panlink'
-    result_dir = os.path.join(prefix, 'result-1733811473-dataset')
-    episode_list = np.arange(0, 200)
+    result_dir = os.path.join(prefix, 'result-1734066453')
+    episode_list = np.arange(50, 201, 50)
 
     # create dataloader
     features, labels = load_data(result_dir, episode_list, features_name, label_name, label_size)
-    
-    # scaler = StandardScaler()
-    # features = scaler.fit_transform(features)
 
     # calculate spearman correlation
     for key in features_name:
@@ -69,3 +69,10 @@ if __name__ == "__main__":
     for key in features_name:
         chi2, p, dof, _ = chi2_contingency(pd.crosstab(features[key], labels.values))
         print(f"{key:>20}: chi^2 = {chi2:.2f}, p = {p:.2f}, dof = {dof:.2f}")
+
+    # cross_name = '(n10+n20+n30)*ni40'
+    # cross_feature = (features['n10']+features['n20']+features['n30'])*features['ni40']
+    # metric = labels.corr(cross_feature, method='spearman')
+    # print(f"{cross_name:>20}  {metric:.4f}")
+    # chi2, p, dof, _ = chi2_contingency(pd.crosstab(cross_feature, labels.values))
+    # print(f"{cross_name:>20}: chi^2 = {chi2:.2f}, p = {p:.2f}, dof = {dof:.2f}")

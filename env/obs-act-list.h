@@ -42,6 +42,7 @@ struct Obs
     uint32_t nBssStas;
     uint32_t nObssStas;
     std::array<uint32_t, 6> nTxOkDelay;
+    std::array<double, 6> nTxDataInterval;
     uint32_t nStasWithPackets;
     uint32_t minNeighborBackoff;
     uint32_t nNeighborTxPackets;

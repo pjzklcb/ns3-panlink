@@ -60,6 +60,14 @@ ChannelAccessEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, 
     uint32_t n50 = sensingMac->GetNStaTxOkDelayLessThan(MilliSeconds(50), obs.linkId);
     uint32_t n100 = sensingMac->GetNStaTxOkDelayLessThan(MilliSeconds(100), obs.linkId);
     env.nTxOkDelay = {n10, n20-n10, n30-n20, n40-n30, n50-n40, n100-n50};
+
+    double ni10 = sensingMac->GetNTxDataIntervalLessThan(MilliSeconds(10), obs.linkId);
+    double ni20 = sensingMac->GetNTxDataIntervalLessThan(MilliSeconds(20), obs.linkId);
+    double ni30 = sensingMac->GetNTxDataIntervalLessThan(MilliSeconds(30), obs.linkId);
+    double ni40 = sensingMac->GetNTxDataIntervalLessThan(MilliSeconds(40), obs.linkId);
+    double ni50 = sensingMac->GetNTxDataIntervalLessThan(MilliSeconds(50), obs.linkId);
+    double ni100 = sensingMac->GetNTxDataIntervalLessThan(MilliSeconds(100), obs.linkId);
+    env.nTxDataInterval = {ni10, ni20-ni10, ni30-ni20, ni40-ni30, ni50-ni40, ni100-ni50};
     
     env.nStasWithPackets = sensingMac->GetNStasWithPacketsNow(obs.linkId);
     env.minNeighborBackoff = sensingMac->GetMinNeighborBackoff(obs.linkId);

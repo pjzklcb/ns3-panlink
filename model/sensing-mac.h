@@ -194,7 +194,8 @@ class SensingMac : public Object
         NeighborStaRole role{UNKNOWN};
         uint8_t linkId;
         Time lastTxOkTime{Seconds(0)};   // the time of the last successful transmission
-        Time lastTxTime{Seconds(0)};     // the time of the last transmission
+        Time lastTxDataTime{Seconds(0)};     // the time of the last transmission
+        std::deque<Time> txDataIntervals;
         uint32_t nTxPackets{0};
         uint32_t nTxDataPackets{0};
         uint32_t nAckedPackets{0};
@@ -238,6 +239,12 @@ class SensingMac : public Object
      * @returns the number of STAs whose last successful transmission was less than the given delay
      */
     uint32_t GetNStaTxOkDelayLessThan(Time delay, uint8_t linkId) const;
+    /**
+     * @param interval the threshold interval
+     * @param linkId the link ID
+     * @returns the expectation of data intervals of neighbor STAs that are less than the given interval
+     */
+    double GetNTxDataIntervalLessThan(Time interval, uint8_t linkId) const;
 
     /**
      * @param linkId the link ID
@@ -317,13 +324,12 @@ class SensingMac : public Object
      * @returns the probability of the given STA having two transmissions less than the given
      * interval
      */
-    double GetProbOfTxIntervalLessThan(Mac48Address sta, Time interval) const;
+    double GetProbOfTxDataIntervalLessThan(Mac48Address sta, Time interval) const;
 
     /**
-     * @param interval the given interval
-     * @returns the bin of the given interval falls in the histogram of tx intervals
+     * Remove all neighbor STAs that have not been active for a long time.
      */
-    double GetBinOfTxIntervalHist(Time interval) const;
+    void RemoveInactiveNeighborStas();
 
     Ptr<WifiMac> m_mac; //!< associated MAC
     Time m_duration;    //!< maximum duration of the data stored
