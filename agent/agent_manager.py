@@ -69,14 +69,16 @@ class AgentManager:
         
         return len(self.agent_dict) # return the number of memory vectors used
     
-    def get_obs(self, msg_interface):
+    def get_active_agent(self, msg_interface):
         for node, agents in self.agent_dict.items():
             for agent in agents:
                 if agent.is_active(msg_interface):
                     self.active_agent = agent
-                    agent.get_obs(msg_interface)
                     return
-    
+                
+    def get_obs(self, msg_interface):
+        self.active_agent.get_obs(msg_interface)
+  
     def set_action(self, msg_interface):
         self.active_agent.set_action(msg_interface)
     

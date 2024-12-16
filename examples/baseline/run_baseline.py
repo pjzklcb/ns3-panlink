@@ -46,7 +46,8 @@ def run_new_episode(exp, ns3_settings, agent_manager, episode=0):
 
             print("Episode {}, step {}".format(episode, step))
             step += 1
-            
+
+            agent_manager.get_active_agent(msg_interface)
             agent_manager.get_obs(msg_interface)
             msg_interface.PyRecvEnd()
 

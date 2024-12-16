@@ -57,8 +57,7 @@ class RlAgent():
             self.reward_log = []
 
     def get_obs(self, msg_interface):
-        env = msg_interface.GetCpp2PyVector()[self.memory_id]
-        self.sim_time = env.simTime
+        pass
 
     def set_action(self, msg_interface):
         pass
