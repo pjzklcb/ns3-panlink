@@ -53,8 +53,8 @@ ChannelAccessEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, 
 
     // Get obs from sensing MAC
     auto sensingMac = GetSensingMac();
-    // if (m_moreData == false)
-    // {
+    if (m_moreData == false)
+    {
         // ideal obs
         env.nStasWithPackets = sensingMac->GetNStasWithPacketsNow(obs.linkId);
         env.minNeighborBackoff = sensingMac->GetMinNeighborBackoff(obs.linkId);
@@ -101,7 +101,7 @@ ChannelAccessEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, 
 
         // reset neighbor counter
         m_idxNeighborSta = 0;
-    // }
+    }
 
     // neighbor sta info
     auto neighborStas = sensingMac->GetNeighborMacAddress(obs.linkId);
@@ -114,7 +114,8 @@ ChannelAccessEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, 
         sensingMac->GetNeighborChannelUtil(neighborStas[m_idxNeighborSta], obs.period);
     auto [nMean, nStd, nMin, nMax] = GetTxDataIntervalStats(neighborUtil);
     NeighborStaObs neighborStaObs{
-        .role = static_cast<uint8_t>(sensingMac->GetNeighborStaRole(neighborStas[m_idxNeighborSta])),
+        .role =
+            static_cast<uint8_t>(sensingMac->GetNeighborStaRole(neighborStas[m_idxNeighborSta])),
         .period = obs.period.ToDouble(Time::MS),
         .nTxDataPackets = static_cast<uint32_t>(neighborUtil.size()),
         .nAckedDataPackets = GetNAckedDataPackets(neighborUtil),
@@ -133,7 +134,8 @@ ChannelAccessEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, 
     m_idxNeighborSta++;
     // m_moreData = (m_idxNeighborSta == neighborStas.size()) ? false : true;
     // env.moreData = m_moreData;
-    // std::cout << "msg exchange: " << m_idxNeighborSta << "/" << neighborStas.size() << ", more data=" << m_moreData << std::endl;
+    std::cout << "msg exchange: " << m_idxNeighborSta << "/" << neighborStas.size()
+              << ", more data=" << m_moreData << std::endl;
 }
 
 void
@@ -211,7 +213,7 @@ ChannelAccessEnvAgent::GetDataArrivalIntervalStats(const std::vector<Time>& vec)
     {
         if (it != vec.begin())
         {
-            double diff = (*it - *(it-1)).ToDouble(Time::MS);
+            double diff = (*it - *(it - 1)).ToDouble(Time::MS);
             if (diff > 0)
             {
                 intervals.push_back(diff);
@@ -231,7 +233,7 @@ ChannelAccessEnvAgent::GetTxDataIntervalStats(const ChannelUtilList& util) const
     {
         if (it != util.begin())
         {
-            double diff = (it->txEndTime - (it-1)->txEndTime).ToDouble(Time::MS);
+            double diff = (it->txEndTime - (it - 1)->txEndTime).ToDouble(Time::MS);
             NS_ASSERT(diff > 0);
             intervals.push_back(diff);
         }

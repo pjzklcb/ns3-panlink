@@ -24,8 +24,8 @@ namespace ns3
 {
 
 /**
- * \brief base class for all env agents.
- * \ingroup panlink
+ * @brief base class for all env agents.
+ * @ingroup panlink
  *
  * This class serves as the base class for environment agents that collect
  * observations and implement actions in the ns-3 simulation environment.
@@ -35,8 +35,8 @@ class EnvAgent : public Object
 {
   public:
     /**
-     * \brief Get the type ID.
-     * \return the object TypeId
+     * @brief Get the type ID.
+     * @return the object TypeId
      */
     static TypeId GetTypeId();
 
@@ -50,19 +50,19 @@ class EnvAgent : public Object
     /**
      * Set the bound node.
      *
-     * \param node the bound node
+     * @param node the bound node
      */
     void SetNode(Ptr<Node> node);
     /**
      * Set the memory ID of the bound node.
      *
-     * \param memoryId the memory ID
+     * @param memoryId the memory ID
      */
     void SetMemoryId(uint32_t memoryId);
     /**
      * Set the info exchange period of the node (0 for trigger-based).
      *
-     * \param period the info exchange period
+     * @param period the info exchange period
      */
     void SetPeriod(Time period);
 
@@ -82,6 +82,10 @@ class EnvAgent : public Object
      * Get the info exchange period of the node.
      */
     Time GetPeriod() const;
+    /**
+     * Check if there is more data to send.
+     */
+    bool HasMoreData() const;
 
     /**
      * Get the wifi mac of the bound node.
@@ -100,7 +104,7 @@ class EnvAgent : public Object
     {
         /// Destructor (a virtual method is needed to make this struct polymorphic)
         virtual ~ModuleObs() = default;
-        
+
         uint8_t linkId{0};
         Time period{MilliSeconds(50)}; // period of observation
     };
@@ -108,8 +112,8 @@ class EnvAgent : public Object
     /**
      * Get the observation of environment.
      *
-     * \param msgInterface the message interface
-     * \param obs the observation from the module
+     * @param msgInterface the message interface
+     * @param obs the observation from the module
      */
     virtual void GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, ModuleObs& obs);
     /**
@@ -123,8 +127,9 @@ class EnvAgent : public Object
     AgentType m_type;    //!< the type of this env agent
     Ptr<Node> m_node;    //!< the bound node
     uint32_t m_memoryId; //!< memory ID assigned to the bound node
-    uint32_t m_counter;  //!< interaction counter
     Time m_period;       //!< the info exchange period (0 for trigger-based)
+    uint32_t m_counter;  //!< interaction counter
+    bool m_moreData;     //!< check if there is more data to send
 };
 
 } // namespace ns3

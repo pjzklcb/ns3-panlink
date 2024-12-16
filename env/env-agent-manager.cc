@@ -67,7 +67,7 @@ EnvAgentManager::Register(Ptr<EnvAgent> agent)
 {
     NS_LOG_FUNCTION(this << agent);
 
-    auto node = agent->GetNode(); 
+    auto node = agent->GetNode();
     auto type = agent->GetAgentType();
     m_agentMap[node->GetId()][type] = agent;
 }
@@ -157,9 +157,12 @@ EnvAgentManager::EnvInfoExchange(uint32_t nodeId, AgentType type, EnvAgent::Modu
     auto agent = GetEnvAgent(nodeId, type);
     NS_ABORT_MSG_IF(agent == nullptr, "Env agent not found");
 
-    msgInterface->CppSendBegin();
-    agent->GetEnvObs(msgInterface, obs);
-    msgInterface->CppSendEnd();
+    do
+    {
+        msgInterface->CppSendBegin();
+        agent->GetEnvObs(msgInterface, obs);
+        msgInterface->CppSendEnd();
+    } while (agent->HasMoreData());
 
     msgInterface->CppRecvBegin();
     agent->SetEnvAct(msgInterface, obs);

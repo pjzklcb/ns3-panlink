@@ -48,8 +48,13 @@ def run_new_episode(exp, ns3_settings, agent_manager, episode=0):
             step += 1
 
             agent_manager.get_active_agent(msg_interface)
-            agent_manager.get_obs(msg_interface)
-            msg_interface.PyRecvEnd()
+            while True:
+                agent_manager.get_obs(msg_interface)
+                msg_interface.PyRecvEnd()
+                if agent_manager.has_more_data():
+                    msg_interface.PyRecvBegin()
+                else:
+                    break
 
             msg_interface.PySendBegin()
             agent_manager.set_action(msg_interface)

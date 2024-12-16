@@ -175,6 +175,7 @@ PanlinkTxop::GenerateBackoff(uint8_t linkId)
 
     auto obs = ChannelAccessEnvAgent::ChannelAccessObs();
     obs.linkId = linkId;
+    obs.period = MilliSeconds(500);
     obs.ac = GetAccessCategory();
     obs.cw = link.cw;
     obs.nDeferredAccess = 0;
@@ -213,6 +214,7 @@ PanlinkTxop::GenerateNewBackoff(uint8_t linkId)
 
         auto obs = ChannelAccessEnvAgent::ChannelAccessObs();
         obs.linkId = linkId;
+        obs.period = MilliSeconds(500);
         obs.ac = GetAccessCategory();
         obs.cw = link.cw;
         obs.nDeferredAccess = link.nDeferredAccess;

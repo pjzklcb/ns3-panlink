@@ -15,6 +15,7 @@ class RlAgent():
         self.memory_id = memory_id
         self.agent_type = AgentType.NO_RL
         self.counter = 0
+        self.more_data = False
         self.sim_time = 0
         self.delta_time = 0
         self.state = None
@@ -45,6 +46,7 @@ class RlAgent():
 
     def reset(self):
         self.counter = 0
+        self.more_data = False
         self.sim_time = 0
         self.delta_time = 0
         self.state = None
@@ -58,7 +60,10 @@ class RlAgent():
 
     def get_obs(self, msg_interface):
         pass
-
+    
+    def has_more_data(self):
+        return self.more_data
+    
     def set_action(self, msg_interface):
         pass
 

@@ -78,6 +78,9 @@ class AgentManager:
                 
     def get_obs(self, msg_interface):
         self.active_agent.get_obs(msg_interface)
+    
+    def has_more_data(self):
+        return self.active_agent.has_more_data()
   
     def set_action(self, msg_interface):
         self.active_agent.set_action(msg_interface)

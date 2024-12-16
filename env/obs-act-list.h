@@ -65,6 +65,7 @@ struct Obs
     uint32_t nodeId;
     uint32_t agentType;
     uint32_t counter;
+    bool moreData;
     double simTime;
 
     // self
@@ -88,6 +89,7 @@ struct Obs
     uint32_t waitedSlots;
 
     // neighbor
+    uint32_t nNeighborStas;
     NeighborStaObs neighborStaObs;
     uint32_t nStasWithPackets;
     uint32_t minNeighborBackoff;

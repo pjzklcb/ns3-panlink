@@ -46,7 +46,8 @@ EnvAgent::EnvAgent()
     : m_type(NO_RL),
       m_node(nullptr),
       m_memoryId(0),
-      m_counter(0)
+      m_counter(0),
+      m_moreData(false)
 {
     NS_LOG_FUNCTION(this);
 }
@@ -110,6 +111,12 @@ EnvAgent::GetPeriod() const
     return m_period;
 }
 
+bool 
+EnvAgent::HasMoreData() const
+{
+    return m_moreData;
+}
+
 Ptr<WifiMac>
 EnvAgent::GetWifiMac() const
 {
@@ -156,6 +163,7 @@ EnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, ModuleObs& ob
     env.nodeId = m_node->GetId();
     env.agentType = m_type;
     env.counter = m_counter;
+    env.moreData = m_moreData;
     env.simTime = now.GetSeconds();
 }
 
