@@ -68,9 +68,6 @@ class ChannelAccessRlAgent(RlAgent):
         n_acked = env.nAckedPackets
         n_low_delay = env.nLowDelayPackets
         n_high_delay = env.nHighDelayPackets
-        # n_neighbor_tx = env.nNeighborTxPackets
-        # n_neighbor_tx_data = env.nNeighborTxDataPackets
-        # n_neighbor_acked = env.nNeighborAckedPackets
         n_bss_stas = env.nBssStas
         n_obss_stas = env.nObssStas
         n_10, n_20, n_30, n_40, n_50, n_100 = env.nTxOkDelay
@@ -111,9 +108,6 @@ class ChannelAccessRlAgent(RlAgent):
         ns_ = obs.nSendingPackets
         na_ = obs.nAckedPackets
         # nl_, nh_ = obs.nLowDelayPackets, obs.nHighDelayPackets
-        # nnt_ = obs.nNeighborTxPackets
-        # nnd_ = obs.nNeighborTxDataPackets / max(1, nnt_)
-        # nna_ = obs.nNeighborAckedPackets / max(1, nnt_)
         total_stas = max(1, obs.nBssStas + obs.nObssStas)
         n10_, n20_, n30_, n40_, n50_, n100_ = [v/total_stas for v in obs.nTxOkDelay]
         ni10_, ni20_, ni30_, ni40_, ni50_, ni100_ = obs.nTxDataInterval
@@ -124,13 +118,13 @@ class ChannelAccessRlAgent(RlAgent):
             self.obs_log.append(
                 [t_, self.equal_backoff, cw_, da_, b_,
                  ni_, ns_, na_, #nl_, nh_, ne_, nd_,
-                 total_stas, #nnt_, nnd_, nna_,
+                 total_stas, 
                  n10_, n20_, n30_, n40_, n50_, n100_, 
                  ni10_, ni20_, ni30_, ni40_, ni50_, ni100_,
                  nn_, nb_])
 
         o = [cw_, da_, b_, ni_, ns_, na_, #nl_, nh_, ne_, nd_, 
-             total_stas, #nnt_, nnd_, nna_,
+             total_stas, 
              n10_, n20_, n30_, n40_, n50_, n100_, 
              ni10_, ni20_, ni30_, ni40_, ni50_, ni100_,
              nn_]
@@ -184,7 +178,7 @@ class ChannelAccessRlAgent(RlAgent):
             writer.writerow(['delta_time', 'equal_backoff', 
                              'cw', 'n_deferred', 'n_waited_slots', 
                              'n_in_queue', 'n_sending', 'n_acked', #'n_low_delay', 'n_high_delay', 'n_expired', 'n_dropped', 
-                             'n_sta', #'n_neighbor_tx', 'n_neighbor_tx_data', 'n_neighbor_acked',
+                             'n_sta',
                              'n10', 'n20', 'n30', 'n40', 'n50', 'n100', 
                              'ni10', 'ni20', 'ni30', 'ni40', 'ni50', 'ni100', 
                              'nn', 'min_neighbor_backoff',

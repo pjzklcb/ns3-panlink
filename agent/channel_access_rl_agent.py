@@ -6,12 +6,10 @@
 
 import os
 import math
-import random
-import csv
-import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import random
 from agent_utils import AgentType, AcIndex, Normalizer
 from rl_agent import RlAgent
 from models.ddqn import DDQN
@@ -26,25 +24,66 @@ EPSILON_START = 1.0
 HIDDEN_SIZE = 64
 
 
+class AccessInfo:
+    def __init__(self, ac, cw, n_deferred_access, n_waited_slot, 
+                 n_in_queue, n_expired, n_dropped, n_sending, n_acked, 
+                 n_low_delay, n_high_delay):
+        self.ac = ac
+        self.cw = cw
+        self.n_deferred_access = n_deferred_access
+        self.n_waited_slot = n_waited_slot
+        self.n_in_queue = n_in_queue
+        self.n_expired = n_expired
+        self.n_dropped = n_dropped
+        self.n_sending = n_sending
+        self.n_acked = n_acked
+        self.n_low_delay = n_low_delay
+        self.n_high_delay = n_high_delay
+
+
+class SelfLinkInfo:
+    def __init__(self, period, n_tx_data, n_acked_data, tx_delay, txok_delay, 
+                 app_mean, app_std, app_min, app_max, 
+                 tx_mean, tx_std, tx_min, tx_max, chan_util):
+        self.period = period
+        self.n_tx_data = n_tx_data
+        self.n_acked_data = n_acked_data
+        self.tx_delay = tx_delay
+        self.txok_delay = txok_delay
+        self.app_stats = [app_mean, app_std, app_min, app_max]
+        self.tx_stats = [tx_mean, tx_std, tx_min, tx_max]
+        self.chan_util = chan_util
+
+
+class NeighborLinkInfo:
+    def __init__(self, role, period, n_tx_data, n_acked_data, tx_delay, txok_delay, 
+                 tx_mean, tx_std, tx_min, tx_max, chan_util, rssi):
+        self.role = role
+        self.period = period
+        self.n_tx_data = n_tx_data
+        self.n_acked_data = n_acked_data
+        self.tx_delay = tx_delay
+        self.txok_delay = txok_delay
+        self.tx_stats = [tx_mean, tx_std, tx_min, tx_max]
+        self.chan_util = chan_util
+        self.rssi = rssi
+
+
 class ChannelAccessRlAgent(RlAgent):
     def __init__(self, node_id, memory_id, enable_learning=True, pretrained_model=None):
         super().__init__(node_id, memory_id, enable_learning)
         self.agent_type = AgentType.RL_CHANNEL_ACCESS
         
-        state_size = 20
-        self.action_size = 16
+        state_size = 19
+        self.action_size = 2
         self.model = DDQN(state_size, self.action_size, hidden_size=HIDDEN_SIZE, 
                          batch_size=BATCH_SIZE, gamma=GAMMA, 
                          epsilon=EPSILON_START if self.enable_learning else 0, 
                          learning_rate=LEARNING_RATE, memory_size=MEMORY_SIZE)
         self.state_norm = Normalizer(state_size)
-        self.action_mask = [True]*self.action_size
+        self.neighbor_info = []
         self.backoff = 0
         self.backoff_log = []
-        self.last_waited_slots = 8
-        self.last_n_defer_access = 0
-        self.debug_mode = True
-        self.obs_log = []
 
         # load pretrained model
         try:
@@ -59,132 +98,114 @@ class ChannelAccessRlAgent(RlAgent):
 
     def get_obs(self, msg_interface):
         env = msg_interface.GetCpp2PyVector()[self.memory_id]
-        cw = env.cw
-        n_deferred_access = env.nDeferredAccess
-        n_waited_slot = env.waitedSlots
-        ac = AcIndex(env.ac)
-        n_in_queue = env.nInQueuePackets
-        n_expired = env.nExpiredPackets
-        n_dropped = env.nDroppedPackets
-        n_sending = env.nSendingPackets
-        n_acked = env.nAckedPackets
-        n_low_delay = env.nLowDelayPackets
-        n_high_delay = env.nHighDelayPackets
-        # n_neighbor_tx = env.nNeighborTxPackets
-        # n_neighbor_tx_data = env.nNeighborTxDataPackets
-        # n_neighbor_acked = env.nNeighborAckedPackets
-        n_bss_stas = env.nBssStas
-        n_obss_stas = env.nObssStas
-        n_10, n_20, n_30, n_40, n_50, n_100 = env.nTxOkDelay
-        ni_10, ni_20, ni_30, ni_40, ni_50, ni_100 = env.nTxDataInterval
-        nn = env.nStasWithPackets
-        min_neighbor_backoff = env.minNeighborBackoff
-
-        # get last equivalent backoff
-        if n_deferred_access == 0:
-            self.equal_backoff = self.backoff + self.last_waited_slots
-
-        if self.show_log:
-            print("At {:6f}s, delta_time={:.3f}ms, last_equal_backoff={}, cw={}, n_deferred_access={}, n_waited_slot={}, \n \
-                  ac={}, in_queue/expired/dropped/sending/acked={}/{}/{}/{}/{}, low/high={}/{}, \n \
-                  n_bss_stas={}, n_obss_stas={}, delay<10/20/30/40/50/100ms={}/{}/{}/{}/{}/{}, \n \
-                  interval<10/20/30/40/50/100ms={:.2f}/{:.2f}/{:.2f}/{:.2f}/{:.2f}/{:.2f}, \n \
-                  n_stas_with_packet={}, min_neighbor_backoff={}".format(
-                      self.sim_time, self.delta_time, self.equal_backoff, cw, n_deferred_access, n_waited_slot,
-                      ac.name, n_in_queue, n_expired, n_dropped, n_sending, n_acked, n_low_delay, n_high_delay, 
-                      n_bss_stas, n_obss_stas, n_10, n_20, n_30, n_40, n_50, n_100,
-                      ni_10, ni_20, ni_30, ni_40, ni_50, ni_100, nn, min_neighbor_backoff
-                      ))
-        
-        self.choose_action(env)
+        if not self.more_data:
+            self.access_info = AccessInfo(AcIndex(env.ac), env.cw, env.nDeferredAccess, 
+                                            env.waitedSlots, env.nInQueuePackets, 
+                                            env.nExpiredPackets, env.nDroppedPackets, 
+                                            env.nSendingPackets, env.nAckedPackets, 
+                                            env.nLowDelayPackets, env.nHighDelayPackets)
+            obs = env.selfLinkObs
+            self.link_info = SelfLinkInfo(obs.period, obs.nTxDataPackets, obs.nAckedDataPackets, 
+                                            obs.lastTxDataDelay, obs.lastTxOkDelay, 
+                                            obs.meanDataArrivalInterval, obs.stdDataArrivalInterval,
+                                            obs.minDataArrivalInterval, obs.maxDataArrivalInterval, 
+                                            obs.meanTxDataInterval, obs.stdTxDataInterval,
+                                            obs.minTxDataInterval, obs.maxTxDataInterval, obs.channelUtil)
+            
+        self.n_neighbor = env.nNeighborStas
+        if self.n_neighbor > 0:
+            obs = env.neighborStaObs
+            neighbor_info = NeighborLinkInfo(obs.role, obs.period, obs.nTxDataPackets, 
+                                             obs.nAckedDataPackets, obs.lastTxDataDelay, 
+                                             obs.lastTxOkDelay, obs.meanTxDataInterval, 
+                                             obs.stdTxDataInterval, obs.minTxDataInterval, 
+                                             obs.maxTxDataInterval, obs.channelUtil, obs.meanRssi)
+            self.neighbor_info.append(neighbor_info)
+            print("python get {}/{}".format(len(self.neighbor_info), self.n_neighbor))
+            self.more_data = env.moreData
 
     def set_action(self, msg_interface):
+        self.choose_action()
+        self.neighbor_info = []
         msg_interface.GetPy2CppVector()[self.memory_id].backoff = self.backoff
 
-    def choose_action(self, obs):
-        # process the obs
-        t_ = self.delta_time
-        cw_ = math.log(obs.cw+1, 2) / 10
-        da_ = obs.nDeferredAccess
-        b_ = obs.waitedSlots
-        ni_ = obs.nInQueuePackets
-        # ne_ = obs.nExpiredPackets
-        # nd_ = obs.nDroppedPackets
-        ns_ = obs.nSendingPackets
-        na_ = obs.nAckedPackets
-        # nl_, nh_ = obs.nLowDelayPackets, obs.nHighDelayPackets
-        # nnt_ = obs.nNeighborTxPackets
-        # nnd_ = obs.nNeighborTxDataPackets / max(1, nnt_)
-        # nna_ = obs.nNeighborAckedPackets / max(1, nnt_)
-        total_stas = max(1, obs.nBssStas + obs.nObssStas)
-        n10_, n20_, n30_, n40_, n50_, n100_ = [v/total_stas for v in obs.nTxOkDelay]
-        ni10_, ni20_, ni30_, ni40_, ni50_, ni100_ = obs.nTxDataInterval
-        nn_ = obs.nStasWithPackets / total_stas
-        nb_ = obs.minNeighborBackoff
+    def choose_action(self):
+        a_cw = math.log(self.access_info.cw + 1, 2)
+        a_da = self.access_info.n_deferred_access
+        a_nw = self.access_info.n_waited_slot
+        a_nq = self.access_info.n_in_queue
+        # a_ne = self.access_info.n_expired
+        # a_nd = self.access_info.n_dropped
+        a_ns = self.access_info.n_sending
+        a_na = self.access_info.n_acked
+        # a_nl = self.access_info.n_low_delay
+        # a_nh = self.access_info.n_high_delay
 
-        if self.debug_mode:
-            self.obs_log.append(
-                [t_, self.equal_backoff, cw_, da_, b_,
-                 ni_, ns_, na_, #nl_, nh_, ne_, nd_,
-                 total_stas, #nnt_, nnd_, nna_,
-                 n10_, n20_, n30_, n40_, n50_, n100_, 
-                 ni10_, ni20_, ni30_, ni40_, ni50_, ni100_,
-                 nn_, nb_])
+        # l_p = self.link_info.period
+        l_ns = self.link_info.n_tx_data
+        l_na = self.link_info.n_acked_data
+        l_td = self.link_info.tx_delay
+        l_ad = self.link_info.txok_delay
+        l_tstats = self.link_info.tx_stats
+        l_astats = self.link_info.app_stats
+        l_cu = self.link_info.chan_util
+        
+        if self.show_log:
+            print(f"At {self.sim_time:6f}s, delta_time={self.delta_time:.3f}ms, cw={self.access_info.cw}, "
+                  f"n_deferred_access={a_da}, n_waited_slot={a_nw}, \n"
+                  f"\t in_queue/sending/acked={a_nq}/{a_ns}/{a_na}, tx/ack={l_ns}/{l_na}, "
+                  f"chan_util={l_cu:.2f}ms, \n"
+                  f"\t app_stats=[{', '.join(f'{v:.2f}' for v in l_astats)}]ms, "
+                  f"tx_stats=[{', '.join(f'{v:.2f}' for v in l_tstats)}]ms, "
+                  f"n_neighbor={self.n_neighbor}")
 
-        o = [cw_, da_, b_, ni_, ns_, na_, #nl_, nh_, ne_, nd_, 
-             total_stas, #nnt_, nnd_, nna_,
-             n10_, n20_, n30_, n40_, n50_, n100_, 
-             ni10_, ni20_, ni30_, ni40_, ni50_, ni100_,
-             nn_]
+        # normalize the obs
+        self_feature = [a_cw, a_da, a_nw, a_nq, a_ns, a_na, l_ns, l_na, l_td, l_ad, l_cu] + l_tstats + l_astats
+        neighbor_features = []
+        for i in range(self.n_neighbor):
+            n_role = self.neighbor_info[i].role
+            # n_p = self.neighbor_info[i].period
+            n_ns = self.neighbor_info[i].n_tx_data
+            n_na = self.neighbor_info[i].n_acked_data
+            n_td = self.neighbor_info[i].tx_delay
+            n_ad = self.neighbor_info[i].txok_delay
+            n_tstats = self.neighbor_info[i].tx_stats
+            n_cu = self.neighbor_info[i].chan_util
+            n_rssi = self.neighbor_info[i].rssi
+            neighbor_features.append([n_role, n_ns, n_na, n_td, n_ad, 
+                                      n_cu, n_rssi] + n_tstats)
+            if self.show_log and i == 0:
+                print(f"\t Neighbor {i}: tx/ack={n_ns}/{n_na}, chan_util={n_cu:.2f}ms, rssi={n_rssi:.2f}dBm, "
+                      f"tx_stats=[{', '.join(f'{v:.2f}' for v in n_tstats)}]ms")
+
+        o = self_feature
         o = self.state_norm.normalize([o])[0]
         next_state = o.tolist()
         if self.state:
             # caculate reward
-            # r_packet = nl_ + 0.5*(na_-nl_-nh_) + 0.1*nh_ - ne_ #- 0.1*nd_
-            # r_tx_fail = 0 if na_ else -ns_
-            r_wait = 1 if self.action and (da_>self.last_n_defer_access and b_==self.last_waited_slots) else 0
-            r_tx = na_ if na_ else -ns_
-            reward = r_tx + r_wait
+            reward = a_na if a_na else -a_ns
             self.reward_log.append(reward)
-            self.model.store_transition(self.state, self.action, reward, next_state, self.action_mask)
+            self.model.store_transition(self.state, self.action, reward, next_state)
             if self.enable_learning:
                 self.model.learn()
 
         # choose action
-        self.action = random.randint(0, obs.cw-obs.waitedSlots)
+        # self.action = self.model.choose_action(next_state)
+        self.action = random.randint(0, self.access_info.cw - a_nw)
         self.action_log.append(self.action)
         
         self.backoff = self.action
         self.backoff_log.append(self.backoff)
         if self.show_log:
-            print("New Backoff={}".format(self.backoff))
-        self.last_waited_slots = obs.waitedSlots
+            print("New Backoff={} from [0, {}-{}]".format(self.backoff, self.access_info.cw, a_nw))
         self.state = next_state
 
     def reset(self):
         super().reset()
         self.backoff_log = []
-        self.obs_log = []
-    
-    def write_to_csv(self, save_dir=None):
-        save_dir = save_dir if save_dir is not None else self.save_dir
-        with open(os.path.join(save_dir, 'debug.csv'), 'w') as f:
-            writer = csv.writer(f)
-            writer.writerow(['delta_time', 'equal_backoff', 
-                             'cw', 'n_deferred', 'n_waited_slots', 
-                             'n_in_queue', 'n_sending', 'n_acked', #'n_low_delay', 'n_high_delay', 'n_expired', 'n_dropped', 
-                             'n_sta', #'n_neighbor_tx', 'n_neighbor_tx_data', 'n_neighbor_acked',
-                             'n10', 'n20', 'n30', 'n40', 'n50', 'n100', 
-                             'ni10', 'ni20', 'ni30', 'ni40', 'ni50', 'ni100', 
-                             'nn', 'min_neighbor_backoff',
-                             'action', 'new_backoff', 'reward'])
-            for i in range(len(self.obs_log) - 1):
-                writer.writerow(self.obs_log[i] + [self.action_log[i]] + [self.backoff_log[i]] + [self.reward_log[i]])
 
     def plot_results(self, save_dir=None):
         save_dir = save_dir if save_dir is not None else self.save_dir
-        if self.debug_mode:
-            self.write_to_csv(save_dir)
 
         y = self.reward_log
         plt.figure()

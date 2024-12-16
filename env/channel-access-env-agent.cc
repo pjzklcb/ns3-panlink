@@ -130,10 +130,10 @@ ChannelAccessEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, 
     };
     env.neighborStaObs = neighborStaObs;
 
-    // update neighbor counter
+    // update more data flag
     m_idxNeighborSta++;
-    // m_moreData = (m_idxNeighborSta == neighborStas.size()) ? false : true;
-    // env.moreData = m_moreData;
+    m_moreData = (m_idxNeighborSta == neighborStas.size()) ? false : true;
+    env.moreData = m_moreData;
     std::cout << "msg exchange: " << m_idxNeighborSta << "/" << neighborStas.size()
               << ", more data=" << m_moreData << std::endl;
 }
