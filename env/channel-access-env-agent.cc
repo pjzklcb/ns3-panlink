@@ -78,18 +78,19 @@ ChannelAccessEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, 
 
         // self link info
         auto selfUtil = sensingMac->GetSelfLinkChannelUtil(obs.period, obs.linkId);
-        auto [dataMean, dataStd, dataMin, dataMax] = GetDataArrivalIntervalStats(selfUtil);
         auto [txMean, txStd, txMin, txMax] = GetTxDataIntervalStats(selfUtil);
+        auto traffics = sensingMac->GetSelfAppTraffic(obs.period);
+        auto [appMean, appStd, appMin, appMax] = GetDataArrivalIntervalStats(traffics);
         SelfLinkObs selfLinkObs{
             .period = obs.period.ToDouble(Time::MS),
             .nTxDataPackets = static_cast<uint32_t>(selfUtil.size()),
             .nAckedDataPackets = GetNAckedDataPackets(selfUtil),
             .lastTxDataDelay = GetTxDataDelay(selfUtil),
             .lastTxOkDelay = GetTxOkDelay(selfUtil),
-            .meanDataArrivalInterval = dataMean,
-            .stdDataArrivalInterval = dataStd,
-            .maxDataArrivalInterval = dataMin,
-            .minDataArrivalInterval = dataMax,
+            .meanDataArrivalInterval = appMean,
+            .stdDataArrivalInterval = appStd,
+            .maxDataArrivalInterval = appMin,
+            .minDataArrivalInterval = appMax,
             .meanTxDataInterval = txMean,
             .stdTxDataInterval = txStd,
             .maxTxDataInterval = txMin,
@@ -201,18 +202,20 @@ ChannelAccessEnvAgent::GetTxOkDelay(const ChannelUtilList& util) const
 }
 
 std::array<double, 4>
-ChannelAccessEnvAgent::GetDataArrivalIntervalStats(const ChannelUtilList& util) const
+ChannelAccessEnvAgent::GetDataArrivalIntervalStats(const std::vector<Time>& vec) const
 {
     NS_LOG_FUNCTION(this);
 
     std::vector<double> intervals;
-    for (auto it = util.rbegin(); it != util.rend(); it++)
+    for (auto it = vec.begin(); it != vec.end(); it++)
     {
-        if (it != util.rbegin())
+        if (it != vec.begin())
         {
-            double diff = (it->enqueueTime - (it-1)->enqueueTime).ToDouble(Time::MS);
-            NS_ASSERT(diff > 0);
-            intervals.push_back(diff);
+            double diff = (*it - *(it-1)).ToDouble(Time::MS);
+            if (diff > 0)
+            {
+                intervals.push_back(diff);
+            }
         }
     }
     return GetStats(intervals);

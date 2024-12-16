@@ -112,6 +112,8 @@ SensingMac::NotifyEdcaEnqueue(std::string ac, Ptr<const WifiMpdu> item)
     it->second.ac = aci;
     it->second.enqueueTime = Simulator::Now();
     it->second.duration = item->GetHeader().GetDuration();
+
+    m_queueMap[aci].traffics.push_back(uid);
 }
 
 void
@@ -217,6 +219,12 @@ SensingMac::WipeAllStaledPackets()
     {
         if (Simulator::Now() - it->second.enqueueTime > m_duration)
         {
+            // remove from mac queue traffic
+            auto& d = m_queueMap[it->second.ac].traffics;
+            auto queueIt = std::find(d.begin(), d.end(), it->first);
+            NS_ASSERT(queueIt != d.end());
+            d.erase(queueIt);
+
             it = m_packetMap.erase(it);
         }
         else
@@ -513,7 +521,7 @@ SensingMac::GetNeighborStaRole(Mac48Address sta) const
     return it->second.role;
 }
 
-std::vector<SensingMac::ChannelUtil>
+std::vector<SensingMac::ChannelUtilInfo>
 SensingMac::GetSelfLinkChannelUtil(Time period, uint8_t linkId) const
 {
     NS_LOG_FUNCTION(this << linkId);
@@ -524,7 +532,7 @@ SensingMac::GetSelfLinkChannelUtil(Time period, uint8_t linkId) const
     NS_ASSERT(period > Seconds(0));
     NS_ASSERT_MSG(period <= m_duration, "Period surpass maximum duration");
 
-    std::vector<ChannelUtil> result;
+    std::vector<ChannelUtilInfo> result;
     Time prevEnd = Simulator::Now() - period;
     for (const auto& [uid, txEndTime] : it->second.channelUtil)
     {
@@ -546,7 +554,7 @@ SensingMac::GetSelfLinkChannelUtil(Time period, uint8_t linkId) const
                 ackedTime = packetIt->second.ackedTime;
             }
         }
-        ChannelUtil packetInfo{.duration = packetIt->second.duration,
+        ChannelUtilInfo packetInfo{.duration = packetIt->second.duration,
                                .txEndTime = txEndTime,
                                .ackedTime = ackedTime};
         result.push_back(packetInfo);
@@ -557,13 +565,29 @@ SensingMac::GetSelfLinkChannelUtil(Time period, uint8_t linkId) const
     return result;
 }
 
-std::vector<double> 
+std::vector<Time> 
 SensingMac::GetSelfAppTraffic(Time period) const
 {
     NS_LOG_FUNCTION(this << period);
+
+    std::vector<Time> result;
+    for (const auto& [aci, _] : wifiAcList)
+    {
+        for (auto uid : m_queueMap.at(aci).traffics)
+        {
+            auto it = m_packetMap.find(uid);
+            if (it == m_packetMap.end() || Simulator::Now() - it->second.enqueueTime > period)
+            {
+                continue;
+            }
+            result.push_back(it->second.enqueueTime);
+        }
+    }
+    std::sort(result.begin(), result.end());
+    return result;
 }
 
-std::vector<SensingMac::ChannelUtil>
+std::vector<SensingMac::ChannelUtilInfo>
 SensingMac::GetNeighborChannelUtil(Mac48Address sta, Time period) const
 {
     NS_LOG_FUNCTION(this << sta);
@@ -574,7 +598,7 @@ SensingMac::GetNeighborChannelUtil(Mac48Address sta, Time period) const
     NS_ASSERT(period > Seconds(0));
     NS_ASSERT_MSG(period <= m_duration, "Period surpass maximum duration");
 
-    std::vector<ChannelUtil> result;
+    std::vector<ChannelUtilInfo> result;
     for (const auto& packet : it->second.channelUtil)
     {
         if (!packet.isData || Simulator::Now() - packet.rxTime > period)
@@ -582,7 +606,7 @@ SensingMac::GetNeighborChannelUtil(Mac48Address sta, Time period) const
             continue;
         }
 
-        ChannelUtil packetInfo{.duration = packet.duration,
+        ChannelUtilInfo packetInfo{.duration = packet.duration,
                                .txEndTime = packet.rxTime,
                                .ackedTime = packet.ackedTime,
                                .rssi = packet.rssi};

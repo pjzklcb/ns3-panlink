@@ -82,6 +82,7 @@ class SensingMac : public Object
     {
         std::list<uint64_t> expiredPackets; // list of expired packets
         std::list<uint64_t> droppedPackets; // list of dropped packets
+        std::deque<uint64_t> traffics;
     };
 
     /**
@@ -256,7 +257,7 @@ class SensingMac : public Object
     /**
      * The info of data packet that utilizes channel
      */
-    struct ChannelUtil
+    struct ChannelUtilInfo
     {
         Time duration;
         Time txEndTime;
@@ -269,14 +270,19 @@ class SensingMac : public Object
      * @param linkId the link ID
      * @return the channel utilization of the mac on the given link in the past period
      */
-    std::vector<DataPacketInfo> GetSelfLinkChannelUtil(Time period, uint8_t linkId) const;
+    std::vector<ChannelUtilInfo> GetSelfLinkChannelUtil(Time period, uint8_t linkId) const;
+    /**
+     * @param period the period
+     * @return the application traffic arrival time of this mac
+     */
+    std::vector<Time> GetSelfAppTraffic(Time period) const;
 
     /**
      * @param sta the MAC address of the neighbor STA
      * @param period the period
      * @return the obs from the neighbor STA in the past period
      */
-    std::vector<DataPacketInfo> GetNeighborChannelUtil(Mac48Address sta, Time period) const;
+    std::vector<ChannelUtilInfo> GetNeighborChannelUtil(Mac48Address sta, Time period) const;
     /**
      * @param linkId the link ID
      * @return the list of MAC addresses of the neighbor STAs

@@ -15,16 +15,16 @@ namespace ns3
 {
 
 /**
- * \brief env agent for channel access
- * \ingroup panlink
+ * @brief env agent for channel access
+ * @ingroup panlink
  */
 
 class ChannelAccessEnvAgent : public EnvAgent
 {
   public:
     /**
-     * \brief Get the type ID.
-     * \return the object TypeId
+     * @brief Get the type ID.
+     * @return the object TypeId
      */
     static TypeId GetTypeId();
 
@@ -62,9 +62,10 @@ class ChannelAccessEnvAgent : public EnvAgent
     double GetTxOkDelay(const ChannelUtilList& util) const;
 
     /**
+     * @param vec a vector of data arrival time in ascending order
      * @returns the mean, std, min, max of the data arrival intervals
      */
-    std::array<double, 4> GetDataArrivalIntervalStats(const ChannelUtilList& util) const;
+    std::array<double, 4> GetDataArrivalIntervalStats(const std::vector<Time>& vec) const;
 
     /**
      * @returns the mean, std, min, max of the tx data intervals
