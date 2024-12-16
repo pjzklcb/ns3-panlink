@@ -41,11 +41,11 @@ namespace ns3
  */
 struct Ns3AiMsgSync
 {
-    volatile uint8_t m_cpp2pyEmptyCount{1};
-    volatile uint8_t m_cpp2pyFullCount{0};
-    volatile uint8_t m_py2cppEmptyCount{1};
-    volatile uint8_t m_py2cppFullCount{0};
-    bool m_isFinished{false};
+    std::atomic<uint32_t> m_cpp2pyEmptyCount{1};
+    std::atomic<uint32_t> m_cpp2pyFullCount{0};
+    std::atomic<uint32_t> m_py2cppEmptyCount{1};
+    std::atomic<uint32_t> m_py2cppFullCount{0};
+    std::atomic<bool> m_isFinished{false};
 };
 
 /**
@@ -191,7 +191,7 @@ class Ns3AiMsgInterfaceImpl
      */
     void CppSendBegin()
     {
-        Ns3AiSemaphore::sem_wait(&m_sync->m_cpp2pyEmptyCount);
+        Ns3AiSemaphore::sem_wait(m_sync->m_cpp2pyEmptyCount);
     };
 
     /**
@@ -200,7 +200,7 @@ class Ns3AiMsgInterfaceImpl
      */
     void CppSendEnd()
     {
-        Ns3AiSemaphore::sem_post(&m_sync->m_cpp2pyFullCount);
+        Ns3AiSemaphore::sem_post(m_sync->m_cpp2pyFullCount);
     };
 
     /**
@@ -209,7 +209,7 @@ class Ns3AiMsgInterfaceImpl
      */
     void CppRecvBegin()
     {
-        Ns3AiSemaphore::sem_wait(&m_sync->m_py2cppFullCount);
+        Ns3AiSemaphore::sem_wait(m_sync->m_py2cppFullCount);
     };
 
     /**
@@ -218,7 +218,7 @@ class Ns3AiMsgInterfaceImpl
      */
     void CppRecvEnd()
     {
-        Ns3AiSemaphore::sem_post(&m_sync->m_py2cppEmptyCount);
+        Ns3AiSemaphore::sem_post(m_sync->m_py2cppEmptyCount);
     };
 
     /**
@@ -242,7 +242,7 @@ class Ns3AiMsgInterfaceImpl
      */
     void PyRecvBegin()
     {
-        Ns3AiSemaphore::sem_wait(&m_sync->m_cpp2pyFullCount);
+        Ns3AiSemaphore::sem_wait(m_sync->m_cpp2pyFullCount);
         if (m_handleFinish)
         {
             m_isFinished = m_sync->m_isFinished;
@@ -255,7 +255,7 @@ class Ns3AiMsgInterfaceImpl
      */
     void PyRecvEnd()
     {
-        Ns3AiSemaphore::sem_post(&m_sync->m_cpp2pyEmptyCount);
+        Ns3AiSemaphore::sem_post(m_sync->m_cpp2pyEmptyCount);
     };
 
     /**
@@ -264,7 +264,7 @@ class Ns3AiMsgInterfaceImpl
      */
     void PySendBegin()
     {
-        Ns3AiSemaphore::sem_wait(&m_sync->m_py2cppEmptyCount);
+        Ns3AiSemaphore::sem_wait(m_sync->m_py2cppEmptyCount);
     };
 
     /**
@@ -273,7 +273,7 @@ class Ns3AiMsgInterfaceImpl
      */
     void PySendEnd()
     {
-        Ns3AiSemaphore::sem_post(&m_sync->m_py2cppFullCount);
+        Ns3AiSemaphore::sem_post(m_sync->m_py2cppFullCount);
     };
 
     /**

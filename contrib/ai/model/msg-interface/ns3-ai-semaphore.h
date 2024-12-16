@@ -21,6 +21,8 @@
 #define NS3_AI_SEMAPHORE_H
 
 #include <cstdint>
+#include <thread>
+#include <atomic>
 
 /**
  * \brief Structure providing semaphore operations
@@ -29,56 +31,60 @@ struct Ns3AiSemaphore
 {
     explicit Ns3AiSemaphore() = default;
 
-    static inline uint8_t atomic_read8(const volatile uint8_t* mem)
+    static inline uint32_t atomic_read32(std::atomic<uint32_t>& mem)
     {
-        uint8_t old_val = *mem;
-        __sync_synchronize();
-        return old_val;
+        return mem.load(std::memory_order_acquire);
     }
 
-    static inline uint8_t atomic_cas8(volatile uint8_t* mem, uint8_t with, uint8_t cmp)
+    static inline bool atomic_cas32(std::atomic<uint32_t>& mem, uint32_t with, uint32_t cmp)
     {
-        return __sync_val_compare_and_swap(const_cast<uint8_t*>(mem), cmp, with);
+        return mem.compare_exchange_strong(cmp, with, std::memory_order_acq_rel, std::memory_order_acquire);
     }
 
-    static inline uint8_t atomic_add8(volatile uint8_t* mem, uint8_t val)
+    static inline uint32_t atomic_add32(std::atomic<uint32_t>& mem, uint32_t val)
     {
-        return __sync_fetch_and_add(const_cast<uint8_t*>(mem), val);
+        return mem.fetch_add(val, std::memory_order_acq_rel);
     }
 
-    static inline bool atomic_add_unless8(volatile uint8_t* mem, uint8_t value, uint8_t unless_this)
+    static inline bool atomic_add_unless32(std::atomic<uint32_t>& mem, uint32_t value, uint32_t unless_this)
     {
-        uint8_t old;
-        uint8_t c(atomic_read8(mem));
-        while (c != unless_this && (old = atomic_cas8(mem, c + value, c)) != c)
+        uint32_t old = atomic_read32(mem);
+        while (old != unless_this && !atomic_cas32(mem, old + value, old))
         {
-            c = old;
+            old = atomic_read32(mem);
         }
-        return c != unless_this;
+        return old != unless_this;
     }
 
-    static inline bool sem_try_wait(volatile uint8_t* mem)
+    // try semaphore operation (non-blocking)
+    static inline bool sem_try_wait(std::atomic<uint32_t>& mem)
     {
-        return atomic_add_unless8(mem, -1, 0);
-    }
-
-    static inline void sem_wait(volatile uint8_t* mem)
-    {
-        if (!sem_try_wait(mem))
+        uint32_t old = atomic_read32(mem);
+        if (old > 0)
         {
-            do
-            {
-                if (sem_try_wait(mem))
-                {
-                    break;
-                }
-            } while (true);
+            return atomic_cas32(mem, old - 1, old);
+        }
+        return false;
+    }
+
+    // semaphore operation (blocking)
+    static inline void sem_wait(std::atomic<uint32_t>& mem)
+    {
+        while (!sem_try_wait(mem))
+        {
+            std::this_thread::yield(); // avoid busy-waiting
         }
     }
 
-    static inline uint8_t sem_post(volatile uint8_t* mem)
+    // increase semaphore
+    static inline uint32_t sem_post(std::atomic<uint32_t>& mem)
     {
-        return atomic_add8(mem, 1);
+        uint32_t old = atomic_read32(mem);
+        if (old == UINT32_MAX)
+        {
+            throw std::overflow_error("Semaphore value overflow");
+        }
+        return atomic_add32(mem, 1);
     }
 };
 
