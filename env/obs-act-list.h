@@ -12,6 +12,53 @@
 #include <array>
 #include <cstdint>
 
+/**
+ * The obs collected from the mac on the given link in the last period.
+ */
+struct SelfLinkObs
+{
+    double period; // period of observation in ms
+
+    uint32_t nTxDataPackets;
+    uint32_t nAckedDataPackets;
+    double lastTxDataDelay; // in ms
+    double lastTxOkDelay;
+
+    double meanDataArrivalInterval;
+    double stdDataArrivalInterval;
+    double maxDataArrivalInterval;
+    double minDataArrivalInterval;
+
+    double meanTxDataInterval;
+    double stdTxDataInterval;
+    double maxTxDataInterval;
+    double minTxDataInterval;
+
+    double channelUtil; // ms
+};
+
+/**
+ * The obs collected from neighbor STA in the last period.
+ */
+struct NeighborStaObs
+{
+    uint8_t role;
+    double period; // period of observation in ms
+
+    uint32_t nTxDataPackets;
+    uint32_t nAckedDataPackets;
+    double lastTxDataDelay; // ms
+    double lastTxOkDelay;
+
+    double meanTxDataInterval; // ms
+    double stdTxDataInterval;
+    double maxTxDataInterval;
+    double minTxDataInterval;
+
+    double channelUtil; // in ms
+    double meanRssi;    // in dBm
+};
+
 struct Obs
 {
     // mechanism
@@ -26,7 +73,9 @@ struct Obs
     std::array<double, 4> thptReq; // {AC_BE, AC_BK, AC_VI, AC_VO}
     std::array<double, 4> delay;
     std::array<double, 4> delayReq;
-    double selfChannelUtil;
+
+    // self link
+    SelfLinkObs selfLinkObs;
     uint32_t nInQueuePackets;
     uint32_t nExpiredPackets;
     uint32_t nDroppedPackets;
@@ -39,19 +88,9 @@ struct Obs
     uint32_t waitedSlots;
 
     // neighbor
-    uint32_t nBssStas;
-    uint32_t nObssStas;
-    std::array<uint32_t, 6> nTxOkDelay;
-    std::array<double, 6> nTxDataInterval;
+    NeighborStaObs neighborStaObs;
     uint32_t nStasWithPackets;
     uint32_t minNeighborBackoff;
-    uint32_t nNeighborTxPackets;
-    uint32_t nNeighborTxDataPackets;
-    uint32_t nNeighborAckedPackets;
-    double bssRssi;
-    double obssRssi;
-    double bssChannelUtil;
-    double otherChannelUtil;
 };
 
 struct Act

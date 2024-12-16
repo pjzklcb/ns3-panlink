@@ -31,7 +31,9 @@ PYBIND11_MAKE_OPAQUE(ns3::Ns3AiMsgInterfaceImpl<Obs, Act>::Cpp2PyMsgVector);
 PYBIND11_MAKE_OPAQUE(ns3::Ns3AiMsgInterfaceImpl<Obs, Act>::Py2CppMsgVector);
 
 template <typename T, size_t N>
-void bind_array(py::module& m, const std::string& name) {
+void
+bind_array(py::module& m, const std::string& name)
+{
     py::class_<std::array<T, N>>(m, name.c_str())
         .def(py::init<>())
         .def("size", &std::array<T, N>::size)
@@ -46,16 +48,45 @@ void bind_array(py::module& m, const std::string& name) {
                  }
                  return arr.at(i);
              })
-        .def("__iter__", [](const std::array<T, N>& arr) {
-            return py::make_iterator(arr.begin(), arr.end());
-        });
+        .def("__iter__",
+             [](const std::array<T, N>& arr) { return py::make_iterator(arr.begin(), arr.end()); });
 }
 
 PYBIND11_MODULE(cpp_py_interface, m)
 {
-    bind_array<uint32_t, 6>(m, "Uint6Array");
     bind_array<double, 4>(m, "Double4Array");
-    bind_array<double, 6>(m, "Double6Array");
+
+    py::class_<SelfLinkObs>(m, "SelfLinkObs")
+        .def(py::init<>())
+        .def_readwrite("period", &SelfLinkObs::period)
+        .def_readwrite("nTxDataPackets", &SelfLinkObs::nTxDataPackets)
+        .def_readwrite("nAckedDataPackets", &SelfLinkObs::nAckedDataPackets)
+        .def_readwrite("lastTxDataDelay", &SelfLinkObs::lastTxDataDelay)
+        .def_readwrite("lastTxOkDelay", &SelfLinkObs::lastTxOkDelay)
+        .def_readwrite("meanDataArrivalInterval", &SelfLinkObs::meanDataArrivalInterval)
+        .def_readwrite("stdDataArrivalInterval", &SelfLinkObs::stdDataArrivalInterval)
+        .def_readwrite("maxDataArrivalInterval", &SelfLinkObs::maxDataArrivalInterval)
+        .def_readwrite("minDataArrivalInterval", &SelfLinkObs::minDataArrivalInterval)
+        .def_readwrite("meanTxDataInterval", &SelfLinkObs::meanTxDataInterval)
+        .def_readwrite("stdTxDataInterval", &SelfLinkObs::stdTxDataInterval)
+        .def_readwrite("maxTxDataInterval", &SelfLinkObs::maxTxDataInterval)
+        .def_readwrite("minTxDataInterval", &SelfLinkObs::minTxDataInterval)
+        .def_readwrite("channelUtil", &SelfLinkObs::channelUtil);
+
+    py::class_<NeighborStaObs>(m, "NeighborStaObs")
+        .def(py::init<>())
+        .def_readwrite("role", &NeighborStaObs::role)
+        .def_readwrite("period", &NeighborStaObs::period)
+        .def_readwrite("nTxDataPackets", &NeighborStaObs::nTxDataPackets)
+        .def_readwrite("nAckedDataPackets", &NeighborStaObs::nAckedDataPackets)
+        .def_readwrite("lastTxDataDelay", &NeighborStaObs::lastTxDataDelay)
+        .def_readwrite("lastTxOkDelay", &NeighborStaObs::lastTxOkDelay)
+        .def_readwrite("meanTxDataInterval", &NeighborStaObs::meanTxDataInterval)
+        .def_readwrite("stdTxDataInterval", &NeighborStaObs::stdTxDataInterval)
+        .def_readwrite("maxTxDataInterval", &NeighborStaObs::maxTxDataInterval)
+        .def_readwrite("minTxDataInterval", &NeighborStaObs::minTxDataInterval)
+        .def_readwrite("channelUtil", &NeighborStaObs::channelUtil)
+        .def_readwrite("meanRssi", &NeighborStaObs::meanRssi);
 
     py::class_<Obs>(m, "PyEnvStruct")
         .def(py::init<>())
@@ -67,7 +98,7 @@ PYBIND11_MODULE(cpp_py_interface, m)
         .def_readwrite("thptReq", &Obs::thptReq)
         .def_readwrite("delay", &Obs::delay)
         .def_readwrite("delayReq", &Obs::delayReq)
-        .def_readwrite("selfChannelUtil", &Obs::selfChannelUtil)
+        .def_readwrite("selfLinkObs", &Obs::selfLinkObs)
         .def_readwrite("nInQueuePackets", &Obs::nInQueuePackets)
         .def_readwrite("nExpiredPackets", &Obs::nExpiredPackets)
         .def_readwrite("nDroppedPackets", &Obs::nDroppedPackets)
@@ -79,19 +110,9 @@ PYBIND11_MODULE(cpp_py_interface, m)
         .def_readwrite("cw", &Obs::cw)
         .def_readwrite("nDeferredAccess", &Obs::nDeferredAccess)
         .def_readwrite("waitedSlots", &Obs::waitedSlots)
-        .def_readwrite("nBssStas", &Obs::nBssStas)
-        .def_readwrite("nObssStas", &Obs::nObssStas)
-        .def_readwrite("nTxOkDelay", &Obs::nTxOkDelay)
-        .def_readwrite("nTxDataInterval", &Obs::nTxDataInterval)
+        .def_readwrite("neighborStaObs", &Obs::neighborStaObs)
         .def_readwrite("nStasWithPackets", &Obs::nStasWithPackets)
-        .def_readwrite("minNeighborBackoff", &Obs::minNeighborBackoff)
-        .def_readwrite("nNeighborTxPackets", &Obs::nNeighborTxPackets)
-        .def_readwrite("nNeighborTxDataPackets", &Obs::nNeighborTxDataPackets)
-        .def_readwrite("nNeighborAckedPackets", &Obs::nNeighborAckedPackets)
-        .def_readwrite("bssRssi", &Obs::bssRssi)
-        .def_readwrite("obssRssi", &Obs::obssRssi)
-        .def_readwrite("bssChannelUtil", &Obs::bssChannelUtil)
-        .def_readwrite("otherChannelUtil", &Obs::otherChannelUtil);
+        .def_readwrite("minNeighborBackoff", &Obs::minNeighborBackoff);
 
     py::class_<Act>(m, "PyActStruct")
         .def(py::init<>())

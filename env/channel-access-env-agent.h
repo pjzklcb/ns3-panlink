@@ -43,6 +43,19 @@ class ChannelAccessEnvAgent : public EnvAgent
     void SetEnvAct(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, ModuleObs& obs) override;
 
   private:
+    typedef std::vector<SensingMac::DataPacketInfo> ChannelUtil;
+
+    uint32_t GetNAckedDataPackets(const ChannelUtil& util) const;
+    double GetTxDataDelay(const ChannelUtil& util) const;
+    double GetTxOkDelay(const ChannelUtil& util) const;
+    std::array<double, 4> GetDataArrivalIntervalStats(const ChannelUtil& util) const;
+    std::array<double, 4> GetTxDataIntervalStats(const ChannelUtil& util) const;
+    double GetChannelUtil(const ChannelUtil& util) const;
+    double GetMeanRssi(const ChannelUtil& util) const;
+
+    std::array<double, 4> GetStats(const std::vector<double>& vec) const;
+
+    uint32_t m_idxNeighborSta;  //!< current index of neighbor sta
 };
 
 } // namespace ns3

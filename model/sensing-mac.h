@@ -59,8 +59,8 @@ class SensingMac : public Object
         uint8_t linkId;
         Time enqueueTime;
         Time duration;
+        std::vector<Time /* tx end time */> phyTxTime;
         Time ackedTime{Seconds(0)};
-        uint32_t txCounter{0};
         bool isExpired{false};
         bool isDropped{false};
         double txPowerW;
@@ -71,15 +71,14 @@ class SensingMac : public Object
      */
     struct SelfLinkInfo
     {
-        Time lastTxOkTime;
         std::list<uint64_t> pendingPackets; //!< pending packets
-        std::map<uint64_t /* UID */, std::pair<Time /* Tx Begin */, Time /* Tx End */>> channelUtil;
+        std::list<uint64_t /* uid */> channelUtil;
     };
 
     /**
      * The information of the queues of each AC.
      */
-    struct MacQueueInfo
+    struct SelfMacQueueInfo
     {
         std::list<uint64_t> expiredPackets; // list of expired packets
         std::list<uint64_t> droppedPackets; // list of dropped packets
@@ -132,20 +131,6 @@ class SensingMac : public Object
     void NotifyDroppedMpdu(WifiMacDropReason reason, Ptr<const WifiMpdu> mpdu);
 
     /**
-     * @param linkId the link ID
-     * @returns the last successful transmission time of this STA on the given link
-     */
-    Time GetSelfLastTxOk(uint8_t linkId) const;
-
-    /**
-     * Get the channel utilization of previous period of this STA on the given link.
-     *
-     * @param period the period of time
-     * @param linkId the link ID
-     */
-    double GetSelfChannelUtil(Time period, uint8_t linkId) const;
-
-    /**
      * Get the required throughput for the given ac and link ID in the past period of time.
      *
      * @param period the period
@@ -187,20 +172,25 @@ class SensingMac : public Object
     };
 
     /**
+     * Information of the neighbor packets.
+     */
+    struct NeighborPacketInfo
+    {
+        Time rxTime;
+        Time duration;
+        bool isData;
+        Time ackedTime{Seconds(0)};
+        double rssi;
+    };
+
+    /**
      * Information of the neighbor STAs.
      */
     struct NeighborStaInfo
     {
         NeighborStaRole role{UNKNOWN};
         uint8_t linkId;
-        Time lastTxOkTime{Seconds(0)};   // the time of the last successful transmission
-        Time lastTxDataTime{Seconds(0)};     // the time of the last transmission
-        std::deque<Time> txDataIntervals;
-        uint32_t nTxPackets{0};
-        uint32_t nTxDataPackets{0};
-        uint32_t nAckedPackets{0};
-        std::map<Time /* Rx End */, Time /* duration */> channelUtil;
-        double rssi;
+        std::deque<NeighborPacketInfo> channelUtil;
     };
 
     /**
@@ -221,30 +211,16 @@ class SensingMac : public Object
     void NotifyLastTxOkSta(Mac48Address sta, uint8_t linkId);
 
     /**
-     * Get the minimum RSSI of BSS STAs on the given link.
-     *
      * @param linkId the link ID
+     * @returns the number of neighbor STAs sent packets
      */
-    double GetMinBssRssi(uint8_t linkId) const;
-    /**
-     * Get the maximum RSSI of OBSS STAs on the given link.
-     *
-     * @param linkId the link ID
-     */
-    double GetMaxObssRssi(uint8_t linkId) const;
+    uint32_t GetNNeighborStas(uint8_t linkId) const;
 
     /**
-     * @param delay the threshold delay
-     * @param linkId the link ID
-     * @returns the number of STAs whose last successful transmission was less than the given delay
+     * @param sta the mac address
+     * @returns the role of the neighbor STA
      */
-    uint32_t GetNStaTxOkDelayLessThan(Time delay, uint8_t linkId) const;
-    /**
-     * @param interval the threshold interval
-     * @param linkId the link ID
-     * @returns the expectation of data intervals of neighbor STAs that are less than the given interval
-     */
-    double GetNTxDataIntervalLessThan(Time interval, uint8_t linkId) const;
+    NeighborStaRole GetNeighborStaRole(Mac48Address sta) const;
 
     /**
      * @param linkId the link ID
@@ -258,35 +234,7 @@ class SensingMac : public Object
     uint32_t GetMinNeighborBackoff(uint8_t linkId);
 
     /**
-     * Get the number of STAs in the same BSS on the given link.
-     *
-     * @param linkId the link ID
-     */
-    uint32_t GetNBssStas(uint8_t linkId) const;
-    /**
-     * Get the number of STAs belongs to OBSS on the given link.
-     *
-     * @param linkId the link ID
-     */
-    uint32_t GetNObssStas(uint8_t linkId) const;
-
-    /**
-     * Get the channel utilization of previous period of STAs within the same BSS on the given link.
-     *
-     * @param period the period of time
-     * @param linkId the link ID
-     */
-    double GetBssChannelUtil(Time period, uint8_t linkId) const;
-    /**
-     * Get the channel utilization of previous period of other STAs on the given link.
-     *
-     * @param period the period of time
-     * @param linkId the link ID
-     */
-    double GetOtherChannelUtil(Time period, uint8_t linkId) const;
-
-    /**
-     * The obs collected from the mac since the last access restore.
+     * The info collected from the mac since the last access resume.
      */
     struct AccessInfo
     {
@@ -297,48 +245,68 @@ class SensingMac : public Object
         uint32_t nAckedPackets{0};
         uint32_t nLowDelayPackets{0};  // latency <= 10ms
         uint32_t nHighDelayPackets{0}; // latency > 30ms
-        uint32_t nNeighborTxPackets{0};
-        uint32_t nNeighborTxDataPackets{0};
-        uint32_t nNeighborAckedPackets{0};
     };
 
     /**
      * @param linkId the link ID
-     * @return the obs of the link after the last access restore.
+     * @return the info of the link after the last access resume.
      */
     AccessInfo GetLastAccessInfo(uint8_t linkId);
+
+    /**
+     * The info of data packet that utilizes channel
+     */
+    struct DataPacketInfo
+    {
+        Time enqueueTime{Seconds(0)};
+        Time duration;
+        Time txEndTime;
+        Time ackedTime{Seconds(0)};
+        double rssi{0};
+    };
+
+    /**
+     * @param period the period
+     * @param linkId the link ID
+     * @return the channel utilization of the mac on the given link in the past period
+     */
+    std::vector<DataPacketInfo> GetSelfLinkChannelUtil(Time period, uint8_t linkId) const;
+
+    /**
+     * @param sta the MAC address of the neighbor STA
+     * @param period the period
+     * @return the obs from the neighbor STA in the past period
+     */
+    std::vector<DataPacketInfo> GetNeighborChannelUtil(Mac48Address sta, Time period) const;
+    /**
+     * @param linkId the link ID
+     * @return the list of MAC addresses of the neighbor STAs
+     */
+    std::vector<Mac48Address> GetNeighborMacAddress(uint8_t linkId) const;
 
   protected:
     void DoInitialize() override;
     void DoDispose() override;
 
     /**
-     * Wipe all expired packets that is considered stale.
+     * Wipe all staled packets that is considered stale.
      */
-    virtual void WipeAllExpiredPackets();
+    virtual void WipeAllStaledPackets();
+
+    /**
+     * Wipe all neighbor STAs that have not been active for a long time.
+     */
+    virtual void WipeAllInactiveNeighborStas();
 
   private:
-    /**
-     * @param sta the STA
-     * @param interval the given interval
-     * @returns the probability of the given STA having two transmissions less than the given
-     * interval
-     */
-    double GetProbOfTxDataIntervalLessThan(Mac48Address sta, Time interval) const;
-
-    /**
-     * Remove all neighbor STAs that have not been active for a long time.
-     */
-    void RemoveInactiveNeighborStas();
-
     Ptr<WifiMac> m_mac; //!< associated MAC
     Time m_duration;    //!< maximum duration of the data stored
     std::map<uint64_t /* UID */, SelfPacketInfo> m_packetMap; //!< packets sent by this STA
     std::map<uint8_t /* link ID */, SelfLinkInfo>
         m_linkMap; //!< each link's channel utilization of this STA
     std::unordered_map<Mac48Address, NeighborStaInfo, WifiAddressHash>
-        m_neighborStaMap;                       //!< channel utilization of neighbor STAs
-    std::map<AcIndex, MacQueueInfo> m_queueMap; //!< queue information of each AC
+        m_neighborStaMap;                           //!< channel utilization of neighbor STAs
+    std::map<AcIndex, SelfMacQueueInfo> m_queueMap; //!< queue information of each AC
 };
 
 } // namespace ns3
