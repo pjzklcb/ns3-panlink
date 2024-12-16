@@ -41,15 +41,12 @@ def run_new_episode(exp, ns3_settings, agent_manager, episode=0):
             msg_interface.PyRecvBegin()
             ns3_time_cost += time.time() - tic  # wait for CppSendEnd
             if msg_interface.PyGetFinished():
-                print("Simulation ended at {}".format(int(time.time())))
                 msg_interface.PyRecvEnd()
-
-                msg_interface.PySetRestart()
                 break
 
             print("Episode {}, step {}".format(episode, step))
             step += 1
-
+            
             agent_manager.get_obs(msg_interface)
             msg_interface.PyRecvEnd()
 
@@ -65,6 +62,8 @@ def run_new_episode(exp, ns3_settings, agent_manager, episode=0):
         traceback.print_tb(exc_traceback)
     
     exp.kill()
+    print("Simulation ended at {}".format(int(time.time())))
+    msg_interface.PySetRestart()
 
     return ns3_time_cost
 

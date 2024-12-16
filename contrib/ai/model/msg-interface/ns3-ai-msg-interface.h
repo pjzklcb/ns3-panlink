@@ -68,8 +68,7 @@ class Ns3AiMsgInterfaceImpl
         : m_isCreator(is_memory_creator),
           m_useVector(use_vector),
           m_handleFinish(handle_finish),
-          m_segName(segment_name),
-          m_isFinished(false)
+          m_segName(segment_name)
     {
         using namespace boost::interprocess;
         if (m_isCreator)
@@ -228,9 +227,8 @@ class Ns3AiMsgInterfaceImpl
     void CppSetFinished()
     {
         assert(m_handleFinish);
-        m_isFinished = true;
         CppSendBegin();
-        m_sync->m_isFinished = true;
+        m_sync->m_isFinished.store(true, std::memory_order_release); 
         CppSendEnd();
     };
 
@@ -243,10 +241,6 @@ class Ns3AiMsgInterfaceImpl
     void PyRecvBegin()
     {
         Ns3AiSemaphore::sem_wait(m_sync->m_cpp2pyFullCount);
-        if (m_handleFinish)
-        {
-            m_isFinished = m_sync->m_isFinished;
-        }
     };
 
     /**
@@ -282,7 +276,7 @@ class Ns3AiMsgInterfaceImpl
     bool PyGetFinished()
     {
         assert(m_handleFinish);
-        return m_isFinished;
+        return m_sync->m_isFinished.load(std::memory_order_acquire);
     };
 
     /**
@@ -291,9 +285,7 @@ class Ns3AiMsgInterfaceImpl
     void PySetRestart()
     {
         assert(m_handleFinish);
-        m_isFinished = false;
-        // only when no other processes are running
-        m_sync->m_isFinished = false;
+        m_sync->m_isFinished.store(false, std::memory_order_release); 
     };
 
   private:
@@ -307,7 +299,6 @@ class Ns3AiMsgInterfaceImpl
     const bool m_useVector;
     const bool m_handleFinish;
     const std::string m_segName;
-    bool m_isFinished;
 };
 
 /**
