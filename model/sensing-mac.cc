@@ -143,7 +143,6 @@ SensingMac::NotifyPhyTxBegin(std::string context, Ptr<const Packet> p, double tx
         it->second.txPowerW = txPowerW;
 
         m_linkMap[linkId].pendingPackets.push_back(p->GetUid());
-        m_linkMap[linkId].channelUtil.push_back(p->GetUid());
     }
 }
 
@@ -152,22 +151,26 @@ SensingMac::NotifyPhyTxEnd(std::string context, Ptr<const Packet> p)
 {
     NS_LOG_FUNCTION(this << context << p);
 
+    Time now = Simulator::Now();
     uint8_t linkId = static_cast<uint8_t>(std::stoi(context));
-
     if (auto it = m_packetMap.find(p->GetUid()); it != m_packetMap.end())
     {
         NS_ASSERT(m_linkMap[linkId].pendingPackets.size() > 0);
-        it->second.phyTxTime.push_back(Simulator::Now());
+        it->second.phyTxTime.push_back(now);
+        m_linkMap[linkId].channelUtil.push_back({p->GetUid(), now});
     }
 
     // Remove staled and invalid tx packets.
-    auto& util = m_linkMap[linkId].channelUtil;
-    for (auto it = util.begin(); it != util.end();)
+    while (!m_linkMap[linkId].channelUtil.empty())
     {
-        if (m_packetMap.find(*it) == m_packetMap.end())
+        auto [_, txEndTime] = m_linkMap[linkId].channelUtil.front();
+        if (now - txEndTime > m_duration)
         {
-            it = util.erase(it);
-            continue;
+            m_linkMap[linkId].channelUtil.pop_front();
+        }
+        else
+        {
+            break;
         }
     }
 }
@@ -500,7 +503,7 @@ SensingMac::GetNNeighborStas(uint8_t linkId) const
     return nStas;
 }
 
-SensingMac::NeighborStaRole 
+SensingMac::NeighborStaRole
 SensingMac::GetNeighborStaRole(Mac48Address sta) const
 {
     NS_LOG_FUNCTION(this << sta);
@@ -510,7 +513,7 @@ SensingMac::GetNeighborStaRole(Mac48Address sta) const
     return it->second.role;
 }
 
-std::vector<SensingMac::DataPacketInfo>
+std::vector<SensingMac::ChannelUtil>
 SensingMac::GetSelfLinkChannelUtil(Time period, uint8_t linkId) const
 {
     NS_LOG_FUNCTION(this << linkId);
@@ -521,51 +524,46 @@ SensingMac::GetSelfLinkChannelUtil(Time period, uint8_t linkId) const
     NS_ASSERT(period > Seconds(0));
     NS_ASSERT_MSG(period <= m_duration, "Period surpass maximum duration");
 
-    std::vector<DataPacketInfo> result;
-    for (const auto& uid : it->second.channelUtil)
+    std::vector<ChannelUtil> result;
+    Time prevEnd = Simulator::Now() - period;
+    for (const auto& [uid, txEndTime] : it->second.channelUtil)
     {
-        if (auto packetIt = m_packetMap.find(uid); packetIt != m_packetMap.end())
+        if (txEndTime <= prevEnd) // skip packet not in the period
         {
-            Time prevEnd = Simulator::Now() - period;
-            for (size_t i = 0; i < packetIt->second.phyTxTime.size(); i++)
+            continue;
+        }
+
+        auto packetIt = m_packetMap.find(uid);
+        NS_ASSERT(packetIt != m_packetMap.end());
+        Time ackedTime = Seconds(0);
+        // find the index of the packet in the phyTxTime if acked
+        if (packetIt->second.ackedTime != Seconds(0))
+        {
+            auto vec = packetIt->second.phyTxTime;
+            size_t idx = std::distance(vec.begin(), std::find(vec.begin(), vec.end(), txEndTime));
+            if (idx == vec.size() - 1)
             {
-                Time txEndTime = packetIt->second.phyTxTime[i];
-                Time ackedTime = (i == packetIt->second.phyTxTime.size() - 1)
-                                     ? packetIt->second.ackedTime
-                                     : Seconds(0);
-                if (txEndTime <= prevEnd) // remove packet not in the period
-                {
-                    continue;
-                }
-                DataPacketInfo packetInfo{.enqueueTime = packetIt->second.enqueueTime,
-                                          .duration = packetIt->second.duration,
-                                          .txEndTime = txEndTime,
-                                          .ackedTime = ackedTime};
-                result.push_back(packetInfo);
-                prevEnd = txEndTime; // @todo: need to check the packet order
+                ackedTime = packetIt->second.ackedTime;
             }
         }
+        ChannelUtil packetInfo{.duration = packetIt->second.duration,
+                               .txEndTime = txEndTime,
+                               .ackedTime = ackedTime};
+        result.push_back(packetInfo);
+        // make sure AMPDU with same tx end time will be ignored
+        prevEnd = txEndTime;
     }
 
-    // Get the segments in the period
-    // Time prevEnd = Simulator::Now() - period;
-    // for (const auto& [uid, pair] : linkIt->second.txDataPackets)
-    // {
-    //     Time begin = pair.first;
-    //     Time end = (pair.second == Seconds(0)) ? Simulator::Now() : pair.second; // RX not end
-    //     yet if (end <= prevEnd)
-    //     {
-    //         continue;
-    //     }
-    //     channelUtil += (end - std::max(prevEnd, begin)).GetSeconds();
-    //     prevEnd = end;
-    // }
-
-    // return channelUtil / period.GetSeconds();
     return result;
 }
 
-std::vector<SensingMac::DataPacketInfo>
+std::vector<double> 
+SensingMac::GetSelfAppTraffic(Time period) const
+{
+    NS_LOG_FUNCTION(this << period);
+}
+
+std::vector<SensingMac::ChannelUtil>
 SensingMac::GetNeighborChannelUtil(Mac48Address sta, Time period) const
 {
     NS_LOG_FUNCTION(this << sta);
@@ -576,7 +574,7 @@ SensingMac::GetNeighborChannelUtil(Mac48Address sta, Time period) const
     NS_ASSERT(period > Seconds(0));
     NS_ASSERT_MSG(period <= m_duration, "Period surpass maximum duration");
 
-    std::vector<DataPacketInfo> result;
+    std::vector<ChannelUtil> result;
     for (const auto& packet : it->second.channelUtil)
     {
         if (!packet.isData || Simulator::Now() - packet.rxTime > period)
@@ -584,10 +582,10 @@ SensingMac::GetNeighborChannelUtil(Mac48Address sta, Time period) const
             continue;
         }
 
-        DataPacketInfo packetInfo{.duration = packet.duration,
-                                  .txEndTime = packet.rxTime,
-                                  .ackedTime = packet.ackedTime,
-                                  .rssi = packet.rssi};
+        ChannelUtil packetInfo{.duration = packet.duration,
+                               .txEndTime = packet.rxTime,
+                               .ackedTime = packet.ackedTime,
+                               .rssi = packet.rssi};
         result.push_back(packetInfo);
     }
 

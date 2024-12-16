@@ -27,7 +27,7 @@ class ChannelAccessEnvAgent : public EnvAgent
      * \return the object TypeId
      */
     static TypeId GetTypeId();
-    
+
     ChannelAccessEnvAgent();
     ~ChannelAccessEnvAgent() override;
 
@@ -43,19 +43,51 @@ class ChannelAccessEnvAgent : public EnvAgent
     void SetEnvAct(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, ModuleObs& obs) override;
 
   private:
-    typedef std::vector<SensingMac::DataPacketInfo> ChannelUtil;
+    typedef std::vector<SensingMac::ChannelUtilInfo> ChannelUtilList;
 
-    uint32_t GetNAckedDataPackets(const ChannelUtil& util) const;
-    double GetTxDataDelay(const ChannelUtil& util) const;
-    double GetTxOkDelay(const ChannelUtil& util) const;
-    std::array<double, 4> GetDataArrivalIntervalStats(const ChannelUtil& util) const;
-    std::array<double, 4> GetTxDataIntervalStats(const ChannelUtil& util) const;
-    double GetChannelUtil(const ChannelUtil& util) const;
-    double GetMeanRssi(const ChannelUtil& util) const;
+    /**
+     * @param util a list of channel utilization information
+     * @returns the number of ACKed data packets
+     */
+    uint32_t GetNAckedDataPackets(const ChannelUtilList& util) const;
 
+    /**
+     * @returns the delay from now to the last tx data packet
+     */
+    double GetTxDataDelay(const ChannelUtilList& util) const;
+
+    /**
+     * @returns the delay from now to the last acked data packet
+     */
+    double GetTxOkDelay(const ChannelUtilList& util) const;
+
+    /**
+     * @returns the mean, std, min, max of the data arrival intervals
+     */
+    std::array<double, 4> GetDataArrivalIntervalStats(const ChannelUtilList& util) const;
+
+    /**
+     * @returns the mean, std, min, max of the tx data intervals
+     */
+    std::array<double, 4> GetTxDataIntervalStats(const ChannelUtilList& util) const;
+
+    /**
+     * @returns the channel utilization time in ms
+     */
+    double GetChannelUtil(const ChannelUtilList& util) const;
+
+    /**
+     * @returns the mean rssi of the tx packets.
+     */
+    double GetMeanRssi(const ChannelUtilList& util) const;
+
+    /**
+     * @param vec a vector of double
+     * @returns the mean, std, min, max
+     */
     std::array<double, 4> GetStats(const std::vector<double>& vec) const;
 
-    uint32_t m_idxNeighborSta;  //!< current index of neighbor sta
+    uint32_t m_idxNeighborSta; //!< current index of neighbor sta
 };
 
 } // namespace ns3

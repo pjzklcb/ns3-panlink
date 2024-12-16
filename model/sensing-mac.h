@@ -72,7 +72,7 @@ class SensingMac : public Object
     struct SelfLinkInfo
     {
         std::list<uint64_t> pendingPackets; //!< pending packets
-        std::list<uint64_t /* uid */> channelUtil;
+        std::deque<std::pair<uint64_t /* uid */, Time /* tx end time */>> channelUtil;
     };
 
     /**
@@ -256,9 +256,8 @@ class SensingMac : public Object
     /**
      * The info of data packet that utilizes channel
      */
-    struct DataPacketInfo
+    struct ChannelUtil
     {
-        Time enqueueTime{Seconds(0)};
         Time duration;
         Time txEndTime;
         Time ackedTime{Seconds(0)};
