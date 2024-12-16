@@ -102,6 +102,7 @@ class EnvAgent : public Object
         virtual ~ModuleObs() = default;
         
         uint8_t linkId{0};
+        Time period{MilliSeconds(50)}; // period of observation
     };
 
     /**

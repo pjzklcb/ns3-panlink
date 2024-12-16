@@ -157,15 +157,6 @@ EnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, ModuleObs& ob
     env.agentType = m_type;
     env.counter = m_counter;
     env.simTime = now.GetSeconds();
-
-    // Get obs from sensing MAC if it exists
-    Time period = (m_period == Seconds(0)) ? Seconds(0.05) : m_period;
-    if (auto sensingMac = GetSensingMac())
-    {
-        auto linkId = obs.linkId;
-        env.nBssStas = sensingMac->GetNBssStas(linkId);
-        env.nObssStas = sensingMac->GetNObssStas(linkId);
-    }
 }
 
 void
