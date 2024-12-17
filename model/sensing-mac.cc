@@ -111,7 +111,6 @@ SensingMac::NotifyEdcaEnqueue(std::string ac, Ptr<const WifiMpdu> item)
     it->second.packetSize = item->GetPacketSize();
     it->second.ac = aci;
     it->second.enqueueTime = Simulator::Now();
-    it->second.duration = item->GetHeader().GetDuration();
 
     m_queueMap[aci].traffics.push_back(uid);
 }
@@ -143,6 +142,7 @@ SensingMac::NotifyPhyTxBegin(std::string context, Ptr<const Packet> p, double tx
     {
         it->second.linkId = linkId;
         it->second.txPowerW = txPowerW;
+        it->second.phyTxTime.push_back({Simulator::Now(), Seconds(0)});
 
         m_linkMap[linkId].pendingPackets.push_back(p->GetUid());
     }
@@ -157,8 +157,10 @@ SensingMac::NotifyPhyTxEnd(std::string context, Ptr<const Packet> p)
     uint8_t linkId = static_cast<uint8_t>(std::stoi(context));
     if (auto it = m_packetMap.find(p->GetUid()); it != m_packetMap.end())
     {
-        NS_ASSERT(m_linkMap[linkId].pendingPackets.size() > 0);
-        it->second.phyTxTime.push_back(now);
+        // check if the packet is not recorded in PhyTxBegin
+        NS_ASSERT(!it->second.phyTxTime.empty() &&
+                  it->second.phyTxTime.back().second == Seconds(0));
+        it->second.phyTxTime.back().second = now;
         m_linkMap[linkId].channelUtil.push_back({p->GetUid(), now});
     }
 
@@ -309,7 +311,8 @@ SensingMac::NotifyFrameInfo(const WifiMacHeader& hdr, double rssi, uint8_t linkI
 
     // create neighbor packet info
     NeighborPacketInfo packetInfo{.rxTime = now,
-                                  .duration = hdr.GetDuration(),
+                                  .duration =
+                                      hdr.GetDuration(), // @todo: without phy preamble and header
                                   .isData = hdr.IsData(),
                                   .ackedTime = Seconds(0),
                                   .rssi = rssi};
@@ -543,20 +546,20 @@ SensingMac::GetSelfLinkChannelUtil(Time period, uint8_t linkId) const
 
         auto packetIt = m_packetMap.find(uid);
         NS_ASSERT(packetIt != m_packetMap.end());
-        Time ackedTime = Seconds(0);
-        // find the index of the packet in the phyTxTime if acked
-        if (packetIt->second.ackedTime != Seconds(0))
-        {
-            auto vec = packetIt->second.phyTxTime;
-            size_t idx = std::distance(vec.begin(), std::find(vec.begin(), vec.end(), txEndTime));
-            if (idx == vec.size() - 1)
-            {
-                ackedTime = packetIt->second.ackedTime;
-            }
-        }
-        ChannelUtilInfo packetInfo{.duration = packetIt->second.duration,
-                               .txEndTime = txEndTime,
-                               .ackedTime = ackedTime};
+        // find this tx in the phyTxTime
+        auto vec = packetIt->second.phyTxTime;
+        auto phyTxIt = std::find_if(vec.begin(), vec.end(), [txEndTime](const auto& pair) {
+            return pair.second == txEndTime;
+        });
+        // get the duration of this tx
+        Time duration = phyTxIt->second - phyTxIt->first;
+        // only the last tx can use acked time
+        Time ackedTime =
+            (std::next(phyTxIt) == vec.end()) ? packetIt->second.ackedTime : Seconds(0);
+
+        ChannelUtilInfo packetInfo{.duration = duration, // @todo: without SIFS and ack time
+                                   .txEndTime = txEndTime,
+                                   .ackedTime = ackedTime};
         result.push_back(packetInfo);
         // make sure AMPDU with same tx end time will be ignored
         prevEnd = txEndTime;
@@ -565,7 +568,7 @@ SensingMac::GetSelfLinkChannelUtil(Time period, uint8_t linkId) const
     return result;
 }
 
-std::vector<Time> 
+std::vector<Time>
 SensingMac::GetSelfAppTraffic(Time period) const
 {
     NS_LOG_FUNCTION(this << period);
@@ -607,9 +610,9 @@ SensingMac::GetNeighborChannelUtil(Mac48Address sta, Time period) const
         }
 
         ChannelUtilInfo packetInfo{.duration = packet.duration,
-                               .txEndTime = packet.rxTime,
-                               .ackedTime = packet.ackedTime,
-                               .rssi = packet.rssi};
+                                   .txEndTime = packet.rxTime,
+                                   .ackedTime = packet.ackedTime,
+                                   .rssi = packet.rssi};
         result.push_back(packetInfo);
     }
 

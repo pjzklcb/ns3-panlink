@@ -99,6 +99,8 @@ class ChannelAccessRlAgent(RlAgent):
     def get_obs(self, msg_interface):
         env = msg_interface.GetCpp2PyVector()[self.memory_id]
         if not self.more_data:
+            self.n_contention = env.nStasWithPackets
+            self.min_neighbor_backoff = env.minNeighborBackoff
             self.access_info = AccessInfo(AcIndex(env.ac), env.cw, env.nDeferredAccess, 
                                             env.waitedSlots, env.nInQueuePackets, 
                                             env.nExpiredPackets, env.nDroppedPackets, 
@@ -121,7 +123,7 @@ class ChannelAccessRlAgent(RlAgent):
                                              obs.stdTxDataInterval, obs.minTxDataInterval, 
                                              obs.maxTxDataInterval, obs.channelUtil, obs.meanRssi)
             self.neighbor_info.append(neighbor_info)
-            print("python get {}/{}".format(len(self.neighbor_info), self.n_neighbor))
+            # print("python get {}/{}".format(len(self.neighbor_info), self.n_neighbor))
             self.more_data = env.moreData
 
     def set_action(self, msg_interface):
@@ -156,8 +158,9 @@ class ChannelAccessRlAgent(RlAgent):
                   f"\t in_queue/sending/acked={a_nq}/{a_ns}/{a_na}, tx/ack={l_ns}/{l_na}, "
                   f"chan_util={l_cu:.2f}ms, \n"
                   f"\t app_stats=[{', '.join(f'{v:.2f}' for v in l_astats)}]ms, "
-                  f"tx_stats=[{', '.join(f'{v:.2f}' for v in l_tstats)}]ms, "
-                  f"n_neighbor={self.n_neighbor}")
+                  f"tx_stats=[{', '.join(f'{v:.2f}' for v in l_tstats)}]ms, \n"
+                  f"\t n_neighbor={self.n_neighbor}, n_contention={self.n_contention}, "
+                  f"min_neighbor_backoff={self.min_neighbor_backoff}")
 
         # normalize the obs
         self_feature = [a_cw, a_da, a_nw, a_nq, a_ns, a_na, l_ns, l_na, l_td, l_ad, l_cu] + l_tstats + l_astats

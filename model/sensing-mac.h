@@ -58,8 +58,7 @@ class SensingMac : public Object
         AcIndex ac;
         uint8_t linkId;
         Time enqueueTime;
-        Time duration;
-        std::vector<Time /* tx end time */> phyTxTime;
+        std::vector<std::pair<Time /* tx begin time */, Time /* tx end time */>> phyTxTime;
         Time ackedTime{Seconds(0)};
         bool isExpired{false};
         bool isDropped{false};
@@ -72,7 +71,7 @@ class SensingMac : public Object
     struct SelfLinkInfo
     {
         std::list<uint64_t> pendingPackets; //!< pending packets
-        std::deque<std::pair<uint64_t /* uid */, Time /* tx end time */>> channelUtil;
+        std::deque<std::tuple<uint64_t /* uid */, Time /* tx end time */>> channelUtil;
     };
 
     /**
