@@ -111,7 +111,7 @@ EnvAgent::GetPeriod() const
     return m_period;
 }
 
-bool 
+bool
 EnvAgent::HasMoreData() const
 {
     return m_moreData;
@@ -156,15 +156,19 @@ EnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, ModuleObs& ob
 
     NS_ABORT_MSG_IF(m_node == nullptr, "Env agent must bind to a node");
 
-    m_counter += 1;
-    Time now = Simulator::Now();
+    // only update mechanism obs for the first time of each interaction
+    if (!m_moreData)
+    {
+        m_counter += 1;
+        Time now = Simulator::Now();
 
-    auto& env = msgInterface->GetCpp2PyVector()->at(m_memoryId);
-    env.nodeId = m_node->GetId();
-    env.agentType = m_type;
-    env.counter = m_counter;
-    env.moreData = m_moreData;
-    env.simTime = now.GetSeconds();
+        auto& env = msgInterface->GetCpp2PyVector()->at(m_memoryId);
+        env.nodeId = m_node->GetId();
+        env.agentType = m_type;
+        env.counter = m_counter;
+        env.moreData = m_moreData;
+        env.simTime = now.GetSeconds();
+    }
 }
 
 void

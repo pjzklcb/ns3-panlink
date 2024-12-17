@@ -87,7 +87,8 @@ ChannelAccessEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, 
             .lastTxOkDelay = GetTxOkDelay(selfUtil),
             .channelUtil = GetChannelUtil(selfUtil),
             .dataArrivalIntervalStats = GetDataArrivalIntervalStats(traffics),
-            .dataTxIntervalStats = GetDataTxIntervalStats(selfUtil)
+            .dataTxIntervalStats = GetDataTxIntervalStats(selfUtil),
+            .dataTxDurationStats = GetDataTxDurationStats(selfUtil)
         };
         env.selfLinkObs = selfLinkObs;
 
@@ -114,7 +115,8 @@ ChannelAccessEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, 
         .lastTxOkDelay = GetTxOkDelay(neighborUtil),
         .channelUtil = GetChannelUtil(neighborUtil),
         .meanRssi = GetMeanRssi(neighborUtil),
-        .dataTxIntervalStats = GetDataTxIntervalStats(neighborUtil)
+        .dataTxIntervalStats = GetDataTxIntervalStats(neighborUtil),
+        .dataTxDurationStats = GetDataTxDurationStats(neighborUtil)
     };
     env.neighborStaObs = neighborStaObs;
 
@@ -191,44 +193,6 @@ ChannelAccessEnvAgent::GetTxOkDelay(const ChannelUtilList& util) const
     return Simulator::Now().ToDouble(Time::MS);
 }
 
-std::array<double, 4>
-ChannelAccessEnvAgent::GetDataArrivalIntervalStats(const std::vector<Time>& vec) const
-{
-    NS_LOG_FUNCTION(this);
-
-    std::vector<double> intervals;
-    for (auto it = vec.begin(); it != vec.end(); it++)
-    {
-        if (it != vec.begin())
-        {
-            double diff = (*it - *(it - 1)).ToDouble(Time::MS);
-            if (diff > 0)
-            {
-                intervals.push_back(diff);
-            }
-        }
-    }
-    return GetStats(intervals);
-}
-
-std::array<double, 4>
-ChannelAccessEnvAgent::GetDataTxIntervalStats(const ChannelUtilList& util) const
-{
-    NS_LOG_FUNCTION(this);
-
-    std::vector<double> intervals;
-    for (auto it = util.begin(); it != util.end(); it++)
-    {
-        if (it != util.begin())
-        {
-            double diff = (it->txEndTime - (it - 1)->txEndTime).ToDouble(Time::MS);
-            NS_ASSERT(diff > 0);
-            intervals.push_back(diff);
-        }
-    }
-    return GetStats(intervals);
-}
-
 double
 ChannelAccessEnvAgent::GetChannelUtil(const ChannelUtilList& util) const
 {
@@ -284,6 +248,57 @@ ChannelAccessEnvAgent::GetMeanRssi(const ChannelUtilList& util) const
         sumRssi += packet.rssi;
     }
     return sumRssi / util.size();
+}
+
+std::array<double, 4>
+ChannelAccessEnvAgent::GetDataArrivalIntervalStats(const std::vector<Time>& vec) const
+{
+    NS_LOG_FUNCTION(this);
+
+    std::vector<double> intervals;
+    for (auto it = vec.begin(); it != vec.end(); it++)
+    {
+        if (it != vec.begin())
+        {
+            double diff = (*it - *(it - 1)).ToDouble(Time::MS);
+            if (diff > 0)
+            {
+                intervals.push_back(diff);
+            }
+        }
+    }
+    return GetStats(intervals);
+}
+
+std::array<double, 4>
+ChannelAccessEnvAgent::GetDataTxIntervalStats(const ChannelUtilList& util) const
+{
+    NS_LOG_FUNCTION(this);
+
+    std::vector<double> intervals;
+    for (auto it = util.begin(); it != util.end(); it++)
+    {
+        if (it != util.begin())
+        {
+            double diff = (it->txEndTime - (it - 1)->txEndTime).ToDouble(Time::MS);
+            NS_ASSERT(diff > 0);
+            intervals.push_back(diff);
+        }
+    }
+    return GetStats(intervals);
+}
+
+std::array<double, 4> 
+ChannelAccessEnvAgent::GetDataTxDurationStats(const ChannelUtilList& util) const
+{
+    NS_LOG_FUNCTION(this);
+
+    std::vector<double> durations;
+    for (auto& packet : util)
+    {
+        durations.push_back(packet.duration.ToDouble(Time::MS));
+    }
+    return GetStats(durations);
 }
 
 std::array<double, 4>

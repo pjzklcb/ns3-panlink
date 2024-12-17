@@ -43,7 +43,7 @@ class AccessInfo:
 
 class SelfLinkInfo:
     def __init__(self, period, n_tx_data, n_acked_data, tx_delay, txok_delay, 
-                 chan_util, app_interval_stats, tx_interval_stats):
+                 chan_util, app_interval_stats, tx_interval_stats, tx_duration_stats):
         self.period = period
         self.n_tx_data = n_tx_data
         self.n_acked_data = n_acked_data
@@ -52,11 +52,12 @@ class SelfLinkInfo:
         self.chan_util = chan_util
         self.app_interval_stats = [v for v in app_interval_stats]
         self.tx_interval_stats = [v for v in tx_interval_stats]
+        self.tx_duration_stats = [v for v in tx_duration_stats]
 
 
 class NeighborLinkInfo:
-    def __init__(self, role, period, n_tx_data, n_acked_data, tx_delay, 
-                 txok_delay, chan_util, rssi, tx_interval_stats):
+    def __init__(self, role, period, n_tx_data, n_acked_data, tx_delay, txok_delay, 
+                 chan_util, rssi, tx_interval_stats, tx_duration_stats):
         self.role = role
         self.period = period
         self.n_tx_data = n_tx_data
@@ -66,6 +67,7 @@ class NeighborLinkInfo:
         self.chan_util = chan_util
         self.rssi = rssi
         self.tx_interval_stats = [v for v in tx_interval_stats]
+        self.tx_duration_stats = [v for v in tx_duration_stats]
 
 
 class ChannelAccessRlAgent(RlAgent):
@@ -73,7 +75,7 @@ class ChannelAccessRlAgent(RlAgent):
         super().__init__(node_id, memory_id, enable_learning)
         self.agent_type = AgentType.RL_CHANNEL_ACCESS
         
-        state_size = 19
+        state_size = 23
         self.action_size = 2
         self.model = DDQN(state_size, self.action_size, hidden_size=HIDDEN_SIZE, 
                          batch_size=BATCH_SIZE, gamma=GAMMA, 
@@ -108,7 +110,8 @@ class ChannelAccessRlAgent(RlAgent):
             obs = env.selfLinkObs
             self.link_info = SelfLinkInfo(obs.period, obs.nTxDataPackets, obs.nAckedDataPackets, 
                                           obs.lastTxDataDelay, obs.lastTxOkDelay, obs.channelUtil,
-                                          obs.dataArrivalIntervalStats, obs.dataTxIntervalStats)
+                                          obs.dataArrivalIntervalStats, obs.dataTxIntervalStats,
+                                          obs.dataTxDurationStats)
             
         self.n_neighbor = env.nNeighborStas
         if self.n_neighbor > 0:
@@ -116,7 +119,7 @@ class ChannelAccessRlAgent(RlAgent):
             neighbor_info = NeighborLinkInfo(obs.role, obs.period, obs.nTxDataPackets, 
                                              obs.nAckedDataPackets, obs.lastTxDataDelay, 
                                              obs.lastTxOkDelay, obs.channelUtil, obs.meanRssi,
-                                             obs.dataTxIntervalStats)
+                                             obs.dataTxIntervalStats, obs.dataTxDurationStats)
             self.neighbor_info.append(neighbor_info)
             # print("python get {}/{}".format(len(self.neighbor_info), self.n_neighbor))
             self.more_data = env.moreData
@@ -145,15 +148,17 @@ class ChannelAccessRlAgent(RlAgent):
         l_ad = self.link_info.txok_delay
         l_cu = self.link_info.chan_util
         l_ai = self.link_info.app_interval_stats
-        l_ti = self.link_info.tx_interval_stats
+        l_tis = self.link_info.tx_interval_stats
+        l_tus = self.link_info.tx_duration_stats
         
         if self.show_log:
-            print(f"At {self.sim_time:6f}s, delta_time={self.delta_time:.3f}ms, cw={self.access_info.cw}, "
-                  f"n_deferred_access={a_da}, n_waited_slot={a_nw}, \n"
+            print(f"At {self.sim_time:6f}s, delta_time={self.delta_time:.3f}ms, " 
+                  f"cw={self.access_info.cw}, n_defer={a_da}, n_waited_slot={a_nw}, \n"
                   f"\t in_queue/sending/acked={a_nq}/{a_ns}/{a_na}, tx/ack={l_ns}/{l_na}, "
                   f"chan_util={l_cu:.2f}ms, \n"
-                  f"\t app_interval_stats=[{', '.join(f'{v:.2f}' for v in l_ai)}]ms, "
-                  f"tx_interval_stats=[{', '.join(f'{v:.2f}' for v in l_ti)}]ms, \n"
+                  f"\t app_stats: interval=[{', '.join(f'{v:.2f}' for v in l_ai)}]ms, \n"
+                  f"\t tx_stats: interval=[{', '.join(f'{v:.2f}' for v in l_tis)}]ms, "
+                  f"duration=[{', '.join(f'{v:.2f}' for v in l_tus)}]ms, \n"
                   f"\t n_neighbor={self.n_neighbor}, n_contention={self.n_contention}, "
                   f"min_neighbor_backoff={self.min_neighbor_backoff}")
 
@@ -169,12 +174,15 @@ class ChannelAccessRlAgent(RlAgent):
             n_ad = self.neighbor_info[i].txok_delay
             n_cu = self.neighbor_info[i].chan_util
             n_rssi = self.neighbor_info[i].rssi
-            n_ti = self.neighbor_info[i].tx_interval_stats
+            n_tis = self.neighbor_info[i].tx_interval_stats
+            n_tus = self.neighbor_info[i].tx_duration_stats
             neighbor_features.append([n_role, n_ns, n_na, n_td, n_ad, 
-                                      n_cu, n_rssi] + n_ti)
+                                      n_cu, n_rssi] + n_tis + n_tus)
             if self.show_log and i == 0:
-                print(f"\t Neighbor {i}: tx/ack={n_ns}/{n_na}, chan_util={n_cu:.2f}ms, rssi={n_rssi:.2f}dBm, "
-                      f"tx_interval_stats=[{', '.join(f'{v:.2f}' for v in n_ti)}]ms")
+                print(f"\t Neighbor {i}: tx/ack={n_ns}/{n_na}, chan_util={n_cu:.2f}ms, " 
+                      f"rssi={n_rssi:.2f}dBm, \n"
+                      f"\t\ttx_stats: interval=[{', '.join(f'{v:.2f}' for v in n_tis)}]ms, "
+                      f"duration=[{', '.join(f'{v:.2f}' for v in n_tus)}]ms")
 
         o = self_feature
         o = self.state_norm.normalize([o])[0]

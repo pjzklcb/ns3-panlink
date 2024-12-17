@@ -62,6 +62,16 @@ class ChannelAccessEnvAgent : public EnvAgent
     double GetTxOkDelay(const ChannelUtilList& util) const;
 
     /**
+     * @returns the channel utilization time in ms
+     */
+    double GetChannelUtil(const ChannelUtilList& util) const;
+
+    /**
+     * @returns the mean rssi of the tx packets.
+     */
+    double GetMeanRssi(const ChannelUtilList& util) const;
+
+    /**
      * @param vec a vector of data arrival time in ascending order
      * @returns the mean, std, min, max of the data arrival intervals
      */
@@ -73,14 +83,9 @@ class ChannelAccessEnvAgent : public EnvAgent
     std::array<double, 4> GetDataTxIntervalStats(const ChannelUtilList& util) const;
 
     /**
-     * @returns the channel utilization time in ms
+     * @returns the mean, std, min, max of the tx data durations
      */
-    double GetChannelUtil(const ChannelUtilList& util) const;
-
-    /**
-     * @returns the mean rssi of the tx packets.
-     */
-    double GetMeanRssi(const ChannelUtilList& util) const;
+    std::array<double, 4> GetDataTxDurationStats(const ChannelUtilList& util) const;
 
     /**
      * @param vec a vector of double
