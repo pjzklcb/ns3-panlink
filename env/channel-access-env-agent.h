@@ -70,7 +70,7 @@ class ChannelAccessEnvAgent : public EnvAgent
     /**
      * @returns the mean, std, min, max of the tx data intervals
      */
-    std::array<double, 4> GetTxDataIntervalStats(const ChannelUtilList& util) const;
+    std::array<double, 4> GetDataTxIntervalStats(const ChannelUtilList& util) const;
 
     /**
      * @returns the channel utilization time in ms

@@ -78,24 +78,16 @@ ChannelAccessEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, 
 
         // self link info
         auto selfUtil = sensingMac->GetSelfLinkChannelUtil(obs.period, obs.linkId);
-        auto [txMean, txStd, txMin, txMax] = GetTxDataIntervalStats(selfUtil);
         auto traffics = sensingMac->GetSelfAppTraffic(obs.period);
-        auto [appMean, appStd, appMin, appMax] = GetDataArrivalIntervalStats(traffics);
         SelfLinkObs selfLinkObs{
             .period = obs.period.ToDouble(Time::MS),
             .nTxDataPackets = static_cast<uint32_t>(selfUtil.size()),
             .nAckedDataPackets = GetNAckedDataPackets(selfUtil),
             .lastTxDataDelay = GetTxDataDelay(selfUtil),
             .lastTxOkDelay = GetTxOkDelay(selfUtil),
-            .meanDataArrivalInterval = appMean,
-            .stdDataArrivalInterval = appStd,
-            .maxDataArrivalInterval = appMin,
-            .minDataArrivalInterval = appMax,
-            .meanTxDataInterval = txMean,
-            .stdTxDataInterval = txStd,
-            .maxTxDataInterval = txMin,
-            .minTxDataInterval = txMax,
             .channelUtil = GetChannelUtil(selfUtil),
+            .dataArrivalIntervalStats = GetDataArrivalIntervalStats(traffics),
+            .dataTxIntervalStats = GetDataTxIntervalStats(selfUtil)
         };
         env.selfLinkObs = selfLinkObs;
 
@@ -112,7 +104,6 @@ ChannelAccessEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, 
     }
     auto neighborUtil =
         sensingMac->GetNeighborChannelUtil(neighborStas[m_idxNeighborSta], obs.period);
-    auto [nMean, nStd, nMin, nMax] = GetTxDataIntervalStats(neighborUtil);
     NeighborStaObs neighborStaObs{
         .role =
             static_cast<uint8_t>(sensingMac->GetNeighborStaRole(neighborStas[m_idxNeighborSta])),
@@ -121,12 +112,9 @@ ChannelAccessEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, 
         .nAckedDataPackets = GetNAckedDataPackets(neighborUtil),
         .lastTxDataDelay = GetTxDataDelay(neighborUtil),
         .lastTxOkDelay = GetTxOkDelay(neighborUtil),
-        .meanTxDataInterval = nMean,
-        .stdTxDataInterval = nStd,
-        .maxTxDataInterval = nMin,
-        .minTxDataInterval = nMax,
         .channelUtil = GetChannelUtil(neighborUtil),
         .meanRssi = GetMeanRssi(neighborUtil),
+        .dataTxIntervalStats = GetDataTxIntervalStats(neighborUtil)
     };
     env.neighborStaObs = neighborStaObs;
 
@@ -224,7 +212,7 @@ ChannelAccessEnvAgent::GetDataArrivalIntervalStats(const std::vector<Time>& vec)
 }
 
 std::array<double, 4>
-ChannelAccessEnvAgent::GetTxDataIntervalStats(const ChannelUtilList& util) const
+ChannelAccessEnvAgent::GetDataTxIntervalStats(const ChannelUtilList& util) const
 {
     NS_LOG_FUNCTION(this);
 

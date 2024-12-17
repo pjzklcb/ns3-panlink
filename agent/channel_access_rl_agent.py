@@ -43,30 +43,29 @@ class AccessInfo:
 
 class SelfLinkInfo:
     def __init__(self, period, n_tx_data, n_acked_data, tx_delay, txok_delay, 
-                 app_mean, app_std, app_min, app_max, 
-                 tx_mean, tx_std, tx_min, tx_max, chan_util):
+                 chan_util, app_interval_stats, tx_interval_stats):
         self.period = period
         self.n_tx_data = n_tx_data
         self.n_acked_data = n_acked_data
         self.tx_delay = tx_delay
         self.txok_delay = txok_delay
-        self.app_stats = [app_mean, app_std, app_min, app_max]
-        self.tx_stats = [tx_mean, tx_std, tx_min, tx_max]
         self.chan_util = chan_util
+        self.app_interval_stats = [v for v in app_interval_stats]
+        self.tx_interval_stats = [v for v in tx_interval_stats]
 
 
 class NeighborLinkInfo:
-    def __init__(self, role, period, n_tx_data, n_acked_data, tx_delay, txok_delay, 
-                 tx_mean, tx_std, tx_min, tx_max, chan_util, rssi):
+    def __init__(self, role, period, n_tx_data, n_acked_data, tx_delay, 
+                 txok_delay, chan_util, rssi, tx_interval_stats):
         self.role = role
         self.period = period
         self.n_tx_data = n_tx_data
         self.n_acked_data = n_acked_data
         self.tx_delay = tx_delay
         self.txok_delay = txok_delay
-        self.tx_stats = [tx_mean, tx_std, tx_min, tx_max]
         self.chan_util = chan_util
         self.rssi = rssi
+        self.tx_interval_stats = [v for v in tx_interval_stats]
 
 
 class ChannelAccessRlAgent(RlAgent):
@@ -108,20 +107,16 @@ class ChannelAccessRlAgent(RlAgent):
                                             env.nLowDelayPackets, env.nHighDelayPackets)
             obs = env.selfLinkObs
             self.link_info = SelfLinkInfo(obs.period, obs.nTxDataPackets, obs.nAckedDataPackets, 
-                                            obs.lastTxDataDelay, obs.lastTxOkDelay, 
-                                            obs.meanDataArrivalInterval, obs.stdDataArrivalInterval,
-                                            obs.minDataArrivalInterval, obs.maxDataArrivalInterval, 
-                                            obs.meanTxDataInterval, obs.stdTxDataInterval,
-                                            obs.minTxDataInterval, obs.maxTxDataInterval, obs.channelUtil)
+                                          obs.lastTxDataDelay, obs.lastTxOkDelay, obs.channelUtil,
+                                          obs.dataArrivalIntervalStats, obs.dataTxIntervalStats)
             
         self.n_neighbor = env.nNeighborStas
         if self.n_neighbor > 0:
             obs = env.neighborStaObs
             neighbor_info = NeighborLinkInfo(obs.role, obs.period, obs.nTxDataPackets, 
                                              obs.nAckedDataPackets, obs.lastTxDataDelay, 
-                                             obs.lastTxOkDelay, obs.meanTxDataInterval, 
-                                             obs.stdTxDataInterval, obs.minTxDataInterval, 
-                                             obs.maxTxDataInterval, obs.channelUtil, obs.meanRssi)
+                                             obs.lastTxOkDelay, obs.channelUtil, obs.meanRssi,
+                                             obs.dataTxIntervalStats)
             self.neighbor_info.append(neighbor_info)
             # print("python get {}/{}".format(len(self.neighbor_info), self.n_neighbor))
             self.more_data = env.moreData
@@ -148,22 +143,22 @@ class ChannelAccessRlAgent(RlAgent):
         l_na = self.link_info.n_acked_data
         l_td = self.link_info.tx_delay
         l_ad = self.link_info.txok_delay
-        l_tstats = self.link_info.tx_stats
-        l_astats = self.link_info.app_stats
         l_cu = self.link_info.chan_util
+        l_ai = self.link_info.app_interval_stats
+        l_ti = self.link_info.tx_interval_stats
         
         if self.show_log:
             print(f"At {self.sim_time:6f}s, delta_time={self.delta_time:.3f}ms, cw={self.access_info.cw}, "
                   f"n_deferred_access={a_da}, n_waited_slot={a_nw}, \n"
                   f"\t in_queue/sending/acked={a_nq}/{a_ns}/{a_na}, tx/ack={l_ns}/{l_na}, "
                   f"chan_util={l_cu:.2f}ms, \n"
-                  f"\t app_stats=[{', '.join(f'{v:.2f}' for v in l_astats)}]ms, "
-                  f"tx_stats=[{', '.join(f'{v:.2f}' for v in l_tstats)}]ms, \n"
+                  f"\t app_interval_stats=[{', '.join(f'{v:.2f}' for v in l_ai)}]ms, "
+                  f"tx_interval_stats=[{', '.join(f'{v:.2f}' for v in l_ti)}]ms, \n"
                   f"\t n_neighbor={self.n_neighbor}, n_contention={self.n_contention}, "
                   f"min_neighbor_backoff={self.min_neighbor_backoff}")
 
         # normalize the obs
-        self_feature = [a_cw, a_da, a_nw, a_nq, a_ns, a_na, l_ns, l_na, l_td, l_ad, l_cu] + l_tstats + l_astats
+        self_feature = [a_cw, a_da, a_nw, a_nq, a_ns, a_na, l_ns, l_na, l_td, l_ad, l_cu] + l_ti + l_ai
         neighbor_features = []
         for i in range(self.n_neighbor):
             n_role = self.neighbor_info[i].role
@@ -172,14 +167,14 @@ class ChannelAccessRlAgent(RlAgent):
             n_na = self.neighbor_info[i].n_acked_data
             n_td = self.neighbor_info[i].tx_delay
             n_ad = self.neighbor_info[i].txok_delay
-            n_tstats = self.neighbor_info[i].tx_stats
             n_cu = self.neighbor_info[i].chan_util
             n_rssi = self.neighbor_info[i].rssi
+            n_ti = self.neighbor_info[i].tx_interval_stats
             neighbor_features.append([n_role, n_ns, n_na, n_td, n_ad, 
-                                      n_cu, n_rssi] + n_tstats)
+                                      n_cu, n_rssi] + n_ti)
             if self.show_log and i == 0:
                 print(f"\t Neighbor {i}: tx/ack={n_ns}/{n_na}, chan_util={n_cu:.2f}ms, rssi={n_rssi:.2f}dBm, "
-                      f"tx_stats=[{', '.join(f'{v:.2f}' for v in n_tstats)}]ms")
+                      f"tx_interval_stats=[{', '.join(f'{v:.2f}' for v in n_ti)}]ms")
 
         o = self_feature
         o = self.state_norm.normalize([o])[0]

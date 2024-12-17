@@ -23,18 +23,11 @@ struct SelfLinkObs
     uint32_t nAckedDataPackets;
     double lastTxDataDelay; // in ms
     double lastTxOkDelay;
-
-    double meanDataArrivalInterval;
-    double stdDataArrivalInterval;
-    double maxDataArrivalInterval;
-    double minDataArrivalInterval;
-
-    double meanTxDataInterval;
-    double stdTxDataInterval;
-    double maxTxDataInterval;
-    double minTxDataInterval;
-
     double channelUtil; // ms
+
+    std::array<double, 4> dataArrivalIntervalStats; // mean, std, min, max
+    std::array<double, 4> dataTxIntervalStats;
+    std::array<double, 4> dataTxDurationStats;
 };
 
 /**
@@ -49,14 +42,11 @@ struct NeighborStaObs
     uint32_t nAckedDataPackets;
     double lastTxDataDelay; // ms
     double lastTxOkDelay;
-
-    double meanTxDataInterval; // ms
-    double stdTxDataInterval;
-    double maxTxDataInterval;
-    double minTxDataInterval;
-
     double channelUtil; // in ms
     double meanRssi;    // in dBm
+
+    std::array<double, 4> dataTxIntervalStats;
+    std::array<double, 4> dataTxDurationStats;
 };
 
 struct Obs
