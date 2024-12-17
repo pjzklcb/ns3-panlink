@@ -101,7 +101,7 @@
                 {
                     "type": "channel_access",
                     "period": 0.0,
-                    "enable_learning": true,
+                    "enable_learning": false,
                     "pretrained_model": [
                         "RL_CHANNEL_ACCESS_actor.pt",
                         "RL_CHANNEL_ACCESS_critic.pt"

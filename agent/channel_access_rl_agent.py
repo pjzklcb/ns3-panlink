@@ -6,10 +6,13 @@
 
 import os
 import math
+import random
+import h5py
+import time
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import random
+import numpy as np
 from agent_utils import AgentType, AcIndex, Normalizer
 from rl_agent import RlAgent
 from models.ddqn import DDQN
@@ -85,6 +88,8 @@ class ChannelAccessRlAgent(RlAgent):
         self.neighbor_info = []
         self.backoff = 0
         self.backoff_log = []
+        self.step_count = 0
+        self.timestamp = str(int(time.time()))
 
         # load pretrained model
         try:
@@ -163,7 +168,20 @@ class ChannelAccessRlAgent(RlAgent):
                   f"min_neighbor_backoff={self.min_neighbor_backoff}")
 
         # normalize the obs
-        self_feature = [a_cw, a_da, a_nw, a_nq, a_ns, a_na, l_ns, l_na, l_td, l_ad, l_cu] + l_ti + l_ai
+        self_feature_names = ['cw', 'n_defer_access', 'n_waited_slots', 'n_in_queue', 
+                              'n_sending', 'n_acked', 'n_tx_data', 'n_acked_data', 
+                              'last_tx_delay', 'last_txok_delay', 'chan_util', 
+                              'app_interval_mean', 'app_interval_std', 'app_interval_min', 
+                              'app_interval_max', 'tx_interval_mean', 'tx_interval_std', 
+                              'tx_interval_min', 'tx_interval_max', 'tx_duration_mean', 
+                              'tx_duration_std', 'tx_duration_min', 'tx_duration_max']
+        self_features = [a_cw, a_da, a_nw, a_nq, a_ns, a_na, l_ns, l_na, l_td, l_ad, l_cu] + \
+            l_ai + l_tis + l_tus
+        neighbor_feature_names = ['role', 'n_tx_data', 'n_acked_data', 'last_tx_delay', 
+                                  'last_txok_delay', 'chan_util', 'mean_rssi', 
+                                  'tx_interval_mean', 'tx_interval_std', 'tx_interval_min', 
+                                  'tx_interval_max', 'tx_duration_mean', 'tx_duration_std', 
+                                  'tx_duration_min', 'tx_duration_max']
         neighbor_features = []
         for i in range(self.n_neighbor):
             n_role = self.neighbor_info[i].role
@@ -184,7 +202,18 @@ class ChannelAccessRlAgent(RlAgent):
                       f"\t\ttx_stats: interval=[{', '.join(f'{v:.2f}' for v in n_tis)}]ms, "
                       f"duration=[{', '.join(f'{v:.2f}' for v in n_tus)}]ms")
 
-        o = self_feature
+        if len(neighbor_features) == 0:
+            neighbor_features = np.empty((0, len(neighbor_feature_names)))
+        # save to dataset
+        with h5py.File("contrib/panlink/agent/dataset/data-" + self.timestamp + ".h5", 'a') as f:
+            step_group = f.create_group('step_' + str(self.step_count))
+            step_group.create_dataset('self_features', data=self_features)
+            step_group.create_dataset('neighbor_features', data=neighbor_features)
+            step_group['self_features'].attrs['feature_names'] = self_feature_names
+            step_group['neighbor_features'].attrs['feature_names'] = neighbor_feature_names
+        self.step_count += 1
+
+        o = self_features
         o = self.state_norm.normalize([o])[0]
         next_state = o.tolist()
         if self.state:

@@ -35,4 +35,4 @@
 # results
 *.log
 result-*/
-debug/
+*.h5
