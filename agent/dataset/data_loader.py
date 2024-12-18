@@ -11,7 +11,8 @@ from sklearn.preprocessing import StandardScaler
 import random
 
 class H5DataLoader:
-    def __init__(self, file_path, selected_self_features, selected_neighbor_features, batch_size, shuffle=True):
+    def __init__(self, file_path, selected_self_features, selected_neighbor_features, batch_size, 
+                 shuffle=True, batch_normalize=True):
         """
         Initialize data loader
 
@@ -21,12 +22,14 @@ class H5DataLoader:
         - selected_neighbor_features (list of str): neighbor feature names to be selected
         - batch_size (int): batch size
         - shuffle (bool): whether to shuffle the data
+        - batch_normalize (bool): whether to normalize each batch
         """
         self.file_path = file_path
         self.selected_self_features = selected_self_features
         self.selected_neighbor_features = selected_neighbor_features
         self.batch_size = batch_size
         self.shuffle = shuffle
+        self.batch_normalize = batch_normalize
         self.data = self._load_data()
         self.num_batches = len(self.data) // batch_size
 
@@ -98,20 +101,19 @@ class H5DataLoader:
 
         return normalized_self_features, split_neighbor_features
 
-    def _padding_and_masking(self, batch_neighbor_features, max_neighbors):
+    def _padding_and_masking(self, batch_neighbor_features):
         """
         padding to have same dim and masking the invalid neighbor features
         """
-        mask = []
+        key_padding_mask = [] # block invalid neighbors with True
         padded_neighbors = []
+        max_neighbors = max(len(neighbor) for neighbor in batch_neighbor_features)
         for neighbors in batch_neighbor_features:
             N = len(neighbors)
             padded_neighbors.append(np.pad(neighbors, ((0, max_neighbors - N), (0, 0)), 
                                            mode='constant', constant_values=0))
-            current_mask = np.ones(max_neighbors)  # intialize mask
-            current_mask[N:] = 0  # padding invalid part
-            mask.append(current_mask)
-        return np.array(padded_neighbors), np.array(mask)
+            key_padding_mask.append([False] * N + [True] * (max_neighbors - N))
+        return np.array(padded_neighbors), np.array(key_padding_mask)
     
     def __iter__(self):
         """
@@ -126,17 +128,15 @@ class H5DataLoader:
 
             if len(batch_self_features) == self.batch_size or i == len(self.data) - 1:
                 # normalize current batch
-                normalized_self_features, normalized_neighbor_features = self._normalize_batch(
-                    batch_self_features, batch_neighbor_features
-                )
+                if self.batch_normalize:
+                    batch_self_features, batch_neighbor_features = self._normalize_batch(
+                        batch_self_features, batch_neighbor_features
+                    )
 
-                # get the maximum number of neighbors in the batch
-                max_neighbors = max(len(neighbor) for neighbor in batch_neighbor_features)
+                # padding and masking in the batch
+                padded_neighbors, key_padding_mask = self._padding_and_masking(batch_neighbor_features)
 
-                padded_neighbors, mask = self._padding_and_masking(normalized_neighbor_features, 
-                                                                   max_neighbors)
-
-                yield normalized_self_features, padded_neighbors, mask
+                yield batch_self_features, padded_neighbors, key_padding_mask
 
                 # empty current batch
                 batch_self_features = []
@@ -158,15 +158,19 @@ if __name__ == '__main__':
                                   'tx_interval_mean', 'tx_interval_std', 'tx_interval_min', 
                                   'tx_interval_max', 'tx_duration_mean', 'tx_duration_std', 
                                   'tx_duration_min', 'tx_duration_max']
-    batch_size = 32
+    batch_size = 3
 
-    data_loader = H5DataLoader(file_path, selected_self_features, selected_neighbor_features, batch_size)
+    data_loader = H5DataLoader(file_path, selected_self_features, selected_neighbor_features, batch_size,
+                               shuffle=True, batch_normalize=False)
 
-    print(selected_self_features)
     for i, (batch_self_features, batch_neighbor_features, mask) in enumerate(data_loader):
-        if i > 2:
+        if i > 10:
             break
         for j, sample in enumerate(batch_self_features):
-            print("self: ", sample)
-            print("neighbor: ", batch_neighbor_features[j])
-            print("mask: ", mask[j])
+            if sum(mask[j]):
+                print(selected_self_features)
+                print(sample)
+                print(selected_neighbor_features)
+                print(batch_neighbor_features[j])
+                print("mask")
+                print(mask[j])
