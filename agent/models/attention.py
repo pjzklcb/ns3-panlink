@@ -106,9 +106,9 @@ def chamfer_distance(reconstructed, target, key_padding_mask):
 
     # Compute Chamfer loss for each sample
     chamfer_loss = (torch.sum(min_dist_recon_to_target, dim=1) / valid_samples_sum + 
-                    torch.sum(min_dist_target_to_recon, dim=1) / valid_samples_sum).sum()
+                    torch.sum(min_dist_target_to_recon, dim=1) / valid_samples_sum)
 
-    return chamfer_loss
+    return chamfer_loss.mean() # average over all samples
 
 
 def train_attention(enc_model, dec_model, optimizer, neighbor_features, self_features, 

@@ -5,10 +5,10 @@
 # Author: Pan Jinzhe <pjzklcb@gmail.com>
 
 import os
+import random
 import h5py
 import numpy as np
 from sklearn.preprocessing import StandardScaler
-import random
 
 class H5DataLoader:
     def __init__(self, file_path, selected_self_features, selected_neighbor_features, batch_size, 
@@ -35,7 +35,7 @@ class H5DataLoader:
 
     def _load_data(self):
         """
-        read data from HDF5 and 
+        Read data from HDF5 and preprocess it.
         """
         data = []
 
@@ -68,14 +68,11 @@ class H5DataLoader:
                     'neighbor_features': selected_neighbor_features_data
                 })
 
-        if self.shuffle:
-            random.shuffle(data)  # random shuffle
-
         return data
 
     def _normalize_batch(self, batch_self_features, batch_neighbor_features):
         """
-        normalize each batch
+        Normalize each batch
         """
         self_scaler = StandardScaler()
         normalized_self_features = self_scaler.fit_transform(np.array(batch_self_features))
@@ -83,18 +80,15 @@ class H5DataLoader:
         all_neighbor_features = []
         original_neighbor_sizes = []
         
-        # stack each sample's neighbor features
         for i in range(len(batch_neighbor_features)):
-            N = len(batch_neighbor_features[i])  # number of neighbors of current sample
+            N = len(batch_neighbor_features[i])
             all_neighbor_features.extend(batch_neighbor_features[i])
             original_neighbor_sizes.append(N) 
 
-        # normlize all neighbor features
         all_neighbor_features = np.array(all_neighbor_features)
         neighbor_scaler = StandardScaler()
         normalized_neighbor_features = neighbor_scaler.fit_transform(all_neighbor_features)
 
-        # split normalized neighbor features
         split_neighbor_features = []
         start_idx = 0
         for size in original_neighbor_sizes:
@@ -106,9 +100,9 @@ class H5DataLoader:
 
     def _padding_and_masking(self, batch_neighbor_features):
         """
-        padding to have same dim and masking the invalid neighbor features
+        Padding to have same dimension and masking invalid neighbor features
         """
-        key_padding_mask = [] # block invalid neighbors with True
+        key_padding_mask = []  # block invalid neighbors with True
         padded_neighbors = []
         max_neighbors = max(len(neighbor) for neighbor in batch_neighbor_features)
         for neighbors in batch_neighbor_features:
@@ -117,11 +111,19 @@ class H5DataLoader:
                                            mode='constant', constant_values=0))
             key_padding_mask.append([False] * N + [True] * (max_neighbors - N))
         return np.array(padded_neighbors), np.array(key_padding_mask)
-    
+
+    def on_epoch_start(self):
+        """
+        Shuffle the data at the start of each epoch
+        """
+        if self.shuffle:
+            random.shuffle(self.data)
+
     def __iter__(self):
         """
-        generate batches
+        Generate batches
         """
+        self.on_epoch_start()  # Shuffle data at the start of each epoch
         batch_self_features = []
         batch_neighbor_features = []
 
@@ -130,18 +132,15 @@ class H5DataLoader:
             batch_neighbor_features.append(sample['neighbor_features'])
 
             if len(batch_self_features) == self.batch_size or i == len(self.data) - 1:
-                # normalize current batch
                 if self.batch_normalize:
                     batch_self_features, batch_neighbor_features = self._normalize_batch(
                         batch_self_features, batch_neighbor_features
                     )
 
-                # padding and masking in the batch
                 padded_neighbors, key_padding_mask = self._padding_and_masking(batch_neighbor_features)
 
                 yield batch_self_features, padded_neighbors, key_padding_mask
 
-                # empty current batch
                 batch_self_features = []
                 batch_neighbor_features = []
 
