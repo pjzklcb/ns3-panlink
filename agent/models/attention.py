@@ -23,7 +23,8 @@ class AttentionFeatureExtractor(nn.Module):
         # self_features: (batch_size, 1, self_dim)
         if key_padding_mask is None:
             key_padding_mask = torch.zeros(neighbor_features.shape[0], 
-                                           neighbor_features.shape[1], dtype=torch.bool)
+                                           neighbor_features.shape[1], 
+                                           dtype=torch.bool).to(neighbor_features.device)
         Q = self.query(self_features)
         K = self.key(neighbor_features)
         V = self.value(neighbor_features)

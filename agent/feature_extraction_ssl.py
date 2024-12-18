@@ -57,7 +57,7 @@ def test(model, test_loader, criterion, save_dir):
 
 if __name__ == '__main__':
     data_dir = os.path.dirname(os.path.abspath(__file__)) + "/dataset"
-    file_path =  os.path.join(data_dir, "data-1734494463.h5")
+    file_path =  os.path.join(data_dir, "data-1734528339.h5")
     selected_self_features = [#'cw', 'n_defer_access', 'n_waited_slots', 'n_in_queue', 
                               #'n_sending', 'n_acked', 
                               'n_tx_data', 'n_acked_data', 
@@ -79,9 +79,9 @@ if __name__ == '__main__':
     enc_model = AttentionFeatureExtractor(neighbor_dim=len(selected_neighbor_features),
                                           self_dim=len(selected_self_features),
                                           output_dim=LATENT_DIM,
-                                          num_heads=NUM_HEADS)
+                                          num_heads=NUM_HEADS).to(DEVICE)
     dec_model = SimpleDecoder(input_dim=LATENT_DIM, 
-                              output_dim=len(selected_neighbor_features))
+                              output_dim=len(selected_neighbor_features)).to(DEVICE)
 
     optimizer = torch.optim.Adam([{'params': enc_model.parameters(), 'lr': 1e-4}, 
                                   {'params': dec_model.parameters(), 'lr': 1e-3}])
