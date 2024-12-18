@@ -204,16 +204,15 @@ class ChannelAccessRlAgent(RlAgent):
                       f"\t\ttx_stats: interval=[{', '.join(f'{v:.2f}' for v in n_tis)}]ms, "
                       f"duration=[{', '.join(f'{v:.2f}' for v in n_tus)}]ms")
 
-        if len(neighbor_features) == 0:
-            neighbor_features = np.empty((0, len(neighbor_feature_names)))
-        # save to dataset
-        with h5py.File("contrib/panlink/agent/dataset/data-" + self.timestamp + ".h5", 'a') as f:
-            step_group = f.create_group('step_' + str(self.step_count))
-            step_group.create_dataset('self_features', data=self_features)
-            step_group.create_dataset('neighbor_features', data=neighbor_features)
-            step_group['self_features'].attrs['feature_names'] = self_feature_names
-            step_group['neighbor_features'].attrs['feature_names'] = neighbor_feature_names
-        self.step_count += 1
+        if len(neighbor_features) != 0:
+            # save to dataset
+            with h5py.File("contrib/panlink/agent/dataset/data-" + self.timestamp + ".h5", 'a') as f:
+                step_group = f.create_group('step_' + str(self.step_count))
+                step_group.create_dataset('self_features', data=self_features)
+                step_group.create_dataset('neighbor_features', data=neighbor_features)
+                step_group['self_features'].attrs['feature_names'] = self_feature_names
+                step_group['neighbor_features'].attrs['feature_names'] = neighbor_feature_names
+            self.step_count += 1
 
         o = self_features
         o = self.state_norm.normalize([o])[0]

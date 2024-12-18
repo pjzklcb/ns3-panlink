@@ -56,6 +56,9 @@ class H5DataLoader:
                 step_data = f[step_key]
                 self_features_data = step_data['self_features'][:]
                 neighbor_features_data = step_data['neighbor_features'][:]
+                # ignore the sample with no neighbor
+                if len(neighbor_features_data) == 0:
+                    continue
 
                 selected_self_features_data = self_features_data[selected_self_indices]
                 selected_neighbor_features_data = neighbor_features_data[:, selected_neighbor_indices]

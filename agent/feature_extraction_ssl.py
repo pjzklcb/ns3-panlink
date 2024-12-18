@@ -6,6 +6,7 @@
 
 import os
 import time
+import random
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
@@ -20,6 +21,10 @@ BATCH_SIZE = 32
 EPOCHS = 1
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+random.seed(42)
+np.random.seed(42)
+torch.manual_seed(42)
+torch.cuda.manual_seed(42)
 
 # test model
 def test(model, test_loader, criterion, save_dir):
@@ -52,7 +57,7 @@ def test(model, test_loader, criterion, save_dir):
 
 if __name__ == '__main__':
     data_dir = os.path.dirname(os.path.abspath(__file__)) + "/dataset"
-    file_path =  os.path.join(data_dir, "data-1734417926.h5")
+    file_path =  os.path.join(data_dir, "data-1734494463.h5")
     selected_self_features = [#'cw', 'n_defer_access', 'n_waited_slots', 'n_in_queue', 
                               #'n_sending', 'n_acked', 
                               'n_tx_data', 'n_acked_data', 
@@ -78,18 +83,18 @@ if __name__ == '__main__':
     dec_model = SimpleDecoder(input_dim=LATENT_DIM, 
                               output_dim=len(selected_neighbor_features))
 
-    optimizer = torch.optim.Adam([{'params': enc_model.parameters(), 'lr': 0.0005}, 
-                                  {'params': dec_model.parameters(), 'lr': 0.001}])
+    optimizer = torch.optim.Adam([{'params': enc_model.parameters(), 'lr': 1e-4}, 
+                                  {'params': dec_model.parameters(), 'lr': 1e-3}])
     
     timestamp = int(time.time())
     loss_log = []
     for epoch in range(EPOCHS):
         for batch_idx, (batch_self_features, batch_neighbor_features, key_padding_mask) in enumerate(data_loader):
             loss = train_attention(enc_model, dec_model, optimizer, batch_neighbor_features, 
-                                   batch_self_features, key_padding_mask, device=DEVICE)
+                                   batch_self_features, key_padding_mask, device=DEVICE, clip_grad=1.0)
             loss_log.append(loss)
             if batch_idx % 500 == 0 or batch_idx == data_loader.num_batches - 1:
-                    print(f'Epoch {epoch+1}/{EPOCHS}, Batch {batch_idx+1}/{data_loader.num_batches}, Loss: {loss}')
+                print(f'Epoch {epoch+1}/{EPOCHS}, Batch {batch_idx+1}/{data_loader.num_batches}, Loss: {loss}')
     
     time_cost = int(time.time()) - timestamp
     print("Total time: {}min {:.2f}s".format(time_cost // 60, time_cost % 60))

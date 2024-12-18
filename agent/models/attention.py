@@ -102,17 +102,17 @@ def chamfer_distance(reconstructed, target, key_padding_mask):
     # Mask distances for padding positions
     min_dist_recon_to_target = min_dist_recon_to_target.masked_fill(key_padding_mask, 0)
     min_dist_target_to_recon = min_dist_target_to_recon.masked_fill(key_padding_mask, 0)
+    valid_samples_sum = (~key_padding_mask).sum(dim=1).float()
 
-    # Compute Chamfer loss
-    chamfer_loss = (
-        torch.sum(min_dist_recon_to_target) / (~key_padding_mask).sum() +
-        torch.sum(min_dist_target_to_recon) / (~key_padding_mask).sum()
-    )
+    # Compute Chamfer loss for each sample
+    chamfer_loss = (torch.sum(min_dist_recon_to_target, dim=1) / valid_samples_sum + 
+                    torch.sum(min_dist_target_to_recon, dim=1) / valid_samples_sum).sum()
+
     return chamfer_loss
 
 
 def train_attention(enc_model, dec_model, optimizer, neighbor_features, self_features, 
-                    key_padding_mask, device='cpu', clip_grad=True):
+                    key_padding_mask, device='cpu', clip_grad=None):
     """
     Train the attention-based encoder-decoder model for one step.
     
@@ -146,14 +146,14 @@ def train_attention(enc_model, dec_model, optimizer, neighbor_features, self_fea
     
     # use chamfer distance as loss function
     loss = chamfer_distance(reconstructed_neighbor_features, neighbor_features, key_padding_mask)
-    
+
     # Backward pass
     loss.backward()
 
     # Optional: Gradient clipping
-    if clip_grad:
-        nn.utils.clip_grad_norm_(enc_model.parameters(), max_norm=5.0)
-        nn.utils.clip_grad_norm_(dec_model.parameters(), max_norm=5.0)
+    if clip_grad is not None:
+        nn.utils.clip_grad_norm_(enc_model.parameters(), max_norm=clip_grad)
+        nn.utils.clip_grad_norm_(dec_model.parameters(), max_norm=clip_grad)
 
     # Optimization step
     optimizer.step()
