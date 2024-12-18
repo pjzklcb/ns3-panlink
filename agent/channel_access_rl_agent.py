@@ -197,7 +197,7 @@ class ChannelAccessRlAgent(RlAgent):
             n_tus = self.neighbor_info[i].tx_duration_stats
             neighbor_features.append([n_role, n_ns, n_na, n_td, n_ad, 
                                       n_cu, n_rssi] + n_tis + n_tus)
-            if self.show_log:# and i == 0:
+            if self.show_log and i == 0:
                 print(f"\t Neighbor {i}: role={n_role}, tx_delay/txok_delay={n_td:.2f}/{n_ad:.2f}ms, "
                       f"tx/ack={n_ns}/{n_na}, chan_util={n_cu:.2f}ms, " 
                       f"rssi={n_rssi:.2f}dBm, \n"

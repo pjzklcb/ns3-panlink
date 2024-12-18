@@ -15,6 +15,7 @@
 #include "ns3/nstime.h"
 #include "ns3/object.h"
 #include "ns3/packet.h"
+#include "ns3/phy-entity.h"
 
 #include <deque>
 
@@ -71,7 +72,7 @@ class SensingMac : public Object
     struct SelfLinkInfo
     {
         std::list<uint64_t> pendingPackets; //!< pending packets
-        std::deque<std::tuple<uint64_t /* uid */, Time /* tx end time */>> channelUtil;
+        std::deque<std::pair<uint64_t /* uid */, Time /* tx end time */>> channelUtil;
     };
 
     /**
@@ -176,9 +177,11 @@ class SensingMac : public Object
      */
     struct NeighborPacketInfo
     {
-        Time rxTime;
-        Time duration;
-        bool isData;
+        uint32_t packetSize;
+        AcIndex ac;
+        uint8_t linkId;
+        bool isData{false};
+        std::vector<std::pair<Time /* rx begin time */, Time /* rx end time */>> phyRxTime;
         Time ackedTime{Seconds(0)};
         double rssi;
     };
@@ -190,17 +193,36 @@ class SensingMac : public Object
     {
         NeighborStaRole role{UNKNOWN};
         uint8_t linkId;
-        std::deque<NeighborPacketInfo> channelUtil;
+        std::deque<std::pair<uint64_t /* uid */, Time /* rx end time */>> channelUtil;
     };
+
+    /**
+     * Trace the packet that has been received by wifi PHY.
+     *
+     * @param context the string contains link ID
+     * @param packet the received packet
+     * @param rxPowerW a map of the received power for each band
+     */
+    void NotifyPhyRxBegin(std::string context,
+                          Ptr<const Packet> p,
+                          RxPowerWattPerChannelBand rxPowersW);
+    /**
+     * Trace the packet that finished reception by wifi PHY.
+     *
+     * @param context the string contains link ID
+     * @param packet the received packet
+     */
+    void NotifyPhyRxEnd(std::string context, Ptr<const Packet> p);
 
     /**
      * Handles received frames not matter the STA they are sent to.
      *
+     * @param mpdu the first MPDU if the received frame is an A-MPDU
      * @param hdr the MAC header of the frame
      * @param rssi the RSSI of the frame
      * @param linkId the ID of the link
      */
-    void NotifyFrameInfo(const WifiMacHeader& hdr, double rssi, uint8_t linkId);
+    void NotifyFrameInfo(Ptr<const WifiMpdu> mpdu, const WifiMacHeader& hdr, double rssi, uint8_t linkId);
 
     /**
      * Record the STA whose last transmission was successful.
@@ -293,7 +315,7 @@ class SensingMac : public Object
     void DoDispose() override;
 
     /**
-     * Wipe all staled packets that is considered stale.
+     * Wipe all packets that is considered stale.
      */
     virtual void WipeAllStaledPackets();
 
@@ -305,12 +327,17 @@ class SensingMac : public Object
   private:
     Ptr<WifiMac> m_mac; //!< associated MAC
     Time m_duration;    //!< maximum duration of the data stored
-    std::map<uint64_t /* UID */, SelfPacketInfo> m_packetMap; //!< packets sent by this STA
+
+    // self info
+    std::map<uint64_t /* uid */, SelfPacketInfo> m_packetMap; //!< packets sent by this STA
     std::map<uint8_t /* link ID */, SelfLinkInfo>
         m_linkMap; //!< each link's channel utilization of this STA
+    std::map<AcIndex, SelfMacQueueInfo> m_queueMap; //!< queue information of each AC
+
+    // neighbor info
+    std::map<uint64_t /* uid */, NeighborPacketInfo> m_neighborPacketMap; //!< neighbor packets
     std::unordered_map<Mac48Address, NeighborStaInfo, WifiAddressHash>
         m_neighborStaMap;                           //!< channel utilization of neighbor STAs
-    std::map<AcIndex, SelfMacQueueInfo> m_queueMap; //!< queue information of each AC
 };
 
 } // namespace ns3

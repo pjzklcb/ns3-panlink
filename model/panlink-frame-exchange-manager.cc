@@ -80,7 +80,7 @@ PanlinkFrameExchangeManager::Receive(Ptr<const WifiPsdu> psdu,
     {
         // Ack and CTS do not carry Addr2, the duration of CTS and RTS contains PPDU's length
         double rssi = rxSignalInfo.rssi;
-        m_sensingMac->NotifyFrameInfo(hdr, rssi, m_linkId);
+        m_sensingMac->NotifyFrameInfo(*(psdu->begin()), hdr, rssi, m_linkId);
     }
 }
 

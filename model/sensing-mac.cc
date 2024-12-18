@@ -217,6 +217,7 @@ SensingMac::WipeAllStaledPackets()
 {
     NS_LOG_FUNCTION(this);
 
+    // wipe self packets
     for (auto it = m_packetMap.begin(); it != m_packetMap.end();)
     {
         if (Simulator::Now() - it->second.enqueueTime > m_duration)
@@ -234,6 +235,22 @@ SensingMac::WipeAllStaledPackets()
             ++it;
         }
     }
+
+    // wipe neighbor packets
+    for (auto it = m_neighborPacketMap.begin(); it != m_neighborPacketMap.end();)
+    {
+        if (Simulator::Now() - it->second.phyRxTime.back().first > m_duration)
+        {
+            it = m_neighborPacketMap.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+    }
+
+    // Remove inactive STAs
+    WipeAllInactiveNeighborStas();
 }
 
 double
@@ -301,21 +318,56 @@ SensingMac::GetDelay(Time period, AcIndex ac, uint8_t linkId) const
 }
 
 void
-SensingMac::NotifyFrameInfo(const WifiMacHeader& hdr, double rssi, uint8_t linkId)
+SensingMac::NotifyPhyRxBegin(std::string context,
+                             Ptr<const Packet> p,
+                             RxPowerWattPerChannelBand rxPowersW)
+{
+    NS_LOG_FUNCTION(this << context << p);
+
+    Time now = Simulator::Now();
+    uint8_t linkId = static_cast<uint8_t>(std::stoi(context));
+    uint64_t uid = p->GetUid();
+
+    // create neighbor packet info
+    auto [it, inserted] = m_neighborPacketMap.try_emplace(uid);
+    if (inserted)
+    {
+        it->second.linkId = linkId;
+    }
+    NS_ASSERT(it->second.linkId == linkId);
+    it->second.phyRxTime.push_back({now, Seconds(0)});
+}
+
+void
+SensingMac::NotifyPhyRxEnd(std::string context, Ptr<const Packet> p)
+{
+    NS_LOG_FUNCTION(this << context << p);
+
+    Time now = Simulator::Now();
+    uint8_t linkId = static_cast<uint8_t>(std::stoi(context));
+    uint64_t uid = p->GetUid();
+
+    auto it = m_neighborPacketMap.find(uid);
+    if (it == m_neighborPacketMap.end())
+    {
+        return;
+    }
+    NS_ASSERT(it->second.linkId == linkId && it->second.phyRxTime.back().second == Seconds(0));
+    it->second.phyRxTime.back().second = now;
+}
+
+void
+SensingMac::NotifyFrameInfo(Ptr<const WifiMpdu> mpdu,
+                            const WifiMacHeader& hdr,
+                            double rssi,
+                            uint8_t linkId)
 {
     NS_LOG_FUNCTION(this << hdr << rssi << linkId);
 
     Time now = Simulator::Now();
     Mac48Address sender = hdr.GetAddr2();
     Mac48Address receiver = hdr.GetAddr1();
-
-    // create neighbor packet info
-    NeighborPacketInfo packetInfo{.rxTime = now,
-                                  .duration =
-                                      hdr.GetDuration(), // @todo: without phy preamble and header
-                                  .isData = hdr.IsData(),
-                                  .ackedTime = Seconds(0),
-                                  .rssi = rssi};
+    uint64_t uid = mpdu->GetPacket()->GetUid();
 
     // recognize the role of the sender
     NeighborStaRole role = UNKNOWN;
@@ -353,13 +405,25 @@ SensingMac::NotifyFrameInfo(const WifiMacHeader& hdr, double rssi, uint8_t linkI
     {
         it->second.role = role;
     }
-    it->second.channelUtil.push_back(packetInfo);
+    it->second.channelUtil.push_back({uid, now});
 
-    // Remove stale packets
+    // update neighbor packet info
+    auto packetIt = m_neighborPacketMap.find(uid);
+    NS_ASSERT(packetIt != m_neighborPacketMap.end() && packetIt->second.linkId == linkId &&
+              packetIt->second.phyRxTime.back().second == now);
+    packetIt->second.isData = hdr.IsData();
+    packetIt->second.rssi = rssi;
+    if (role == ASSOCIATED_AP && receiver == m_mac->GetAddress())
+    {
+        // if the packet is from AP to this MAC, assume it will be acked
+        packetIt->second.ackedTime = now + MicroSeconds(50);
+    }
+
+    // Remove staled and invalid rx packets.
     while (!it->second.channelUtil.empty())
     {
-        auto& packet = it->second.channelUtil.front();
-        if (now - packet.rxTime > m_duration)
+        auto [_, rxEndTime] = it->second.channelUtil.front();
+        if (now - rxEndTime > m_duration)
         {
             it->second.channelUtil.pop_front();
         }
@@ -368,9 +432,6 @@ SensingMac::NotifyFrameInfo(const WifiMacHeader& hdr, double rssi, uint8_t linkI
             break;
         }
     }
-
-    // Remove inactive STAs
-    WipeAllInactiveNeighborStas();
 }
 
 void
@@ -392,11 +453,18 @@ SensingMac::NotifyLastTxOkSta(Mac48Address sta, uint8_t linkId)
     NS_ASSERT(it->second.linkId == linkId);
 
     Time now = Simulator::Now();
-    auto& lastPacket = it->second.channelUtil.back();
-    if (lastPacket.ackedTime == Seconds(0) &&
-        now - lastPacket.rxTime < MicroSeconds(70)) // @todo: need better way to check collision
+    auto [lastUid, rxEndTime] = it->second.channelUtil.back();
+    if (auto packetIt = m_neighborPacketMap.find(lastUid); packetIt != m_neighborPacketMap.end())
     {
-        lastPacket.ackedTime = now;
+        auto& lastPacket = packetIt->second;
+        /**
+         * @todo: ack timeout is based on PHY preamble used by the neighbor STA.
+         * Also, need a better way to check collision
+         */
+        if (lastPacket.ackedTime == Seconds(0) && now - rxEndTime < MicroSeconds(70))
+        {
+            lastPacket.ackedTime = now;
+        }
     }
 }
 
@@ -602,18 +670,36 @@ SensingMac::GetNeighborChannelUtil(Mac48Address sta, Time period) const
     NS_ASSERT_MSG(period <= m_duration, "Period surpass maximum duration");
 
     std::vector<ChannelUtilInfo> result;
-    for (const auto& packet : it->second.channelUtil)
+    Time prevEnd = Simulator::Now() - period;
+    for (const auto& [uid, rxEndTime] : it->second.channelUtil)
     {
-        if (!packet.isData || Simulator::Now() - packet.rxTime > period)
+        auto packetIt = m_neighborPacketMap.find(uid);
+        NS_ASSERT(packetIt != m_neighborPacketMap.end());
+
+        // skip non-data packets and those not in the period
+        if (!packetIt->second.isData || rxEndTime <= prevEnd) 
         {
             continue;
         }
 
-        ChannelUtilInfo packetInfo{.duration = packet.duration,
-                                   .txEndTime = packet.rxTime,
-                                   .ackedTime = packet.ackedTime,
-                                   .rssi = packet.rssi};
+        // find this rx in the phyRxTime
+        auto vec = packetIt->second.phyRxTime;
+        auto phyRxIt = std::find_if(vec.begin(), vec.end(), [rxEndTime](const auto& pair) {
+            return pair.second == rxEndTime;
+        });
+        // get the duration of this rx
+        Time duration = phyRxIt->second - phyRxIt->first;
+        // only the last rx can use acked time
+        Time ackedTime =
+            (std::next(phyRxIt) == vec.end()) ? packetIt->second.ackedTime : Seconds(0);
+
+        ChannelUtilInfo packetInfo{.duration = duration, // @todo: without PHY preamble
+                                   .txEndTime = rxEndTime,
+                                   .ackedTime = ackedTime,
+                                   .rssi = packetIt->second.rssi};
         result.push_back(packetInfo);
+        // make sure AMPDU with same rx end time will be ignored
+        prevEnd = rxEndTime;
     }
 
     return result;
