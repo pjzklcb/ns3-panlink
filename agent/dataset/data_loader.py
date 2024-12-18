@@ -68,14 +68,30 @@ class H5DataLoader:
                     'neighbor_features': selected_neighbor_features_data
                 })
 
+        self._mean_and_std(data)
+
         return data
+    
+    def _mean_and_std(self, data):
+        self_features = []
+        neighbor_features = []
+        for i in range(len(data)):
+            self_features.append(data[i]['self_features'])
+            neighbor_features.extend(data[i]['neighbor_features'])
+
+        self_features = np.array(self_features)
+        neighbor_features = np.array(neighbor_features)
+
+        self.self_mean = np.mean(self_features, axis=0)
+        self.self_std = np.std(self_features, axis=0)
+        self.neighbor_mean = np.mean(neighbor_features, axis=0)
+        self.neighbor_std = np.std(neighbor_features, axis=0)
 
     def _normalize_batch(self, batch_self_features, batch_neighbor_features):
         """
         Normalize each batch
         """
-        self_scaler = StandardScaler()
-        normalized_self_features = self_scaler.fit_transform(np.array(batch_self_features))
+        normalized_self_features = (np.array(batch_self_features) - self.self_mean) / self.self_std
 
         all_neighbor_features = []
         original_neighbor_sizes = []
@@ -85,9 +101,7 @@ class H5DataLoader:
             all_neighbor_features.extend(batch_neighbor_features[i])
             original_neighbor_sizes.append(N) 
 
-        all_neighbor_features = np.array(all_neighbor_features)
-        neighbor_scaler = StandardScaler()
-        normalized_neighbor_features = neighbor_scaler.fit_transform(all_neighbor_features)
+        normalized_neighbor_features = (np.array(all_neighbor_features) - self.neighbor_mean) / self.neighbor_std
 
         split_neighbor_features = []
         start_idx = 0
