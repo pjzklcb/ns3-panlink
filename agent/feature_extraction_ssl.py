@@ -18,7 +18,7 @@ from dataset.data_loader import H5DataLoader
 LATENT_DIM = 64
 NUM_HEADS = 4
 BATCH_SIZE = 32
-EPOCHS = 1
+EPOCHS = 100
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 random.seed(42)
@@ -89,12 +89,15 @@ if __name__ == '__main__':
     timestamp = int(time.time())
     loss_log = []
     for epoch in range(EPOCHS):
+        epoch_loss = 0
         for batch_idx, (batch_self_features, batch_neighbor_features, key_padding_mask) in enumerate(data_loader):
             loss = train_attention(enc_model, dec_model, optimizer, batch_neighbor_features, 
                                    batch_self_features, key_padding_mask, device=DEVICE, clip_grad=1.0)
-            loss_log.append(loss)
+            epoch_loss += loss
             if batch_idx % 500 == 0 or batch_idx == data_loader.num_batches - 1:
                 print(f'Epoch {epoch+1}/{EPOCHS}, Batch {batch_idx+1}/{data_loader.num_batches}, Loss: {loss}')
+
+        loss_log.append(epoch_loss / data_loader.num_batches)
     
     time_cost = int(time.time()) - timestamp
     print("Total time: {}min {:.2f}s".format(time_cost // 60, time_cost % 60))

@@ -64,7 +64,7 @@ class SimpleDecoder(nn.Module):
         x_expand = x.expand(-1, max_n, -1)  # (batch_size, max_n, input_dim)
         features_with_pos = x_expand + pos_encoding  # (batch_size, max_n, input_dim)
 
-        reconstructed_features = self.fc(features_with_pos)  # (batch_size, max_n, output_dim)
+        reconstructed_features = 2*F.tanh(self.fc(features_with_pos))  # (batch_size, max_n, output_dim)
 
         # block invalid neighbor features with 0
         key_padding_mask = key_padding_mask.unsqueeze(-1)  # (batch_size, max_n, 1)
