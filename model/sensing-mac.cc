@@ -394,7 +394,7 @@ SensingMac::NotifyLastTxOkSta(Mac48Address sta, uint8_t linkId)
     Time now = Simulator::Now();
     auto& lastPacket = it->second.channelUtil.back();
     if (lastPacket.ackedTime == Seconds(0) &&
-        now - lastPacket.rxTime < MicroSeconds(400)) // @todo: check ack timeout
+        now - lastPacket.rxTime < MicroSeconds(70)) // @todo: need better way to check collision
     {
         lastPacket.ackedTime = now;
     }

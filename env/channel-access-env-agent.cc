@@ -155,15 +155,15 @@ ChannelAccessEnvAgent::GetNAckedDataPackets(const ChannelUtilList& util) const
 {
     NS_LOG_FUNCTION(this);
 
-    uint32_t nTxDataPackets = 0;
+    uint32_t nAckedDataPackets = 0;
     for (auto& packet : util)
     {
         if (packet.ackedTime != Seconds(0))
         {
-            nTxDataPackets += 1;
+            nAckedDataPackets += 1;
         }
     }
-    return nTxDataPackets;
+    return nAckedDataPackets;
 }
 
 double

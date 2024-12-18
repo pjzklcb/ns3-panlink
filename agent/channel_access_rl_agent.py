@@ -158,8 +158,9 @@ class ChannelAccessRlAgent(RlAgent):
         
         if self.show_log:
             print(f"At {self.sim_time:6f}s, delta_time={self.delta_time:.3f}ms, " 
-                  f"cw={self.access_info.cw}, n_defer={a_da}, n_waited_slot={a_nw}, \n"
-                  f"\t in_queue/sending/acked={a_nq}/{a_ns}/{a_na}, tx/ack={l_ns}/{l_na}, "
+                  f"cw={self.access_info.cw}, n_defer={a_da}, n_waited_slot={a_nw}, "
+                  f"in_queue/sending/acked={a_nq}/{a_ns}/{a_na}, \n"
+                  f"\t tx_delay/txok_delay={l_td:.2f}/{l_ad:.2f}ms, tx/ack={l_ns}/{l_na}, "
                   f"chan_util={l_cu:.2f}ms, \n"
                   f"\t app_stats: interval=[{', '.join(f'{v:.2f}' for v in l_ai)}]ms, \n"
                   f"\t tx_stats: interval=[{', '.join(f'{v:.2f}' for v in l_tis)}]ms, "
@@ -196,8 +197,9 @@ class ChannelAccessRlAgent(RlAgent):
             n_tus = self.neighbor_info[i].tx_duration_stats
             neighbor_features.append([n_role, n_ns, n_na, n_td, n_ad, 
                                       n_cu, n_rssi] + n_tis + n_tus)
-            if self.show_log and i == 0:
-                print(f"\t Neighbor {i}: tx/ack={n_ns}/{n_na}, chan_util={n_cu:.2f}ms, " 
+            if self.show_log:# and i == 0:
+                print(f"\t Neighbor {i}: role={n_role}, tx_delay/txok_delay={n_td:.2f}/{n_ad:.2f}ms, "
+                      f"tx/ack={n_ns}/{n_na}, chan_util={n_cu:.2f}ms, " 
                       f"rssi={n_rssi:.2f}dBm, \n"
                       f"\t\ttx_stats: interval=[{', '.join(f'{v:.2f}' for v in n_tis)}]ms, "
                       f"duration=[{', '.join(f'{v:.2f}' for v in n_tus)}]ms")
