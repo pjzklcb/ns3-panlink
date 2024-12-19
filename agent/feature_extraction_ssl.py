@@ -18,7 +18,7 @@ from dataset.data_loader import H5DataLoader
 LATENT_DIM = 64
 NUM_HEADS = 4
 BATCH_SIZE = 32
-EPOCHS = 10
+EPOCHS = 100
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 random.seed(42)
@@ -58,8 +58,8 @@ if __name__ == '__main__':
 
     # load model
     try:
-        enc_model.load_state_dict(torch.load(os.path.join(data_dir, 'attn_model1.pth')))
-        dec_model.load_state_dict(torch.load(os.path.join(data_dir, 'dec_model1.pth')))
+        enc_model.load_state_dict(torch.load(os.path.join(data_dir, 'attn_model.pth')))
+        dec_model.load_state_dict(torch.load(os.path.join(data_dir, 'dec_model.pth')))
         print("Pretrained model loaded successfully.")
     except:
         print("No pretrained model found.")

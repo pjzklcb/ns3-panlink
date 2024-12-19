@@ -68,11 +68,11 @@ class H5DataLoader:
                     'neighbor_features': selected_neighbor_features_data
                 })
 
-        self._mean_and_std(data)
+        self._get_min_max(data)
 
         return data
     
-    def _mean_and_std(self, data):
+    def _get_min_max(self, data):
         self_features = []
         neighbor_features = []
         for i in range(len(data)):
@@ -82,17 +82,19 @@ class H5DataLoader:
         self_features = np.array(self_features)
         neighbor_features = np.array(neighbor_features)
 
-        self.self_mean = np.mean(self_features, axis=0)
-        self.self_std = np.std(self_features, axis=0)
-        self.neighbor_mean = np.mean(neighbor_features, axis=0)
-        self.neighbor_std = np.std(neighbor_features, axis=0)
+        self.self_min = np.min(self_features, axis=0)
+        self.self_max = np.max(self_features, axis=0)
+        self.neighbor_min = np.min(neighbor_features, axis=0)
+        self.neighbor_max = np.max(neighbor_features, axis=0)
 
     def _normalize_batch(self, batch_self_features, batch_neighbor_features):
         """
         Normalize each batch
         """
-        normalized_self_features = (np.array(batch_self_features) - self.self_mean) / self.self_std
+        normalized_self_features = 2 * (np.array(batch_self_features) - self.self_min) / \
+            (self.self_max - self.self_min + 1e-8) - 1
 
+        # extend all neighbor features in the batch
         all_neighbor_features = []
         original_neighbor_sizes = []
         
@@ -101,8 +103,10 @@ class H5DataLoader:
             all_neighbor_features.extend(batch_neighbor_features[i])
             original_neighbor_sizes.append(N) 
 
-        normalized_neighbor_features = (np.array(all_neighbor_features) - self.neighbor_mean) / self.neighbor_std
+        normalized_neighbor_features = 2 * (np.array(all_neighbor_features) - self.neighbor_min) / \
+            (self.neighbor_max - self.neighbor_min  + 1e-8) - 1
 
+        # split neighbor features back
         split_neighbor_features = []
         start_idx = 0
         for size in original_neighbor_sizes:
