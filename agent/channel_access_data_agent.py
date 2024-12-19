@@ -213,6 +213,7 @@ class ChannelAccessRlAgent(RlAgent):
                 step_group = f.create_group('step_' + str(self.step_count))
                 step_group.create_dataset('self_features', data=self_features)
                 step_group.create_dataset('neighbor_features', data=neighbor_features)
+                step_group.create_dataset('min_neighbor_backoff', data=self.min_neighbor_backoff)
                 step_group['self_features'].attrs['feature_names'] = self_feature_names
                 step_group['neighbor_features'].attrs['feature_names'] = neighbor_feature_names
             self.step_count += 1
