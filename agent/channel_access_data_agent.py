@@ -12,11 +12,8 @@ import time
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import numpy as np
-import torch
 from agent_utils import *
 from rl_agent import RlAgent
-from models.attention import AttentionFeatureExtractor
 from models.ddqn import DDQN
 
 

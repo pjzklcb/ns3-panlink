@@ -8,7 +8,6 @@ import os
 import random
 import h5py
 import numpy as np
-from sklearn.preprocessing import StandardScaler
 
 class H5DataLoader:
     def __init__(self, file_path, selected_self_features, selected_neighbor_features, batch_size, 
