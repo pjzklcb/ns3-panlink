@@ -112,51 +112,62 @@ def chamfer_distance(reconstructed, target, key_padding_mask):
     return chamfer_loss.mean() # average over all samples
 
 
-def train_attention(enc_model, dec_model, optimizer, neighbor_features, self_features, 
-                    key_padding_mask, device='cpu', clip_grad=None):
+def train_attention(enc_model, dec_model, optimizer, data_loader, num_epochs, 
+                    device='cpu', clip_grad=None):
     """
     Train the attention-based encoder-decoder model for one step.
     
     :param enc_model: Encoder model to extract latent features.
     :param dec_model: Decoder model to reconstruct neighbor features.
     :param optimizer: Optimizer for training.
-    :param neighbor_features: List of shape (batch_size, N, feature_dim), ground truth neighbor features.
-    :param self_features: List of shape (batch_size, self_dim), self features.
-    :param key_padding_mask: List of shape (batch_size, N), True for padding positions.
+    :param data_loader: Data loader to generate batches.
+    :param num_epochs: Number of training epochs.
     :param device: Device to use ('cpu' or 'cuda').
     :param clip_grad: Optional maximum gradient norm for gradient clipping.
-    :return: Loss value for the training step.
+    :return: List of average chamfer distance loss values for each epoch.
     """
-    # Ensure inputs are tensors and move to the correct device
-    neighbor_features = torch.tensor(neighbor_features, dtype=torch.float32, device=device)
-    self_features = torch.tensor(self_features, dtype=torch.float32, device=device).unsqueeze(1)
-    key_padding_mask = torch.tensor(key_padding_mask, dtype=torch.bool, device=device)
+    loss_log = []
+    for epoch in range(num_epochs):
+        epoch_loss = 0
+        for batch_idx, (self_features, neighbor_features, key_padding_mask) in enumerate(data_loader):
+            # Ensure inputs are tensors and move to the correct device
+            neighbor_features = torch.tensor(neighbor_features, dtype=torch.float32, device=device)
+            self_features = torch.tensor(self_features, dtype=torch.float32, device=device).unsqueeze(1)
+            key_padding_mask = torch.tensor(key_padding_mask, dtype=torch.bool, device=device)
 
-    # Set models to training mode
-    enc_model.train()
-    dec_model.train()
+            # Set models to training mode
+            enc_model.train()
+            dec_model.train()
 
-    # Zero gradients
-    optimizer.zero_grad()
+            # Zero gradients
+            optimizer.zero_grad()
+            
+            # get the latent features
+            latent_features = enc_model(neighbor_features, self_features, key_padding_mask)
+
+            # reconstruct neighbor features
+            reconstructed_neighbor_features = dec_model(latent_features, key_padding_mask)
+            
+            # use chamfer distance as loss function
+            loss = chamfer_distance(reconstructed_neighbor_features, neighbor_features, key_padding_mask)
+
+            # Backward pass
+            loss.backward()
+
+            # Optional: Gradient clipping
+            if clip_grad is not None:
+                nn.utils.clip_grad_norm_(enc_model.parameters(), max_norm=clip_grad)
+                nn.utils.clip_grad_norm_(dec_model.parameters(), max_norm=clip_grad)
+
+            # Optimization step
+            optimizer.step()
+
+            epoch_loss += loss.item()
+            if batch_idx % 500 == 0 or batch_idx == data_loader.num_batches - 1:
+                print(f"Epoch {epoch+1}/{num_epochs}, "
+                      f"Batch {batch_idx+1}/{data_loader.num_batches}, "
+                      f"Loss: {loss.item():.2f}")
+
+        loss_log.append(epoch_loss / data_loader.num_batches)
     
-    # get the latent features
-    latent_features = enc_model(neighbor_features, self_features, key_padding_mask)
-
-    # reconstruct neighbor features
-    reconstructed_neighbor_features = dec_model(latent_features, key_padding_mask)
-    
-    # use chamfer distance as loss function
-    loss = chamfer_distance(reconstructed_neighbor_features, neighbor_features, key_padding_mask)
-
-    # Backward pass
-    loss.backward()
-
-    # Optional: Gradient clipping
-    if clip_grad is not None:
-        nn.utils.clip_grad_norm_(enc_model.parameters(), max_norm=clip_grad)
-        nn.utils.clip_grad_norm_(dec_model.parameters(), max_norm=clip_grad)
-
-    # Optimization step
-    optimizer.step()
-
-    return loss.item()
+    return loss_log

@@ -18,7 +18,7 @@ from dataset.data_loader import H5DataLoader
 LATENT_DIM = 64
 NUM_HEADS = 4
 BATCH_SIZE = 32
-EPOCHS = 100
+EPOCHS = 10
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 random.seed(42)
@@ -57,7 +57,7 @@ def test(model, test_loader, criterion, save_dir):
 
 if __name__ == '__main__':
     data_dir = os.path.dirname(os.path.abspath(__file__)) + "/dataset"
-    file_path =  os.path.join(data_dir, "data-1734528339.h5")
+    file_path =  os.path.join(data_dir, "data-1734494463.h5")
     selected_self_features = [#'cw', 'n_defer_access', 'n_waited_slots', 'n_in_queue', 
                               #'n_sending', 'n_acked', 
                               'n_tx_data', 'n_acked_data', 
@@ -71,6 +71,7 @@ if __name__ == '__main__':
                                   'tx_interval_mean', 'tx_interval_std', 'tx_interval_min', 
                                   'tx_interval_max', 'tx_duration_mean', 'tx_duration_std', 
                                   'tx_duration_min', 'tx_duration_max']
+    training_mode = True
 
     data_loader = H5DataLoader(file_path, selected_self_features, selected_neighbor_features, 
                                batch_size=BATCH_SIZE)
@@ -83,31 +84,31 @@ if __name__ == '__main__':
     dec_model = SimpleDecoder(input_dim=LATENT_DIM, 
                               output_dim=len(selected_neighbor_features)).to(DEVICE)
 
+    # load model
+    try:
+        enc_model.load_state_dict(torch.load(os.path.join(data_dir, 'attn_model1.pth')))
+        dec_model.load_state_dict(torch.load(os.path.join(data_dir, 'dec_model1.pth')))
+        print("Pretrained model loaded successfully.")
+    except:
+        print("No pretrained model found.")
+
     optimizer = torch.optim.Adam([{'params': enc_model.parameters(), 'lr': 1e-4}, 
                                   {'params': dec_model.parameters(), 'lr': 1e-3}])
     
-    timestamp = int(time.time())
-    loss_log = []
-    for epoch in range(EPOCHS):
-        epoch_loss = 0
-        for batch_idx, (batch_self_features, batch_neighbor_features, key_padding_mask) in enumerate(data_loader):
-            loss = train_attention(enc_model, dec_model, optimizer, batch_neighbor_features, 
-                                   batch_self_features, key_padding_mask, device=DEVICE, clip_grad=1.0)
-            epoch_loss += loss
-            if batch_idx % 500 == 0 or batch_idx == data_loader.num_batches - 1:
-                print(f'Epoch {epoch+1}/{EPOCHS}, Batch {batch_idx+1}/{data_loader.num_batches}, Loss: {loss}')
+    if training_mode:
+        timestamp = int(time.time())
+        loss_log = train_attention(enc_model, dec_model, optimizer, data_loader, 
+                                   num_epochs=EPOCHS, device=DEVICE, clip_grad=1.0)
+        
+        time_cost = int(time.time()) - timestamp
+        print("Total time: {}min {:.2f}s".format(time_cost // 60, time_cost % 60))
+        # plot loss
+        plt.plot(loss_log, 'b-', linewidth=1)
+        plt.xlabel('Epoch')
+        plt.ylabel('Loss')
+        plt.savefig(os.path.join(data_dir, 'attn_loss.png'))
+        plt.close()
 
-        loss_log.append(epoch_loss / data_loader.num_batches)
-    
-    time_cost = int(time.time()) - timestamp
-    print("Total time: {}min {:.2f}s".format(time_cost // 60, time_cost % 60))
-    # plot loss
-    plt.plot(loss_log, 'b-', linewidth=1)
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.savefig(os.path.join(data_dir, 'attn_loss.png'))
-    plt.close()
-
-    # save model
-    torch.save(enc_model.state_dict(), os.path.join(data_dir, 'attn_model.pth'))
-    torch.save(dec_model.state_dict(), os.path.join(data_dir, 'dec_model.pth'))
+        # save model
+        torch.save(enc_model.state_dict(), os.path.join(data_dir, 'attn_model.pth'))
+        torch.save(dec_model.state_dict(), os.path.join(data_dir, 'dec_model.pth'))
