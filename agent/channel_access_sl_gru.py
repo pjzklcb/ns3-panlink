@@ -13,11 +13,12 @@ import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
 from collections import deque
-from models.model_library import GRUModel
+from models.attention import *
 
 
 # hyperparameters
-HIDDEN_SIZE = 64
+OUTPUT_DIM = 64
+NUM_HEADS = 4
 BATCH_SIZE = 32
 LEARNING_RATE = 1e-4
 SEQ_LEN = 10
@@ -152,14 +153,14 @@ if __name__ == "__main__":
     test_loader = create_data_loader(result_dir, test_episodes, input_name, label_name, label_size)
 
     # create model
-    model = GRUModel(input_size=len(input_name), output_size=label_size, hidden_size=HIDDEN_SIZE)
+    model = AttentionFeatureExtractor(neighbor_dim=len(input_name), self_dim=label_size, 
+                                      output_dim=OUTPUT_DIM, num_heads=NUM_HEADS).to(DEVICE)
 
     # define loss function and optimizer
-    criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
     # train model
-    train(model, train_loader, optimizer, criterion, sl_dir)
+    train_attention(model, train_loader, optimizer, criterion, sl_dir)
     
     # test model
     # try:

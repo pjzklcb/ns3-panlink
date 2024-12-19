@@ -18,7 +18,7 @@ from dataset.data_loader import H5DataLoader
 LATENT_DIM = 64
 NUM_HEADS = 4
 BATCH_SIZE = 32
-EPOCHS = 100
+EPOCHS = 60
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 random.seed(42)
@@ -29,7 +29,7 @@ torch.cuda.manual_seed(42)
 
 if __name__ == '__main__':
     data_dir = os.path.dirname(os.path.abspath(__file__)) + "/dataset"
-    file_path =  os.path.join(data_dir, "data-1734494463.h5")
+    file_path =  os.path.join(data_dir, "data-1734577869.h5")
     selected_self_features = [#'cw', 'n_defer_access', 'n_waited_slots', 'n_in_queue', 
                               #'n_sending', 'n_acked', 
                               'n_tx_data', 'n_acked_data', 
@@ -43,7 +43,7 @@ if __name__ == '__main__':
                                   'tx_interval_mean', 'tx_interval_std', 'tx_interval_min', 
                                   'tx_interval_max', 'tx_duration_mean', 'tx_duration_std', 
                                   'tx_duration_min', 'tx_duration_max']
-    training_mode = True
+    training_mode = False
 
     data_loader = H5DataLoader(file_path, selected_self_features, selected_neighbor_features, 
                                batch_size=BATCH_SIZE)
@@ -58,8 +58,8 @@ if __name__ == '__main__':
 
     # load model
     try:
-        enc_model.load_state_dict(torch.load(os.path.join(data_dir, 'attn_model.pth')))
-        dec_model.load_state_dict(torch.load(os.path.join(data_dir, 'dec_model.pth')))
+        enc_model.load_state_dict(torch.load(os.path.join(data_dir, 'attn_model3.pth')))
+        dec_model.load_state_dict(torch.load(os.path.join(data_dir, 'dec_model3.pth')))
         print("Pretrained model loaded successfully.")
     except:
         print("No pretrained model found.")

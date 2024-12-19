@@ -6,9 +6,6 @@
 
 import os
 import math
-import random
-import h5py
-import time
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
