@@ -26,34 +26,6 @@ np.random.seed(42)
 torch.manual_seed(42)
 torch.cuda.manual_seed(42)
 
-# test model
-def test(model, test_loader, criterion, save_dir):
-    model.eval()
-    correct = 0
-    total = 0
-    loss_log = []
-    with torch.no_grad():
-        for inputs, labels in test_loader:
-            inputs = inputs.to(DEVICE)
-            labels = labels.to(DEVICE)
-
-            labels_pred = model(inputs)
-            loss = criterion(labels_pred, labels)
-            loss_log.append(loss.item())
-
-            y_pred = torch.argmax(labels_pred, dim=1)
-            correct += (y_pred == labels).sum().item()
-            total += len(labels) 
-
-    print(f"Test accuracy: {correct / total * 100:.2f}%")
-
-    # plot loss
-    plt.plot(loss_log, 'b-', linewidth=1)
-    plt.xlabel('Batch')
-    plt.ylabel('Test Loss')
-    plt.savefig(os.path.join(save_dir, 'channel_access_sl_gru_test_loss.png'))
-    plt.close()
-
 
 if __name__ == '__main__':
     data_dir = os.path.dirname(os.path.abspath(__file__)) + "/dataset"
@@ -112,3 +84,12 @@ if __name__ == '__main__':
         # save model
         torch.save(enc_model.state_dict(), os.path.join(data_dir, 'attn_model.pth'))
         torch.save(dec_model.state_dict(), os.path.join(data_dir, 'dec_model.pth'))
+    
+    else:
+        loss_log = eval_attention(enc_model, dec_model, data_loader, device=DEVICE)
+        # plot loss
+        plt.plot(loss_log, 'b-', linewidth=1)
+        plt.xlabel('Batch')
+        plt.ylabel('Eval Loss')
+        plt.savefig(os.path.join(data_dir, 'attn_eval_loss.png'))
+        plt.close()

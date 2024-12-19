@@ -171,3 +171,41 @@ def train_attention(enc_model, dec_model, optimizer, data_loader, num_epochs,
         loss_log.append(epoch_loss / data_loader.num_batches)
     
     return loss_log
+
+
+def eval_attention(enc_model, dec_model, data_loader, device='cpu'):
+    """
+    Evaluate the attention-based encoder-decoder model.
+    
+    :param enc_model: Encoder model to extract latent features.
+    :param dec_model: Decoder model to reconstruct neighbor features.
+    :param data_loader: Data loader to generate batches.
+    :param device: Device to use ('cpu' or 'cuda').
+    :return: List of average chamfer distance loss values for each epoch.
+    """
+    loss_log = []
+    for batch_idx, (self_features, neighbor_features, key_padding_mask) in enumerate(data_loader):
+        # Ensure inputs are tensors and move to the correct device
+        neighbor_features = torch.tensor(neighbor_features, dtype=torch.float32, device=device)
+        self_features = torch.tensor(self_features, dtype=torch.float32, device=device).unsqueeze(1)
+        key_padding_mask = torch.tensor(key_padding_mask, dtype=torch.bool, device=device)
+
+        # Set models to evaluation mode
+        enc_model.eval()
+        dec_model.eval()
+
+        # get the latent features
+        latent_features = enc_model(neighbor_features, self_features, key_padding_mask)
+
+        # reconstruct neighbor features
+        reconstructed_neighbor_features = dec_model(latent_features, key_padding_mask)
+
+        # use chamfer distance as loss function
+        loss = chamfer_distance(reconstructed_neighbor_features, neighbor_features, key_padding_mask)
+
+        if batch_idx % 500 == 0 or batch_idx == data_loader.num_batches - 1:
+                print(f"Batch {batch_idx+1}/{data_loader.num_batches}, "
+                      f"Loss: {loss.item():.2f}")
+        loss_log.append(loss.item())
+
+    return loss_log
