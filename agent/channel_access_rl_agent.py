@@ -13,8 +13,10 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
-from agent_utils import AgentType, AcIndex, Normalizer
+import torch
+from agent_utils import *
 from rl_agent import RlAgent
+from models.attention import AttentionFeatureExtractor
 from models.ddqn import DDQN
 
 
@@ -25,6 +27,9 @@ MEMORY_SIZE = 2000
 LEARNING_RATE = 1e-4
 EPSILON_START = 1.0
 HIDDEN_SIZE = 64
+DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+LATENT_DIM = 64
+NUM_HEADS = 4
 
 
 class AccessInfo:
@@ -77,19 +82,21 @@ class ChannelAccessRlAgent(RlAgent):
     def __init__(self, node_id, memory_id, enable_learning=True, pretrained_model=None):
         super().__init__(node_id, memory_id, enable_learning)
         self.agent_type = AgentType.RL_CHANNEL_ACCESS
-        
-        state_size = 23
-        self.action_size = 2
+
+        state_size = 6 + LATENT_DIM
+        self.action_size = 4
         self.model = DDQN(state_size, self.action_size, hidden_size=HIDDEN_SIZE, 
                          batch_size=BATCH_SIZE, gamma=GAMMA, 
                          epsilon=EPSILON_START if self.enable_learning else 0, 
                          learning_rate=LEARNING_RATE, memory_size=MEMORY_SIZE)
-        self.state_norm = Normalizer(state_size)
+        
         self.neighbor_info = []
         self.backoff = 0
         self.backoff_log = []
-        self.step_count = 0
-        self.timestamp = str(int(time.time()))
+
+        self.feature_extractor = self._load_feature_extractor()
+        self.self_norm = MinMaxScaler()
+        self.neighbor_norm = MinMaxScaler(neighbor=True)
 
         # load pretrained model
         try:
@@ -102,9 +109,32 @@ class ChannelAccessRlAgent(RlAgent):
         if not self.enable_learning:
             self.model.epsilon = 0
 
+    def _load_feature_extractor(self):
+        neighbor_dim = 15
+        self_dim = 17
+        extractor_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'dataset/attn_model3.pth')
+        feature_extractor = AttentionFeatureExtractor(neighbor_dim, self_dim, LATENT_DIM, num_heads=NUM_HEADS)
+        feature_extractor.load_state_dict(torch.load(extractor_path))
+        feature_extractor.eval()
+        # freeze all params
+        for param in feature_extractor.parameters():
+            param.requires_grad = False
+        return feature_extractor
+
+    def _get_latent_feature(self, neighbor_features, self_features):
+        # neighbor_features shape: (N, neighbor_dim)
+        # self_features shape: (1, self_dim)
+        with torch.no_grad(): 
+            neighbor_features = torch.tensor(neighbor_features, dtype=torch.float32).unsqueeze(0).to(DEVICE)
+            self_features = torch.tensor(self_features, dtype=torch.float32).unsqueeze(0).to(DEVICE)
+            latent_features = self.feature_extractor(neighbor_features, self_features)
+        
+        return latent_features
+    
     def get_obs(self, msg_interface):
         env = msg_interface.GetCpp2PyVector()[self.memory_id]
         if not self.more_data:
+            self.last_nw = 0 if len(self.backoff_log) == 0 else self.access_info.n_waited_slot
             self.n_contention = env.nStasWithPackets
             self.min_neighbor_backoff = env.minNeighborBackoff
             self.access_info = AccessInfo(AcIndex(env.ac), env.cw, env.nDeferredAccess, 
@@ -133,7 +163,7 @@ class ChannelAccessRlAgent(RlAgent):
         self.choose_action()
         self.neighbor_info = []
         msg_interface.GetPy2CppVector()[self.memory_id].backoff = self.backoff
-
+    
     def choose_action(self):
         a_cw = math.log(self.access_info.cw + 1, 2)
         a_da = self.access_info.n_deferred_access
@@ -168,21 +198,10 @@ class ChannelAccessRlAgent(RlAgent):
                   f"\t n_neighbor={self.n_neighbor}, n_contention={self.n_contention}, "
                   f"min_neighbor_backoff={self.min_neighbor_backoff}")
 
-        # normalize the obs
-        self_feature_names = ['cw', 'n_defer_access', 'n_waited_slots', 'n_in_queue', 
-                              'n_sending', 'n_acked', 'n_tx_data', 'n_acked_data', 
-                              'last_tx_delay', 'last_txok_delay', 'chan_util', 
-                              'app_interval_mean', 'app_interval_std', 'app_interval_min', 
-                              'app_interval_max', 'tx_interval_mean', 'tx_interval_std', 
-                              'tx_interval_min', 'tx_interval_max', 'tx_duration_mean', 
-                              'tx_duration_std', 'tx_duration_min', 'tx_duration_max']
-        self_features = [a_cw, a_da, a_nw, a_nq, a_ns, a_na, l_ns, l_na, l_td, l_ad, l_cu] + \
-            l_ai + l_tis + l_tus
-        neighbor_feature_names = ['role', 'n_tx_data', 'n_acked_data', 'last_tx_delay', 
-                                  'last_txok_delay', 'chan_util', 'mean_rssi', 
-                                  'tx_interval_mean', 'tx_interval_std', 'tx_interval_min', 
-                                  'tx_interval_max', 'tx_duration_mean', 'tx_duration_std', 
-                                  'tx_duration_min', 'tx_duration_max']
+        self_features = [a_cw, a_da, a_nw, a_nq, a_ns, a_na] + \
+                        [l_ns, l_na, l_td, l_ad, l_cu] + \
+                        l_ai + l_tis + l_tus
+        
         neighbor_features = []
         for i in range(self.n_neighbor):
             n_role = self.neighbor_info[i].role
@@ -204,36 +223,37 @@ class ChannelAccessRlAgent(RlAgent):
                       f"\t\ttx_stats: interval=[{', '.join(f'{v:.2f}' for v in n_tis)}]ms, "
                       f"duration=[{', '.join(f'{v:.2f}' for v in n_tus)}]ms")
 
+        # extract latent features
+        latent_features = [0] * LATENT_DIM
         if len(neighbor_features) != 0:
-            # save to dataset
-            with h5py.File("contrib/panlink/agent/dataset/data-" + self.timestamp + ".h5", 'a') as f:
-                step_group = f.create_group('step_' + str(self.step_count))
-                step_group.create_dataset('self_features', data=self_features)
-                step_group.create_dataset('neighbor_features', data=neighbor_features)
-                step_group['self_features'].attrs['feature_names'] = self_feature_names
-                step_group['neighbor_features'].attrs['feature_names'] = neighbor_feature_names
-            self.step_count += 1
+            # normalize the obs
+            normalized_self_features = self.self_norm.normalize([self_features[6:]])
+            normalized_neighbor_features = self.neighbor_norm.normalize(neighbor_features)
 
-        o = self_features
-        o = self.state_norm.normalize([o])[0]
-        next_state = o.tolist()
+            # extract latent features
+            latent_features = self._get_latent_feature(normalized_neighbor_features, normalized_self_features)
+            latent_features = latent_features.squeeze().tolist() # (LATENT_DIM,)
+
+        next_state = self_features[:6] + latent_features
         if self.state:
             # caculate reward
-            reward = a_na if a_na else -a_ns
+            r_tx = a_na if a_na else -a_ns
+            r_wait = 1 if a_da and (a_nw - self.last_nw) == 0 and self.action else 0
+            reward = r_tx + r_wait
             self.reward_log.append(reward)
             self.model.store_transition(self.state, self.action, reward, next_state)
             if self.enable_learning:
                 self.model.learn()
 
         # choose action
-        # self.action = self.model.choose_action(next_state)
-        self.action = random.randint(0, self.access_info.cw - a_nw)
+        self.action = self.model.choose_action(next_state)
+        # self.action = random.randint(0, self.access_info.cw - a_nw)
         self.action_log.append(self.action)
         
-        self.backoff = self.action
+        self.backoff = self.action * 8
         self.backoff_log.append(self.backoff)
         if self.show_log:
-            print("New Backoff={} from [0, {}-{}]".format(self.backoff, self.access_info.cw, a_nw))
+            print("New Backoff={}".format(self.backoff))
         self.state = next_state
 
     def reset(self):
