@@ -5,195 +5,188 @@
 # Author: Pan Jinzhe <pjzklcb@gmail.com>
 
 import os
-import random
 import h5py
 import numpy as np
+import torch
+from torch.utils.data import Dataset, DataLoader
 
-class H5DataLoader:
-    def __init__(self, file_path, selected_self_features, selected_neighbor_features, batch_size, 
-                 shuffle=True, batch_normalize=True):
-        """
-        Initialize data loader
 
-        Parameters:
-        - file_path (str): HDF5 file path.
-        - selected_self_features (list of str): self feature names to be selected
-        - selected_neighbor_features (list of str): neighbor feature names to be selected
-        - batch_size (int): batch size
-        - shuffle (bool): whether to shuffle the data
-        - batch_normalize (bool): whether to normalize each batch
-        """
-        self.file_path = file_path
-        self.selected_self_features = selected_self_features
-        self.selected_neighbor_features = selected_neighbor_features
-        self.batch_size = batch_size
-        self.shuffle = shuffle
-        self.batch_normalize = batch_normalize
-        self.data = self._load_data()
-        self.num_batches = len(self.data) // batch_size
-
-    def _load_data(self):
-        """
-        Read data from HDF5 and preprocess it.
-        """
-        data = []
-
-        with h5py.File(self.file_path, 'r') as f:
-            self_feature_names = f["step_0/self_features"].attrs.get("feature_names")
-            neighbor_feature_names = f['step_0/neighbor_features'].attrs.get("feature_names")
-
-            selected_self_indices = [
-                i for i, name in enumerate(self_feature_names)
-                if name in self.selected_self_features
-            ]
-            selected_neighbor_indices = [
-                i for i, name in enumerate(neighbor_feature_names)
-                if name in self.selected_neighbor_features
-            ]
-
-            for step_key in f.keys():
-                step_data = f[step_key]
-                self_features_data = step_data['self_features'][:]
-                neighbor_features_data = step_data['neighbor_features'][:]
-                # ignore the sample with no neighbor
-                if len(neighbor_features_data) == 0:
-                    continue
-
-                selected_self_features_data = self_features_data[selected_self_indices]
-                selected_neighbor_features_data = neighbor_features_data[:, selected_neighbor_indices]
-
-                data.append({
-                    'self_features': selected_self_features_data,
-                    'neighbor_features': selected_neighbor_features_data,
-                    'min_neighbor_backoff': step_data['min_neighbor_backoff'][()]
-                })
-
-        self._get_mean_std(data)
-
-        return data
-    
-    def _get_mean_std(self, data):
-        self_features = []
-        neighbor_features = []
-        for i in range(len(data)):
-            self_features.append(data[i]['self_features'])
-            neighbor_features.extend(data[i]['neighbor_features'])
-
-        self_features = np.array(self_features)
-        neighbor_features = np.array(neighbor_features)
-
-        self.self_mean = np.mean(self_features, axis=0)
-        self.self_std = np.std(self_features, axis=0)
-        self.neighbor_mean = np.mean(neighbor_features, axis=0)
-        self.neighbor_std = np.std(neighbor_features, axis=0)
-
-    def _normalize_batch(self, batch_self_features, batch_neighbor_features):
-        """
-        Normalize each batch
-        """
-        normalized_self_features = (np.array(batch_self_features) - self.self_mean) / self.self_std
-
-        # extend all neighbor features in the batch
+def compute_and_store_statistics(hdf5_file):
+    """
+    Compute mean and std of self and neighbor features, and store them in HDF5.
+    """
+    with h5py.File(hdf5_file, 'r+') as f:
+        all_self_features = []
         all_neighbor_features = []
-        original_neighbor_sizes = []
-        
-        for i in range(len(batch_neighbor_features)):
-            N = len(batch_neighbor_features[i])
-            all_neighbor_features.extend(batch_neighbor_features[i])
-            original_neighbor_sizes.append(N) 
+        for step in f.keys():
+            if 'step' not in step:
+                continue
+            group = f[step]
+            self_features = group['self_features'][:]
+            neighbor_features = group['neighbor_features'][:]
 
-        normalized_neighbor_features = (np.array(all_neighbor_features) - self.neighbor_mean) / self.neighbor_std
+            # skip the sample with no neighbor
+            if len(neighbor_features) == 0:
+                continue
+            
+            all_self_features.append(self_features)
+            all_neighbor_features.extend(neighbor_features)
 
-        # split neighbor features back
-        split_neighbor_features = []
-        start_idx = 0
-        for size in original_neighbor_sizes:
-            end_idx = start_idx + size
-            split_neighbor_features.append(normalized_neighbor_features[start_idx:end_idx])
-            start_idx = end_idx
+        total_samples = len(all_self_features)
+        all_self_features = np.array(all_self_features)
+        all_neighbor_features = np.array(all_neighbor_features)
 
-        return normalized_self_features, split_neighbor_features
+        # calculate mean and std
+        self_mean = np.mean(all_self_features, axis=0)
+        self_std = np.std(all_self_features, axis=0)
+        neighbor_mean = np.mean(all_neighbor_features, axis=0)
+        neighbor_std = np.std(all_neighbor_features, axis=0)
 
-    def _padding_and_masking(self, batch_neighbor_features):
+        # save statistics
+        if 'statistics' not in f:
+            stats_group = f.create_group('statistics')
+            stats_group.create_dataset('self_mean', data=self_mean)
+            stats_group.create_dataset('self_std', data=self_std)
+            stats_group.create_dataset('neighbor_mean', data=neighbor_mean)
+            stats_group.create_dataset('neighbor_std', data=neighbor_std)
+            stats_group.create_dataset('total_samples', data=total_samples)
+        else:
+            stats_group = f['statistics']
+            stats_group['self_mean'][()] = self_mean
+            stats_group['self_std'][()] = self_std
+            stats_group['neighbor_mean'][()] = neighbor_mean
+            stats_group['neighbor_std'][()] = neighbor_std
+            stats_group['total_samples'][()] = total_samples
+
+        print("Statistics computed and stored in", hdf5_file)
+
+    return self_mean, self_std, neighbor_mean, neighbor_std, total_samples
+
+
+class HDF5Dataset(Dataset):
+    def __init__(self, hdf5_file, selected_self_features=None, selected_neighbor_features=None):
         """
-        Padding to have same dimension and masking invalid neighbor features
+        Initalize the dataset from the HDF5 file.
         """
-        key_padding_mask = []  # block invalid neighbors with True
-        padded_neighbors = []
-        max_neighbors = max(len(neighbor) for neighbor in batch_neighbor_features)
-        for neighbors in batch_neighbor_features:
-            N = len(neighbors)
-            padded_neighbors.append(np.pad(neighbors, ((0, max_neighbors - N), (0, 0)), 
-                                           mode='constant', constant_values=0))
-            key_padding_mask.append([False] * N + [True] * (max_neighbors - N))
-        return np.array(padded_neighbors), np.array(key_padding_mask)
+        self.h5f = h5py.File(hdf5_file, 'r')
+        stats = self.h5f['statistics']
+        self.self_mean = stats['self_mean'][:]
+        self.self_std = stats['self_std'][:]
+        self.neighbor_mean = stats['neighbor_mean'][:]
+        self.neighbor_std = stats['neighbor_std'][:]
+        self.total_samples = stats['total_samples'][()]
+        self.steps = list(self.h5f.keys())
+        self.steps.remove('statistics')
 
-    def on_epoch_start(self):
+        # get selected features
+        self_feature_names = self.h5f['step_0/self_features'].attrs.get('feature_names')
+        neighbor_feature_names = self.h5f['step_0/neighbor_features'].attrs.get('feature_names')
+        self.selected_self_indices = np.arange(len(self_feature_names))
+        self.selected_neighbor_indices = np.arange(len(neighbor_feature_names))
+        if selected_self_features is not None:
+            self.selected_self_indices = [
+                i for i, name in enumerate(self_feature_names)
+                if name in selected_self_features
+            ]
+        if selected_neighbor_features is not None:
+            self.selected_neighbor_indices = [
+                i for i, name in enumerate(neighbor_feature_names)
+                if name in selected_neighbor_features
+            ]
+
+    def __len__(self):
+        return self.total_samples
+
+    def __getitem__(self, idx):
         """
-        Shuffle the data at the start of each epoch
+        Return a normalized sample from the dataset.
         """
-        if self.shuffle:
-            random.shuffle(self.data)
+        group = self.h5f[self.steps[idx]]
+        self_features = group['self_features'][:]
+        neighbor_features = group['neighbor_features'][:]
+        min_neighbor_backoff = group['min_neighbor_backoff'][()]
 
-    def __iter__(self):
-        """
-        Generate batches
-        """
-        self.on_epoch_start()  # Shuffle data at the start of each epoch
-        batch_self_features = []
-        batch_neighbor_features = []
-        min_neighbor_backoff = []
+        # normalize
+        self_features = (self_features - self.self_mean) / (self.self_std + 1e-8)
+        neighbor_features = (neighbor_features - self.neighbor_mean) / (self.neighbor_std + 1e-8)
 
-        for i, sample in enumerate(self.data):
-            batch_self_features.append(sample['self_features'])
-            batch_neighbor_features.append(sample['neighbor_features'])
-            min_neighbor_backoff.append(sample['min_neighbor_backoff'])
+        # pick out selected features
+        self_features = self_features[self.selected_self_indices]
+        neighbor_features = neighbor_features[:, self.selected_neighbor_indices]
 
-            if len(batch_self_features) == self.batch_size or i == len(self.data) - 1:
-                if self.batch_normalize:
-                    batch_self_features, batch_neighbor_features = self._normalize_batch(
-                        batch_self_features, batch_neighbor_features
-                    )
+        return {
+            'self_features': torch.tensor(self_features, dtype=torch.float32).unsqueeze(0), # (1, self_dim)
+            'neighbor_features': torch.tensor(neighbor_features, dtype=torch.float32),
+            'min_neighbor_backoff': torch.tensor(min_neighbor_backoff, dtype=torch.float32)
+        }
 
-                padded_neighbors, key_padding_mask = self._padding_and_masking(batch_neighbor_features)
+    def __del__(self):
+        self.h5f.close()
 
-                yield batch_self_features, padded_neighbors, key_padding_mask, min_neighbor_backoff
 
-                batch_self_features = []
-                batch_neighbor_features = []
-                min_neighbor_backoff = []
+def collate_fn(batch):
+    """
+    Padding to have same dimension and masking invalid neighbor features
+    """
+    # Extract individual elements
+    self_features = torch.stack([item['self_features'] for item in batch])
+    min_neighbor_backoff = torch.stack([item['min_neighbor_backoff'] for item in batch])
+    
+    neighbor_features = [item['neighbor_features'] for item in batch]
+    neighbor_lengths = [nf.shape[0] for nf in neighbor_features]
+
+    # Pad neighbor_features to the maximum length in the batch
+    padded_neighbor_features = torch.nn.utils.rnn.pad_sequence(
+        neighbor_features, batch_first=True, padding_value=0.0
+    )  # Shape: (batch_size, max_neighbors, neighbor_feature_dim)
+
+    # Create key_padding_mask
+    max_neighbors = padded_neighbor_features.size(1)
+    key_padding_mask = torch.zeros((len(batch), max_neighbors), dtype=torch.bool)
+    for i, length in enumerate(neighbor_lengths):
+        key_padding_mask[i, length:] = True
+
+    return self_features, padded_neighbor_features, key_padding_mask, min_neighbor_backoff
 
 
 if __name__ == '__main__':
-    file_path = os.path.dirname(os.path.abspath(__file__)) + "/data-1734657935.h5"
-    selected_self_features = [#'cw', 'n_defer_access', 'n_waited_slots', 'n_in_queue', 
-                              #'n_sending', 'n_acked', 
-                              'n_tx_data', 'n_acked_data', 
-                              'last_tx_delay', 'last_txok_delay', 'chan_util', 
-                              'app_interval_mean', 'app_interval_std', 'app_interval_min', 
-                              'app_interval_max', 'tx_interval_mean', 'tx_interval_std', 
-                              'tx_interval_min', 'tx_interval_max', 'tx_duration_mean', 
-                              'tx_duration_std', 'tx_duration_min', 'tx_duration_max']
-    selected_neighbor_features = ['role', 'n_tx_data', 'n_acked_data', 'last_tx_delay', 
-                                  'last_txok_delay', 'chan_util', 'mean_rssi', 
-                                  'tx_interval_mean', 'tx_interval_std', 'tx_interval_min', 
-                                  'tx_interval_max', 'tx_duration_mean', 'tx_duration_std', 
-                                  'tx_duration_min', 'tx_duration_max']
-    batch_size = 3
+    # compute the statistics and store them in the dataset
+    file_path = os.path.dirname(os.path.abspath(__file__)) + "/data-1734690557.h5"
+    self_mean, self_std, neighbor_mean, neighbor_std, total_samples = compute_and_store_statistics(file_path)
+    print(f"self_mean: {self_mean}, self_std: {self_std}, "
+          f"neighbor_mean: {neighbor_mean}, neighbor_std: {neighbor_std}, "
+          f"total_samples: {total_samples}")
 
-    data_loader = H5DataLoader(file_path, selected_self_features, selected_neighbor_features, batch_size,
-                               shuffle=True, batch_normalize=False)
+    # file_path = os.path.dirname(os.path.abspath(__file__)) + "/data-1734690536.h5"
+    # selected_self_features = [#'cw', 'n_defer_access', 'n_waited_slots', 'n_in_queue', 
+    #                           #'n_sending', 'n_acked', 
+    #                           'n_tx_data', 'n_acked_data', 
+    #                           'last_tx_delay', 'last_txok_delay', 'chan_util', 
+    #                           'app_interval_mean', 'app_interval_std', 'app_interval_min', 
+    #                           'app_interval_max', 'tx_interval_mean', 'tx_interval_std', 
+    #                           'tx_interval_min', 'tx_interval_max', 'tx_duration_mean', 
+    #                           'tx_duration_std', 'tx_duration_min', 'tx_duration_max']
+    # selected_neighbor_features = ['role', 'n_tx_data', 'n_acked_data', 'last_tx_delay', 
+    #                               'last_txok_delay', 'chan_util', 'mean_rssi', 
+    #                               'tx_interval_mean', 'tx_interval_std', 'tx_interval_min', 
+    #                               'tx_interval_max', 'tx_duration_mean', 'tx_duration_std', 
+    #                               'tx_duration_min', 'tx_duration_max']
+    
+    # dataset = HDF5Dataset(file_path, selected_self_features, selected_neighbor_features)
+    # data_loader = DataLoader(
+    #     dataset,
+    #     batch_size=32,
+    #     shuffle=True,
+    #     num_workers=4,
+    #     collate_fn=collate_fn
+    # )
 
-    for i, (batch_self_features, batch_neighbor_features, mask, min_neighbor_backoff) in enumerate(data_loader):
-        if i > 10:
-            break
-        for j, sample in enumerate(batch_self_features):
-            if sum(mask[j]):
-                print(selected_self_features)
-                print(sample)
-                print(selected_neighbor_features)
-                print(batch_neighbor_features[j])
-                print("mask")
-                print(mask[j])
-                print('min_neighbor_backoff')
-                print(min_neighbor_backoff[j])
+    # # test data loader
+    # for batch_idx, (self_features, padded_neighbors, key_padding_mask, min_neighbor_backoffs) in enumerate(data_loader):
+    #     if batch_idx >= 10:
+    #         break
+    #     print(f"Batch {batch_idx + 1}:")
+    #     print("Self Features Shape:", self_features.shape)
+    #     print("Padded Neighbors Shape:", padded_neighbors.shape)
+    #     print("Key Padding Mask Shape:", key_padding_mask.shape)
+    #     print("Min Neighbor Backoffs Shape:", min_neighbor_backoffs.shape)
