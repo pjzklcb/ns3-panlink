@@ -18,7 +18,7 @@ import torch.optim.lr_scheduler as lr_scheduler
 
 # hyperparameters
 EMBEDDING_DIM = 128
-HIDDEN_DIM = 128
+HIDDEN_DIM = 256
 NUM_HEADS = 8
 BATCH_SIZE = 64
 EPOCHS = 400
@@ -67,10 +67,10 @@ if __name__ == '__main__':
     )
 
     # create model
-    enc_model = ImprovedAttentionExtractor(neighbor_dim=len(selected_neighbor_features),
-                                           self_dim=len(selected_self_features),
-                                           output_dim=EMBEDDING_DIM,
-                                           num_heads=NUM_HEADS).to(DEVICE)
+    enc_model = FullAttentionExtractor(neighbor_dim=len(selected_neighbor_features),
+                                       self_dim=len(selected_self_features),
+                                       output_dim=EMBEDDING_DIM,
+                                       num_heads=NUM_HEADS).to(DEVICE)
     dec_model = SimpleDecoder(input_dim=2 * EMBEDDING_DIM, hidden_dim=HIDDEN_DIM).to(DEVICE)
 
     # load model
@@ -82,7 +82,7 @@ if __name__ == '__main__':
         print("No pretrained model found.")
 
     optimizer = torch.optim.Adam([{'params': enc_model.parameters(), 'lr': 1e-3}, 
-                                  {'params': dec_model.parameters(), 'lr': 1e-3}], weight_decay=1e-5)
+                                  {'params': dec_model.parameters(), 'lr': 1e-3}], weight_decay=1e-4)
     
     scheduler = lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=50, T_mult=2)
 
@@ -92,18 +92,12 @@ if __name__ == '__main__':
         lr_log = []
         timestamp = int(time.time())
         for epoch in range(EPOCHS):
-            # set models to training mode
-            enc_model.train()
-            dec_model.train()
-
-            train_loss = train_attention(enc_model, dec_model, optimizer, train_loader, device=DEVICE, clip_grad=5.0) 
+            train_loss = train_attention(enc_model, dec_model, optimizer, train_loader, device=DEVICE, clip_grad=1.0) 
             train_loss_log.append(train_loss)
             print(f"Epoch {epoch+1}: train loss = {train_loss:.4f}")
 
-            # Set models to evaluation mode
+            # evaluate
             if epoch % 10 == 0 or epoch == EPOCHS - 1:
-                enc_model.eval()
-                dec_model.eval()
                 with torch.no_grad():
                     val_loss = eval_attention(enc_model, dec_model, val_loader, device=DEVICE)
                     val_loss_log.append(val_loss)
