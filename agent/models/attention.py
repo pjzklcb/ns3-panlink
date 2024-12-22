@@ -32,26 +32,47 @@ class AttentionFeatureExtractor(nn.Module):
         return attn_output.squeeze(1) # (batch_size, output_dim)
 
 
-class AttentionFeatureExtractor2(nn.Module):
-    def __init__(self, neighbor_dim, self_dim, output_dim, num_heads=1):
-        super(AttentionFeatureExtractor2, self).__init__()
-        self.query = nn.Linear(self_dim, output_dim)
+class ImprovedAttentionExtractor(nn.Module):
+    def __init__(self, neighbor_dim, self_dim, output_dim, num_heads=1, pooling="max"):
+        super(ImprovedAttentionExtractor, self).__init__()
+        self.self_query = nn.Linear(self_dim, output_dim)
+        self.query = nn.Linear(neighbor_dim, output_dim)
         self.key = nn.Linear(neighbor_dim, output_dim)
         self.value = nn.Linear(neighbor_dim, output_dim)
         self.mha = nn.MultiheadAttention(embed_dim=output_dim, num_heads=num_heads, batch_first=True)
+        
+        # Pooling method: mean or max
+        assert pooling in ["mean", "max"], "Pooling must be 'mean' or 'max'"
+        self.pooling = pooling
 
     def forward(self, neighbor_features, self_features, key_padding_mask=None):
         # neighbor_features: (batch_size, seq_len, neighbor_dim)
         # self_features: (batch_size, 1, self_dim)
+
         if key_padding_mask is None:
             key_padding_mask = torch.zeros(neighbor_features.shape[0], 
                                            neighbor_features.shape[1], 
                                            dtype=torch.bool).to(neighbor_features.device)
-        Q = self.query(self_features)
-        K = self.key(neighbor_features)
-        V = self.value(neighbor_features)
-        attn_output, _ = self.mha(Q, K, V, key_padding_mask=key_padding_mask) # block the True positions
-        return attn_output.squeeze(1) # (batch_size, output_dim)
+
+        # Linear transformations
+        self_Q = self.self_query(self_features)  # (batch_size, 1, output_dim)
+        Q = self.query(neighbor_features)        # (batch_size, seq_len, output_dim)
+        K = self.key(neighbor_features)          # (batch_size, seq_len, output_dim)
+        V = self.value(neighbor_features)        # (batch_size, seq_len, output_dim)
+
+        # Attention computations
+        self_attn, _ = self.mha(self_Q, K, V, key_padding_mask=key_padding_mask)  # (batch_size, 1, output_dim)
+        neighbor_attn, _ = self.mha(Q, K, V, key_padding_mask=key_padding_mask)  # (batch_size, seq_len, output_dim)
+
+        # Pooling neighbor_attn
+        if self.pooling == "mean":
+            pooled_neighbor_attn = neighbor_attn.masked_fill(key_padding_mask.unsqueeze(-1), 0).mean(dim=1)  # (batch_size, output_dim)
+        elif self.pooling == "max":
+            pooled_neighbor_attn = neighbor_attn.masked_fill(key_padding_mask.unsqueeze(-1), float("-inf")).max(dim=1)[0]  # (batch_size, output_dim)
+
+        # Concatenate self_attn and pooled_neighbor_attn
+        attn_output = torch.cat([self_attn.squeeze(1), pooled_neighbor_attn], dim=-1)  # (batch_size, 2 * output_dim)
+        return attn_output
     
 
 class SimpleDecoder(nn.Module):
@@ -156,9 +177,6 @@ def eval_attention(enc_model, dec_model, data_loader, device='cpu'):
 
         total_loss += loss.item()
 
-        if batch_idx % 500 == 0 or batch_idx == num_batches - 1:
-                print(f"Batch {batch_idx+1}/{num_batches}")
-
     return total_loss / num_batches
 
 
@@ -194,8 +212,5 @@ def accuracy_attention(enc_model, dec_model, data_loader, device='cpu'):
         y_pred = (y_pred > 0.5).int().squeeze()
 
         accuracy += (y_pred == min_neighbor_backoff).sum().item()
-
-        if batch_idx % 500 == 0 or batch_idx == num_batches - 1:
-                print(f"Batch {batch_idx+1}/{num_batches}")
 
     return accuracy / len(data_loader.dataset)

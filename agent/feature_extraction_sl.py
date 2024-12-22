@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 from models.attention import *
 from dataset.data_loader import *
 from torch.utils.data import DataLoader
+import torch.optim.lr_scheduler as lr_scheduler
 
 
 # hyperparameters
@@ -20,7 +21,7 @@ EMBEDDING_DIM = 64
 HIDDEN_DIM = 128
 NUM_HEADS = 4
 BATCH_SIZE = 64
-EPOCHS = 100
+EPOCHS = 600
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 random.seed(42)
@@ -66,11 +67,11 @@ if __name__ == '__main__':
     )
 
     # create model
-    enc_model = AttentionFeatureExtractor(neighbor_dim=len(selected_neighbor_features),
-                                          self_dim=len(selected_self_features),
-                                          output_dim=EMBEDDING_DIM,
-                                          num_heads=NUM_HEADS).to(DEVICE)
-    dec_model = SimpleDecoder(input_dim=EMBEDDING_DIM, hidden_dim=HIDDEN_DIM).to(DEVICE)
+    enc_model = ImprovedAttentionExtractor(neighbor_dim=len(selected_neighbor_features),
+                                           self_dim=len(selected_self_features),
+                                           output_dim=EMBEDDING_DIM,
+                                           num_heads=NUM_HEADS).to(DEVICE)
+    dec_model = SimpleDecoder(input_dim=2 * EMBEDDING_DIM, hidden_dim=HIDDEN_DIM).to(DEVICE)
 
     # load model
     try:
@@ -80,9 +81,11 @@ if __name__ == '__main__':
     except:
         print("No pretrained model found.")
 
-    optimizer = torch.optim.Adam([{'params': enc_model.parameters(), 'lr': 1e-4, 'weight_decay': 1e-4}, 
-                                  {'params': dec_model.parameters(), 'lr': 1e-3, 'weight_decay': 1e-4}])
+    optimizer = torch.optim.Adam([{'params': enc_model.parameters(), 'lr': 1e-3, 'weight_decay': 1e-4}, 
+                                  {'params': dec_model.parameters(), 'lr': 1e-2, 'weight_decay': 1e-4}])
     
+    scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5)
+
     if training_mode:
         train_loss_log = []
         val_loss_log = []
@@ -102,8 +105,13 @@ if __name__ == '__main__':
                 dec_model.eval()
                 with torch.no_grad():
                     val_loss = eval_attention(enc_model, dec_model, val_loader, device=DEVICE)
+                scheduler.step(val_loss)  # adjust learning rate based on validation loss
                 val_loss_log.append(val_loss)
                 print(f"Epoch {epoch+1}: val loss = {val_loss:.4f}")
+
+            # Log learning rates
+            for param_group in optimizer.param_groups:
+                print(f"Epoch {epoch+1}: Learning rate = {param_group['lr']}")
 
         time_cost = int(time.time()) - timestamp
         print("Total time: {}min {:.2f}s".format(time_cost // 60, time_cost % 60))
