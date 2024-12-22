@@ -121,7 +121,11 @@ class HDF5Dataset(Dataset):
         }
 
     def __del__(self):
-        self.h5f.close()
+        if hasattr(self, 'h5f') and self.h5f is not None:
+            try:
+                self.h5f.close()
+            except Exception as e:
+                print(f"Error closing HDF5 file: {e}")
 
 
 def collate_fn(batch):

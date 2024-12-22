@@ -19,8 +19,8 @@ from torch.utils.data import DataLoader
 EMBEDDING_DIM = 64
 HIDDEN_DIM = 128
 NUM_HEADS = 4
-BATCH_SIZE = 32
-EPOCHS = 200
+BATCH_SIZE = 64
+EPOCHS = 100
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 random.seed(42)
@@ -31,7 +31,8 @@ torch.cuda.manual_seed(42)
 
 if __name__ == '__main__':
     data_dir = os.path.dirname(os.path.abspath(__file__)) + "/dataset"
-    file_path =  os.path.join(data_dir, "data-1734690536.h5")
+    train_file =  os.path.join(data_dir, "data-1734690536.h5")
+    val_file = os.path.join(data_dir, "data-1734690557.h5")
     selected_self_features = [#'cw', 'n_defer_access', 'n_waited_slots', 'n_in_queue', 
                               #'n_sending', 'n_acked', 
                               'n_tx_data', 'n_acked_data', 
@@ -47,11 +48,19 @@ if __name__ == '__main__':
                                   'tx_duration_min', 'tx_duration_max']
     training_mode = True
 
-    dataset = HDF5Dataset(file_path, selected_self_features, selected_neighbor_features)
-    data_loader = DataLoader(
-        dataset,
+    train_dataset = HDF5Dataset(train_file, selected_self_features, selected_neighbor_features)
+    val_dataset = HDF5Dataset(val_file, selected_self_features, selected_neighbor_features)
+    train_loader = DataLoader(
+        train_dataset,
         batch_size=BATCH_SIZE,
         shuffle=True,
+        num_workers=4,
+        collate_fn=collate_fn
+    )
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=BATCH_SIZE,
+        shuffle=False,
         num_workers=4,
         collate_fn=collate_fn
     )
@@ -65,40 +74,55 @@ if __name__ == '__main__':
 
     # load model
     try:
-        enc_model.load_state_dict(torch.load(os.path.join(data_dir, 'attn_model1.pth')))
-        dec_model.load_state_dict(torch.load(os.path.join(data_dir, 'dec_model1.pth')))
+        enc_model.load_state_dict(torch.load(os.path.join(data_dir, 'enc_model.pth')))
+        dec_model.load_state_dict(torch.load(os.path.join(data_dir, 'dec_model.pth')))
         print("Pretrained model loaded successfully.")
     except:
         print("No pretrained model found.")
 
-    optimizer = torch.optim.Adam([{'params': enc_model.parameters(), 'lr': 1e-4}, 
-                                  {'params': dec_model.parameters(), 'lr': 1e-3}])
+    optimizer = torch.optim.Adam([{'params': enc_model.parameters(), 'lr': 1e-4, 'weight_decay': 1e-4}, 
+                                  {'params': dec_model.parameters(), 'lr': 1e-3, 'weight_decay': 1e-4}])
     
     if training_mode:
-        # set models to training mode
-        enc_model.train()
-        dec_model.train()
-
+        train_loss_log = []
+        val_loss_log = []
         timestamp = int(time.time())
-        loss_log = []
         for epoch in range(EPOCHS):
-            print(f"Epoch {epoch+1}/{EPOCHS}:")
-            loss = train_attention(enc_model, dec_model, optimizer, data_loader, device=DEVICE, clip_grad=1.0) 
-            loss_log.append(loss)
-            print(f"Epoch {epoch+1}: loss = {loss:.4f}")
+            # set models to training mode
+            enc_model.train()
+            dec_model.train()
+
+            train_loss = train_attention(enc_model, dec_model, optimizer, train_loader, device=DEVICE, clip_grad=1.0) 
+            train_loss_log.append(train_loss)
+            print(f"Epoch {epoch+1}: train loss = {train_loss:.4f}")
+
+            # Set models to evaluation mode
+            if epoch % 10 == 0 or epoch == EPOCHS - 1:
+                enc_model.eval()
+                dec_model.eval()
+                with torch.no_grad():
+                    val_loss = eval_attention(enc_model, dec_model, val_loader, device=DEVICE)
+                val_loss_log.append(val_loss)
+                print(f"Epoch {epoch+1}: val loss = {val_loss:.4f}")
 
         time_cost = int(time.time()) - timestamp
         print("Total time: {}min {:.2f}s".format(time_cost // 60, time_cost % 60))
 
         # plot loss
-        plt.plot(loss_log, 'b-', linewidth=1)
+        plt.plot(train_loss_log, 'b-', linewidth=1)
         plt.xlabel('Epoch')
         plt.ylabel('Loss')
-        plt.savefig(os.path.join(data_dir, 'attn_loss.png'))
+        plt.savefig(os.path.join(data_dir, 'train_loss.png'))
+        plt.close()
+
+        plt.plot(val_loss_log, 'b-', linewidth=1)
+        plt.xlabel('Epoch')
+        plt.ylabel('Loss')
+        plt.savefig(os.path.join(data_dir, 'val_loss.png'))
         plt.close()
         
         # save model
-        torch.save(enc_model.state_dict(), os.path.join(data_dir, 'attn_model.pth'))
+        torch.save(enc_model.state_dict(), os.path.join(data_dir, 'enc_model.pth'))
         torch.save(dec_model.state_dict(), os.path.join(data_dir, 'dec_model.pth'))
     
     else:
@@ -106,5 +130,5 @@ if __name__ == '__main__':
         enc_model.eval()
         dec_model.eval()
 
-        accuracy = eval_attention(enc_model, dec_model, data_loader, device=DEVICE)
+        accuracy = eval_attention(enc_model, dec_model, val_loader, device=DEVICE)
         print("Accuracy: {:.4f}".format(accuracy))
