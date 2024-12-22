@@ -17,11 +17,11 @@ import torch.optim.lr_scheduler as lr_scheduler
 
 
 # hyperparameters
-EMBEDDING_DIM = 64
+EMBEDDING_DIM = 128
 HIDDEN_DIM = 128
-NUM_HEADS = 4
+NUM_HEADS = 8
 BATCH_SIZE = 64
-EPOCHS = 600
+EPOCHS = 400
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 random.seed(42)
@@ -75,27 +75,28 @@ if __name__ == '__main__':
 
     # load model
     try:
-        enc_model.load_state_dict(torch.load(os.path.join(data_dir, 'enc_model.pth')))
-        dec_model.load_state_dict(torch.load(os.path.join(data_dir, 'dec_model.pth')))
+        enc_model.load_state_dict(torch.load(os.path.join(data_dir, 'enc_model1.pth')))
+        dec_model.load_state_dict(torch.load(os.path.join(data_dir, 'dec_model1.pth')))
         print("Pretrained model loaded successfully.")
     except:
         print("No pretrained model found.")
 
-    optimizer = torch.optim.Adam([{'params': enc_model.parameters(), 'lr': 1e-3, 'weight_decay': 1e-4}, 
-                                  {'params': dec_model.parameters(), 'lr': 1e-2, 'weight_decay': 1e-4}])
+    optimizer = torch.optim.Adam([{'params': enc_model.parameters(), 'lr': 1e-3}, 
+                                  {'params': dec_model.parameters(), 'lr': 1e-3}], weight_decay=1e-5)
     
-    scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5)
+    scheduler = lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=50, T_mult=2)
 
     if training_mode:
         train_loss_log = []
         val_loss_log = []
+        lr_log = []
         timestamp = int(time.time())
         for epoch in range(EPOCHS):
             # set models to training mode
             enc_model.train()
             dec_model.train()
 
-            train_loss = train_attention(enc_model, dec_model, optimizer, train_loader, device=DEVICE, clip_grad=1.0) 
+            train_loss = train_attention(enc_model, dec_model, optimizer, train_loader, device=DEVICE, clip_grad=5.0) 
             train_loss_log.append(train_loss)
             print(f"Epoch {epoch+1}: train loss = {train_loss:.4f}")
 
@@ -105,16 +106,23 @@ if __name__ == '__main__':
                 dec_model.eval()
                 with torch.no_grad():
                     val_loss = eval_attention(enc_model, dec_model, val_loader, device=DEVICE)
-                scheduler.step(val_loss)  # adjust learning rate based on validation loss
-                val_loss_log.append(val_loss)
-                print(f"Epoch {epoch+1}: val loss = {val_loss:.4f}")
+                    val_loss_log.append(val_loss)
+                    print(f"Epoch {epoch+1}: val loss = {val_loss:.4f}")
+
+            # Adjust learning rate
+            scheduler.step()  
 
             # Log learning rates
             for param_group in optimizer.param_groups:
-                print(f"Epoch {epoch+1}: Learning rate = {param_group['lr']}")
+                lr_log.append(param_group['lr'])
+            print(f"Epoch {epoch+1}: Learning rate = {param_group['lr']}")
 
         time_cost = int(time.time()) - timestamp
         print("Total time: {}min {:.2f}s".format(time_cost // 60, time_cost % 60))
+
+        # save model
+        torch.save(enc_model.state_dict(), os.path.join(data_dir, 'enc_model.pth'))
+        torch.save(dec_model.state_dict(), os.path.join(data_dir, 'dec_model.pth'))
 
         # plot loss
         plt.plot(train_loss_log, 'b-', linewidth=1)
@@ -129,9 +137,11 @@ if __name__ == '__main__':
         plt.savefig(os.path.join(data_dir, 'val_loss.png'))
         plt.close()
         
-        # save model
-        torch.save(enc_model.state_dict(), os.path.join(data_dir, 'enc_model.pth'))
-        torch.save(dec_model.state_dict(), os.path.join(data_dir, 'dec_model.pth'))
+        plt.plot(lr_log, 'b-', linewidth=1)
+        plt.xlabel('Epoch')
+        plt.ylabel('Learning Rate')
+        plt.savefig(os.path.join(data_dir, 'lr.png'))
+        plt.close()
     
     else:
         # Set models to evaluation mode
