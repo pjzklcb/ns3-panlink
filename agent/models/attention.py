@@ -169,8 +169,8 @@ def train_attention(enc_model, dec_model, optimizer, data_loader, device='cpu', 
         key_padding_mask = key_padding_mask.to(device)
         min_neighbor_backoff = min_neighbor_backoff.to(device)
 
-        # Convert min_neighbor_backoff to binary
-        min_neighbor_backoff[min_neighbor_backoff > 0] = 1.0
+        # Convert min_neighbor_backoff to soft label
+        y_true = torch.exp(-0.5*min_neighbor_backoff)
 
         # Zero gradients
         optimizer.zero_grad()
@@ -183,7 +183,7 @@ def train_attention(enc_model, dec_model, optimizer, data_loader, device='cpu', 
         
         # use BCE as loss function
         criterion = nn.BCELoss()
-        loss = criterion(y_pred, min_neighbor_backoff.unsqueeze(1))
+        loss = criterion(y_pred, y_true.unsqueeze(1))
 
         # Backward pass
         loss.backward()
@@ -227,8 +227,8 @@ def eval_attention(enc_model, dec_model, data_loader, device='cpu'):
         key_padding_mask = key_padding_mask.to(device)
         min_neighbor_backoff = min_neighbor_backoff.to(device)
 
-        # Convert min_neighbor_backoff to binary
-        min_neighbor_backoff[min_neighbor_backoff > 0] = 1.0
+        # Convert min_neighbor_backoff to soft label
+        y_true = torch.exp(-0.5*min_neighbor_backoff)
 
         # get the embeddings
         embeddings = enc_model(neighbor_features, self_features, key_padding_mask)
@@ -238,7 +238,7 @@ def eval_attention(enc_model, dec_model, data_loader, device='cpu'):
 
         # use BCE as loss function
         criterion = nn.BCELoss()
-        loss = criterion(y_pred, min_neighbor_backoff.unsqueeze(1))
+        loss = criterion(y_pred, y_true.unsqueeze(1))
 
         total_loss += loss.item()
 
