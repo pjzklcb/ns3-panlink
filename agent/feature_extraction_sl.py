@@ -17,10 +17,10 @@ import torch.optim.lr_scheduler as lr_scheduler
 
 
 # hyperparameters
-EMBED_DIM = 128
-HIDDEN_DIM = 256
-NUM_HEADS = 8
-NUM_LAYERS = 4
+EMBED_DIM = 64
+HIDDEN_DIM = 128
+NUM_HEADS = 4
+NUM_LAYERS = 2
 BATCH_SIZE = 64
 EPOCHS = 200
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -39,15 +39,15 @@ if __name__ == '__main__':
                               'n_sending', 'n_acked', 
                               'n_tx_data', 'n_acked_data', 
                               'last_tx_delay', 'last_txok_delay', 'chan_util', 
-                              'app_interval_mean', 'app_interval_std', 'app_interval_min', 
-                              'app_interval_max', 'tx_interval_mean', 'tx_interval_std', 
-                              'tx_interval_min', 'tx_interval_max', 'tx_duration_mean', 
-                              'tx_duration_std', 'tx_duration_min', 'tx_duration_max']
+                              'app_interval_mean', 'app_interval_std', 'app_interval_min', 'app_interval_max', 
+                              'tx_interval_mean', 'tx_interval_std', 'tx_interval_min', 'tx_interval_max', 
+                            #   'tx_duration_mean', 'tx_duration_std', 'tx_duration_min', 'tx_duration_max'
+                              ]
     selected_neighbor_features = ['role', 'n_tx_data', 'n_acked_data', 'last_tx_delay', 
                                   'last_txok_delay', 'chan_util', 'mean_rssi', 
-                                  'tx_interval_mean', 'tx_interval_std', 'tx_interval_min', 
-                                  'tx_interval_max', 'tx_duration_mean', 'tx_duration_std', 
-                                  'tx_duration_min', 'tx_duration_max']
+                                  'tx_interval_mean', 'tx_interval_std', 'tx_interval_min', 'tx_interval_max', 
+                                #   'tx_duration_mean', 'tx_duration_std', 'tx_duration_min', 'tx_duration_max'
+                                  ]
     training_mode = True
 
     train_dataset = HDF5Dataset(train_file, selected_self_features, selected_neighbor_features)
@@ -68,7 +68,7 @@ if __name__ == '__main__':
     )
 
     # create model
-    # enc_model = ImprovedAttentionExtractor(neighbor_dim=len(selected_neighbor_features),
+    # enc_model = AttentionFeatureExtractor(neighbor_dim=len(selected_neighbor_features),
     #                                        self_dim=len(selected_self_features),
     #                                        output_dim=EMBED_DIM,
     #                                        num_heads=NUM_HEADS).to(DEVICE)
