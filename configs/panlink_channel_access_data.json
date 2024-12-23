@@ -1,0 +1,196 @@
+{
+    "nodes": [
+        {
+            "id": 0,
+            "type": "ap",
+            "position": {
+                "x": 3.0,
+                "y": 0.0,
+                "z": 1.5
+            },
+            "channel": 42,
+            "bandwidth": 80,
+            "applications": [
+                {
+                    "name": "ping",
+                    "dst": 1,
+                    "qos": "VO",
+                    "start_time": 0.5,
+                    "end_time": 0.8
+                },
+                {
+                    "name": "mobile_gaming_frame_sync_dl",
+                    "dst": 1,
+                    "qos": "BE",
+                    "start_time": 1.0,
+                    "end_time": 100.0
+                },
+                {
+                    "name": "ping",
+                    "dst": 2,
+                    "qos": "VO",
+                    "start_time": 0.5,
+                    "end_time": 0.8
+                },
+                {
+                    "name": "mobile_gaming_frame_sync_dl",
+                    "dst": 2,
+                    "qos": "BE",
+                    "start_time": 1.0,
+                    "end_time": 100.0
+                },
+                {
+                    "name": "ping",
+                    "dst": 3,
+                    "qos": "VO",
+                    "start_time": 0.5,
+                    "end_time": 0.8
+                },
+                {
+                    "name": "mobile_gaming_frame_sync_dl",
+                    "dst": 3,
+                    "qos": "BE",
+                    "start_time": 1.0,
+                    "end_time": 100.0
+                },
+                {
+                    "name": "ping",
+                    "dst": 4,
+                    "qos": "VO",
+                    "start_time": 0.5,
+                    "end_time": 0.8
+                },
+                {
+                    "name": "mobile_gaming_frame_sync_dl",
+                    "dst": 4,
+                    "qos": "BE",
+                    "start_time": 1.0,
+                    "end_time": 100.0
+                }
+            ],
+            "agents": []
+        },
+        {
+            "id": 1,
+            "type": "panlink_sta",
+            "position": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 1.5
+            },
+            "channel": 42,
+            "bandwidth": 80,
+            "applications": [
+                {
+                    "name": "ping",
+                    "dst": 0,
+                    "qos": "VO",
+                    "start_time": 0.5,
+                    "end_time": 0.8
+                },
+                {
+                    "name": "mobile_gaming_frame_sync_ul",
+                    "dst": 0,
+                    "qos": "BE",
+                    "start_time": 1.0,
+                    "end_time": 100.0
+                }
+            ],
+            "agents": [
+                {
+                    "type": "channel_access",
+                    "period": 0.0,
+                    "enable_learning": false,
+                    "pretrained_model": [
+                        "RL_CHANNEL_ACCESS_actor.pt",
+                        "RL_CHANNEL_ACCESS_critic.pt"
+                    ]
+                }
+            ]
+        },
+        {
+            "id": 2,
+            "type": "sta",
+            "position": {
+                "x": 3.0,
+                "y": 3.0,
+                "z": 1.5
+            },
+            "channel": 42,
+            "bandwidth": 80,
+            "applications": [
+                {
+                    "name": "ping",
+                    "dst": 0,
+                    "qos": "VO",
+                    "start_time": 0.5,
+                    "end_time": 0.8
+                },
+                {
+                    "name": "mobile_gaming_frame_sync_ul",
+                    "dst": 0,
+                    "qos": "BE",
+                    "start_time": 1.0,
+                    "end_time": 100.0
+                }
+            ],
+            "agents": []
+        },
+        {
+            "id": 3,
+            "type": "sta",
+            "position": {
+                "x": 3.0,
+                "y": -3.0,
+                "z": 1.5
+            },
+            "channel": 42,
+            "bandwidth": 80,
+            "applications": [
+                {
+                    "name": "ping",
+                    "dst": 0,
+                    "qos": "VO",
+                    "start_time": 0.5,
+                    "end_time": 0.8
+                },
+                {
+                    "name": "mobile_gaming_frame_sync_ul",
+                    "dst": 0,
+                    "qos": "BE",
+                    "start_time": 1.0,
+                    "end_time": 100.0
+                }
+            ],
+            "agents": []
+        },
+        {
+            "id": 4,
+            "type": "sta",
+            "position": {
+                "x": 6.0,
+                "y": 0.0,
+                "z": 1.5
+            },
+            "channel": 42,
+            "bandwidth": 80,
+            "applications": [
+                {
+                    "name": "ping",
+                    "dst": 0,
+                    "qos": "VO",
+                    "start_time": 0.5,
+                    "end_time": 0.8
+                },
+                {
+                    "name": "mobile_gaming_frame_sync_ul",
+                    "dst": 0,
+                    "qos": "BE",
+                    "start_time": 1.0,
+                    "end_time": 100.0
+                }
+            ],
+            "agents": []
+        }
+    ]
+}
