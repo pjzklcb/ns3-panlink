@@ -174,16 +174,17 @@ if __name__ == '__main__':
     #       f"neighbor_mean: {neighbor_mean}, \n neighbor_std: {neighbor_std}, \n"
     #       f"total_samples: {total_samples}")
 
-    file_path = os.path.dirname(os.path.abspath(__file__)) + "/data-1734947331.h5"
-    selected_self_features = ['cw', #'n_defer_access', 'n_waited_slots', 
-                            #   'n_in_queue', 'n_sending', 'n_acked', 'n_rx_drop', 
+    file_path = os.path.dirname(os.path.abspath(__file__)) + "/data-1734690536.h5"
+    selected_self_features = [#'cw', 'n_defer_access', 'n_waited_slots', 
+                            #   'n_in_queue', 'n_sending', 'n_acked', 
+                            'n_rx_drop', 
                             #   'n_tx_data', 'n_acked_data', 
                             #   'last_tx_delay', 'last_txok_delay', 'chan_util', 
                             #   'app_interval_mean', 'app_interval_std', 'app_interval_min', 'app_interval_max',
                             #   'tx_interval_mean', 'tx_interval_std', 'tx_interval_min', 'tx_interval_max', 
                             #   'tx_duration_mean', 'tx_duration_std', 'tx_duration_min', 'tx_duration_max'
                               ]
-    selected_neighbor_features = ['role', #'n_tx_data', 'n_acked_data', 'last_tx_delay', 
+    selected_neighbor_features = ['role', 'n_tx_data', 'n_acked_data', 'last_tx_delay', 
                                 #   'last_txok_delay', 'chan_util', 'mean_rssi', 
                                 #   'tx_interval_mean', 'tx_interval_std', 'tx_interval_min', 'tx_interval_max', 
                                 #   'tx_duration_mean', 'tx_duration_std', 'tx_duration_min', 'tx_duration_max'
@@ -192,9 +193,9 @@ if __name__ == '__main__':
     dataset = HDF5Dataset(file_path, selected_self_features, selected_neighbor_features, normalize=False)
     data_loader = DataLoader(
         dataset,
-        batch_size=8,
+        batch_size=32,
         shuffle=False,
-        num_workers=1,
+        num_workers=4,
         collate_fn=collate_fn
     )
 
@@ -209,11 +210,11 @@ if __name__ == '__main__':
     #     print("Min Neighbor Backoffs Shape:", min_neighbor_backoffs.shape)
     
     # analyze dataset
-    feature = []
-    for _, selected_neighbor_features, _, _ in data_loader:
-        batch_feature = selected_neighbor_features.view(-1)
-        feature.extend(batch_feature.tolist())
+    feature_list = []
+    for feature, _, _, _ in data_loader:
+        batch_feature = feature.view(-1)
+        feature_list.extend(batch_feature.tolist())
     
     plt.figure()
-    plt.hist(feature, bins=20)
+    plt.hist(feature_list, bins=20)
     plt.show()
