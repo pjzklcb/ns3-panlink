@@ -156,6 +156,10 @@ def train_attention(enc_model, dec_model, optimizer, data_loader, device='cpu', 
     :param clip_grad: Optional maximum gradient norm for gradient clipping.
     :return: List of average chamfer distance loss values for each epoch.
     """
+    # set to training mode
+    enc_model.train()
+    dec_model.train()
+    
     epoch_loss = 0
     num_batches = math.ceil(len(data_loader.dataset) / data_loader.batch_size)
     for batch_idx, (self_features, neighbor_features, key_padding_mask, min_neighbor_backoff) in enumerate(data_loader):
@@ -210,6 +214,10 @@ def eval_attention(enc_model, dec_model, data_loader, device='cpu'):
     :param device: Device to use ('cpu' or 'cuda').
     :return: the average loss over the test set
     """
+    # set to evaluation mode
+    enc_model.eval()
+    dec_model.eval()
+    
     total_loss = 0
     num_batches = math.ceil(len(data_loader.dataset) / data_loader.batch_size)
     for batch_idx, (self_features, neighbor_features, key_padding_mask, min_neighbor_backoff) in enumerate(data_loader):
@@ -247,6 +255,10 @@ def accuracy_attention(enc_model, dec_model, data_loader, device='cpu'):
     :param device: Device to use ('cpu' or 'cuda').
     :return: the accuracy over the test set
     """
+    # set to evaluation mode
+    enc_model.eval()
+    dec_model.eval()
+
     accuracy = 0
     num_batches = math.ceil(len(data_loader.dataset) / data_loader.batch_size)
     for batch_idx, (self_features, neighbor_features, key_padding_mask, min_neighbor_backoff) in enumerate(data_loader):

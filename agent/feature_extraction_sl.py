@@ -99,18 +99,12 @@ if __name__ == '__main__':
         lr_log = []
         timestamp = int(time.time())
         for epoch in range(EPOCHS):
-            # set models to training mode
-            enc_model.train()
-            dec_model.train()
-
             train_loss = train_attention(enc_model, dec_model, optimizer, train_loader, device=DEVICE, clip_grad=5.0) 
             train_loss_log.append(train_loss)
             print(f"Epoch {epoch+1}: train loss = {train_loss:.4f}")
 
             # Set models to evaluation mode
             if epoch % 10 == 0 or epoch == EPOCHS - 1:
-                enc_model.eval()
-                dec_model.eval()
                 with torch.no_grad():
                     val_loss = eval_attention(enc_model, dec_model, val_loader, device=DEVICE)
                     val_loss_log.append(val_loss)
@@ -151,9 +145,6 @@ if __name__ == '__main__':
         plt.close()
     
     else:
-        # Set models to evaluation mode
-        enc_model.eval()
-        dec_model.eval()
-
+        # test the accuracy
         accuracy = eval_attention(enc_model, dec_model, val_loader, device=DEVICE)
         print("Accuracy: {:.4f}".format(accuracy))
