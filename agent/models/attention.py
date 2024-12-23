@@ -89,6 +89,61 @@ class SimpleDecoder(nn.Module):
         return F.sigmoid(self.fc2(x))
 
 
+class TransformerExtractor(nn.Module):
+    def __init__(self, neighbor_dim, self_dim, embed_dim, num_heads, num_layers, hidden_dim, dropout=0.1):
+        super(TransformerExtractor, self).__init__()
+        
+        # 输入特征嵌入
+        self.neighbor_embed = nn.Linear(neighbor_dim, embed_dim)
+        self.self_embed = nn.Linear(self_dim, embed_dim)
+        self.dropout = nn.Dropout(p=dropout)
+        
+        # Transformer Encoder
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=embed_dim, 
+            nhead=num_heads, 
+            dim_feedforward=hidden_dim,
+            dropout=dropout,
+            batch_first=True
+        )
+        self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
+
+    def forward(self, neighbor_features, self_feature, key_padding_mask=None):
+        """
+        neighbor_features: (batch_size, N, neighbor_dim)
+        self_feature: (batch_size, 1, self_dim)
+        key_padding_mask: (batch_size, N), where True indicates padding positions
+        """
+        batch_size, num_neighbors, _ = neighbor_features.shape
+
+        if key_padding_mask is None:
+            key_padding_mask = torch.zeros(batch_size, num_neighbors, 
+                                           dtype=torch.bool,
+                                           device=neighbor_features.device)
+            
+        # get embeddings
+        neighbor_embedded = self.neighbor_embed(neighbor_features)  # (batch_size, N, embed_dim)
+        self_embedded = self.self_embed(self_feature)  # (batch_size, 1, embed_dim)
+        
+        # apply dropout
+        neighbor_embedded = self.dropout(neighbor_embedded)
+        self_embedded = self.dropout(self_embedded)
+        embeddings = torch.cat([self_embedded, neighbor_embedded], dim=1) # (batch_size, N+1, embed_dim)
+        combined_mask = torch.cat(
+            [torch.zeros(batch_size, 1, 
+                         dtype=torch.bool, 
+                         device=key_padding_mask.device), 
+             key_padding_mask], 
+            dim=1
+        )
+
+        # extract features using encoder
+        encoded_output = self.encoder(embeddings, 
+                                      src_key_padding_mask=combined_mask)  # (N, batch_size, embed_dim)
+        
+        return encoded_output[:, 0, :]  # (batch_size, embed_dim)
+
+
 def train_attention(enc_model, dec_model, optimizer, data_loader, device='cpu', clip_grad=None):
     """
     Train the attention-based encoder-decoder model for one step.

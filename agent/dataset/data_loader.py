@@ -165,42 +165,42 @@ def collate_fn(batch):
 
 if __name__ == '__main__':
     # compute the statistics and store them in the dataset
-    # file_path = os.path.dirname(os.path.abspath(__file__)) + "/data-1734690557.h5"
-    # self_mean, self_std, neighbor_mean, neighbor_std, total_samples = compute_and_store_statistics(file_path)
-    # print(f"self_mean: {self_mean}, self_std: {self_std}, "
-    #       f"neighbor_mean: {neighbor_mean}, neighbor_std: {neighbor_std}, "
-    #       f"total_samples: {total_samples}")
+    file_path = os.path.dirname(os.path.abspath(__file__)) + "/data-1734665312.h5"
+    self_mean, self_std, neighbor_mean, neighbor_std, total_samples = compute_and_store_statistics(file_path)
+    print(f"self_mean: {self_mean}, self_std: {self_std}, "
+          f"neighbor_mean: {neighbor_mean}, neighbor_std: {neighbor_std}, "
+          f"total_samples: {total_samples}")
 
-    file_path = os.path.dirname(os.path.abspath(__file__)) + "/data-1734690536.h5"
-    selected_self_features = [#'cw', 'n_defer_access', 'n_waited_slots', 'n_in_queue', 
-                              #'n_sending', 'n_acked', 
-                              'n_tx_data', 'n_acked_data', 
-                              'last_tx_delay', 'last_txok_delay', 'chan_util', 
-                              'app_interval_mean', 'app_interval_std', 'app_interval_min', 
-                              'app_interval_max', 'tx_interval_mean', 'tx_interval_std', 
-                              'tx_interval_min', 'tx_interval_max', 'tx_duration_mean', 
-                              'tx_duration_std', 'tx_duration_min', 'tx_duration_max']
-    selected_neighbor_features = ['role', 'n_tx_data', 'n_acked_data', 'last_tx_delay', 
-                                  'last_txok_delay', 'chan_util', 'mean_rssi', 
-                                  'tx_interval_mean', 'tx_interval_std', 'tx_interval_min', 
-                                  'tx_interval_max', 'tx_duration_mean', 'tx_duration_std', 
-                                  'tx_duration_min', 'tx_duration_max']
+    # file_path = os.path.dirname(os.path.abspath(__file__)) + "/data-1734607299.h5"
+    # selected_self_features = ['cw', 'n_defer_access', 'n_waited_slots', 'n_in_queue', 
+    #                           'n_sending', 'n_acked', 
+    #                           'n_tx_data', 'n_acked_data', 
+    #                           'last_tx_delay', 'last_txok_delay', 'chan_util', 
+    #                           'app_interval_mean', 'app_interval_std', 'app_interval_min', 
+    #                           'app_interval_max', 'tx_interval_mean', 'tx_interval_std', 
+    #                           'tx_interval_min', 'tx_interval_max', 'tx_duration_mean', 
+    #                           'tx_duration_std', 'tx_duration_min', 'tx_duration_max']
+    # selected_neighbor_features = ['role', 'n_tx_data', 'n_acked_data', 'last_tx_delay', 
+    #                               'last_txok_delay', 'chan_util', 'mean_rssi', 
+    #                               'tx_interval_mean', 'tx_interval_std', 'tx_interval_min', 
+    #                               'tx_interval_max', 'tx_duration_mean', 'tx_duration_std', 
+    #                               'tx_duration_min', 'tx_duration_max']
     
-    dataset = HDF5Dataset(file_path, selected_self_features, selected_neighbor_features)
-    data_loader = DataLoader(
-        dataset,
-        batch_size=32,
-        shuffle=True,
-        num_workers=4,
-        collate_fn=collate_fn
-    )
+    # dataset = HDF5Dataset(file_path, selected_self_features, selected_neighbor_features)
+    # data_loader = DataLoader(
+    #     dataset,
+    #     batch_size=8,
+    #     shuffle=False,
+    #     num_workers=4,
+    #     collate_fn=collate_fn
+    # )
 
-    # test data loader
-    for batch_idx, (self_features, padded_neighbors, key_padding_mask, min_neighbor_backoffs) in enumerate(data_loader):
-        if batch_idx >= 10:
-            break
-        print(f"Batch {batch_idx + 1}:")
-        print("Self Features Shape:", self_features.shape)
-        print("Padded Neighbors Shape:", padded_neighbors.shape)
-        print("Key Padding Mask Shape:", key_padding_mask.shape)
-        print("Min Neighbor Backoffs Shape:", min_neighbor_backoffs.shape)
+    # # test data loader
+    # for batch_idx, (self_features, padded_neighbors, key_padding_mask, min_neighbor_backoffs) in enumerate(data_loader):
+    #     if batch_idx >= 1:
+    #         break
+    #     print(f"Batch {batch_idx + 1}:")
+    #     print("Self Features Shape:", self_features.shape)
+    #     print("Padded Neighbors Shape:", padded_neighbors.shape)
+    #     print("Key Padding Mask Shape:", key_padding_mask.shape)
+    #     print("Min Neighbor Backoffs Shape:", min_neighbor_backoffs.shape)
