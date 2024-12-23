@@ -180,6 +180,22 @@ SensingMac::NotifyPhyTxEnd(std::string context, Ptr<const Packet> p)
 }
 
 void
+SensingMac::NotifyPhyRxPpduDrop(std::string context,
+                                Ptr<const WifiPpdu> ppdu,
+                                WifiPhyRxfailureReason reason)
+{
+    NS_LOG_FUNCTION(this << context << ppdu << reason);
+
+    if (reason == UNSUPPORTED_SETTINGS || reason == CHANNEL_SWITCHING || reason == SLEEPING ||
+        reason == POWERED_OFF)
+    {
+        return;
+    }
+    uint8_t linkId = static_cast<uint8_t>(std::stoi(context));
+    m_linkMap[linkId].rxFailTime.push_back({Simulator::Now()});
+}
+
+void
 SensingMac::NotifyAckedMpdu(Ptr<const WifiMpdu> mpdu)
 {
     NS_LOG_FUNCTION(this << mpdu);
@@ -677,7 +693,7 @@ SensingMac::GetNeighborChannelUtil(Mac48Address sta, Time period) const
         NS_ASSERT(packetIt != m_neighborPacketMap.end());
 
         // skip non-data packets and those not in the period
-        if (!packetIt->second.isData || rxEndTime <= prevEnd) 
+        if (!packetIt->second.isData || rxEndTime <= prevEnd)
         {
             continue;
         }
@@ -739,6 +755,7 @@ SensingMac::GetLastAccessInfo(uint8_t linkId)
     }
 
     result.nSendingPackets = m_linkMap[linkId].pendingPackets.size();
+    result.nRxDropPpdus = m_linkMap[linkId].rxFailTime.size();
     for (const auto& uid : m_linkMap[linkId].pendingPackets)
     {
         auto it = m_packetMap.find(uid);
@@ -760,6 +777,7 @@ SensingMac::GetLastAccessInfo(uint8_t linkId)
     }
 
     m_linkMap[linkId].pendingPackets.clear();
+    m_linkMap[linkId].rxFailTime.clear();
 
     return result;
 }

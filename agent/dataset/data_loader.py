@@ -9,6 +9,7 @@ import h5py
 import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
+import matplotlib.pyplot as plt
 
 
 def compute_and_store_statistics(hdf5_file):
@@ -64,12 +65,13 @@ def compute_and_store_statistics(hdf5_file):
 
 
 class HDF5Dataset(Dataset):
-    def __init__(self, hdf5_file, selected_self_features=None, selected_neighbor_features=None):
+    def __init__(self, hdf5_file, selected_self_features=None, selected_neighbor_features=None, normalize=True):
         """
         Initalize the dataset from the HDF5 file.
         """
         self.hdf5_file = hdf5_file
         self.h5f = None # lazy loading
+        self.normalize = normalize
         with h5py.File(hdf5_file, 'r') as f:
             stats = f['statistics']
             self.self_mean = stats['self_mean'][:]
@@ -117,8 +119,9 @@ class HDF5Dataset(Dataset):
         min_neighbor_backoff = group['min_neighbor_backoff'][()]
 
         # normalize
-        self_features = (self_features - self.self_mean) / (self.self_std + 1e-8)
-        neighbor_features = (neighbor_features - self.neighbor_mean) / (self.neighbor_std + 1e-8)
+        if self.normalize:
+            self_features = (self_features - self.self_mean) / (self.self_std + 1e-8)
+            neighbor_features = (neighbor_features - self.neighbor_mean) / (self.neighbor_std + 1e-8)
 
         # pick out selected features
         self_features = self_features[self.selected_self_indices]
@@ -165,42 +168,52 @@ def collate_fn(batch):
 
 if __name__ == '__main__':
     # compute the statistics and store them in the dataset
-    # file_path = os.path.dirname(os.path.abspath(__file__)) + "/data-1734690557.h5"
+    # file_path = os.path.dirname(os.path.abspath(__file__)) + "/data-1734938681.h5"
     # self_mean, self_std, neighbor_mean, neighbor_std, total_samples = compute_and_store_statistics(file_path)
-    # print(f"self_mean: {self_mean}, self_std: {self_std}, "
-    #       f"neighbor_mean: {neighbor_mean}, neighbor_std: {neighbor_std}, "
+    # print(f"self_mean: {self_mean}, \n self_std: {self_std}, \n"
+    #       f"neighbor_mean: {neighbor_mean}, \n neighbor_std: {neighbor_std}, \n"
     #       f"total_samples: {total_samples}")
 
-    file_path = os.path.dirname(os.path.abspath(__file__)) + "/data-1734690536.h5"
-    selected_self_features = [#'cw', 'n_defer_access', 'n_waited_slots', 'n_in_queue', 
-                              #'n_sending', 'n_acked', 
-                              'n_tx_data', 'n_acked_data', 
-                              'last_tx_delay', 'last_txok_delay', 'chan_util', 
-                              'app_interval_mean', 'app_interval_std', 'app_interval_min', 
-                              'app_interval_max', 'tx_interval_mean', 'tx_interval_std', 
-                              'tx_interval_min', 'tx_interval_max', 'tx_duration_mean', 
-                              'tx_duration_std', 'tx_duration_min', 'tx_duration_max']
-    selected_neighbor_features = ['role', 'n_tx_data', 'n_acked_data', 'last_tx_delay', 
-                                  'last_txok_delay', 'chan_util', 'mean_rssi', 
-                                  'tx_interval_mean', 'tx_interval_std', 'tx_interval_min', 
-                                  'tx_interval_max', 'tx_duration_mean', 'tx_duration_std', 
-                                  'tx_duration_min', 'tx_duration_max']
+    file_path = os.path.dirname(os.path.abspath(__file__)) + "/data-1734947331.h5"
+    selected_self_features = ['cw', #'n_defer_access', 'n_waited_slots', 
+                            #   'n_in_queue', 'n_sending', 'n_acked', 'n_rx_drop', 
+                            #   'n_tx_data', 'n_acked_data', 
+                            #   'last_tx_delay', 'last_txok_delay', 'chan_util', 
+                            #   'app_interval_mean', 'app_interval_std', 'app_interval_min', 'app_interval_max',
+                            #   'tx_interval_mean', 'tx_interval_std', 'tx_interval_min', 'tx_interval_max', 
+                            #   'tx_duration_mean', 'tx_duration_std', 'tx_duration_min', 'tx_duration_max'
+                              ]
+    selected_neighbor_features = ['role', #'n_tx_data', 'n_acked_data', 'last_tx_delay', 
+                                #   'last_txok_delay', 'chan_util', 'mean_rssi', 
+                                #   'tx_interval_mean', 'tx_interval_std', 'tx_interval_min', 'tx_interval_max', 
+                                #   'tx_duration_mean', 'tx_duration_std', 'tx_duration_min', 'tx_duration_max'
+                                  ]
     
-    dataset = HDF5Dataset(file_path, selected_self_features, selected_neighbor_features)
+    dataset = HDF5Dataset(file_path, selected_self_features, selected_neighbor_features, normalize=False)
     data_loader = DataLoader(
         dataset,
-        batch_size=32,
-        shuffle=True,
-        num_workers=4,
+        batch_size=8,
+        shuffle=False,
+        num_workers=1,
         collate_fn=collate_fn
     )
 
     # test data loader
-    for batch_idx, (self_features, padded_neighbors, key_padding_mask, min_neighbor_backoffs) in enumerate(data_loader):
-        if batch_idx >= 10:
-            break
-        print(f"Batch {batch_idx + 1}:")
-        print("Self Features Shape:", self_features.shape)
-        print("Padded Neighbors Shape:", padded_neighbors.shape)
-        print("Key Padding Mask Shape:", key_padding_mask.shape)
-        print("Min Neighbor Backoffs Shape:", min_neighbor_backoffs.shape)
+    # for batch_idx, (self_features, padded_neighbors, key_padding_mask, min_neighbor_backoffs) in enumerate(data_loader):
+    #     if batch_idx >= 1:
+    #         break
+    #     print(f"Batch {batch_idx + 1}:")
+    #     print("Self Features Shape:", self_features.shape)
+    #     print("Padded Neighbors Shape:", padded_neighbors.shape)
+    #     print("Key Padding Mask Shape:", key_padding_mask.shape)
+    #     print("Min Neighbor Backoffs Shape:", min_neighbor_backoffs.shape)
+    
+    # analyze dataset
+    feature = []
+    for _, selected_neighbor_features, _, _ in data_loader:
+        batch_feature = selected_neighbor_features.view(-1)
+        feature.extend(batch_feature.tolist())
+    
+    plt.figure()
+    plt.hist(feature, bins=20)
+    plt.show()

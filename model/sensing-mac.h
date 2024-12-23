@@ -73,6 +73,7 @@ class SensingMac : public Object
     {
         std::list<uint64_t> pendingPackets; //!< pending packets
         std::deque<std::pair<uint64_t /* uid */, Time /* tx end time */>> channelUtil;
+        std::list<Time> rxFailTime;
     };
 
     /**
@@ -116,6 +117,16 @@ class SensingMac : public Object
      * @param txPowerW the transmission power
      */
     void NotifyPhyTxEnd(std::string context, Ptr<const Packet> p);
+    /**
+     * Trace the ppdu that is dropped by wifi PHY during reception.
+     *
+     * @param context the string contains link ID
+     * @param ppdu the dropped ppdu
+     * @param reason the drop reason
+     */
+    void NotifyPhyRxPpduDrop(std::string context,
+                             Ptr<const WifiPpdu> ppdu,
+                             WifiPhyRxfailureReason reason);
 
     /**
      * Handles frames comes from WifiMac::m_ackedMpduCallback.
@@ -222,7 +233,10 @@ class SensingMac : public Object
      * @param rssi the RSSI of the frame
      * @param linkId the ID of the link
      */
-    void NotifyFrameInfo(Ptr<const WifiMpdu> mpdu, const WifiMacHeader& hdr, double rssi, uint8_t linkId);
+    void NotifyFrameInfo(Ptr<const WifiMpdu> mpdu,
+                         const WifiMacHeader& hdr,
+                         double rssi,
+                         uint8_t linkId);
 
     /**
      * Record the STA whose last transmission was successful.
@@ -267,6 +281,7 @@ class SensingMac : public Object
         uint32_t nAckedPackets{0};
         uint32_t nLowDelayPackets{0};  // latency <= 10ms
         uint32_t nHighDelayPackets{0}; // latency > 30ms
+        uint32_t nRxDropPpdus{0};
     };
 
     /**
@@ -331,13 +346,13 @@ class SensingMac : public Object
     // self info
     std::map<uint64_t /* uid */, SelfPacketInfo> m_packetMap; //!< packets sent by this STA
     std::map<uint8_t /* link ID */, SelfLinkInfo>
-        m_linkMap; //!< each link's channel utilization of this STA
+        m_linkMap;                                  //!< each link's channel utilization of this STA
     std::map<AcIndex, SelfMacQueueInfo> m_queueMap; //!< queue information of each AC
 
     // neighbor info
     std::map<uint64_t /* uid */, NeighborPacketInfo> m_neighborPacketMap; //!< neighbor packets
     std::unordered_map<Mac48Address, NeighborStaInfo, WifiAddressHash>
-        m_neighborStaMap;                           //!< channel utilization of neighbor STAs
+        m_neighborStaMap; //!< channel utilization of neighbor STAs
 };
 
 } // namespace ns3

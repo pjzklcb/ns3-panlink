@@ -17,11 +17,12 @@ import torch.optim.lr_scheduler as lr_scheduler
 
 
 # hyperparameters
-EMBEDDING_DIM = 128
-HIDDEN_DIM = 256
-NUM_HEADS = 8
+EMBED_DIM = 64
+HIDDEN_DIM = 128
+NUM_HEADS = 4
+NUM_LAYERS = 2
 BATCH_SIZE = 64
-EPOCHS = 400
+EPOCHS = 200
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 random.seed(42)
@@ -32,21 +33,21 @@ torch.cuda.manual_seed(42)
 
 if __name__ == '__main__':
     data_dir = os.path.dirname(os.path.abspath(__file__)) + "/dataset"
-    train_file =  os.path.join(data_dir, "data-1734690536.h5")
-    val_file = os.path.join(data_dir, "data-1734690557.h5")
-    selected_self_features = [#'cw', 'n_defer_access', 'n_waited_slots', 'n_in_queue', 
-                              #'n_sending', 'n_acked', 
+    train_file = os.path.join(data_dir, "data-1734607299.h5")
+    val_file = os.path.join(data_dir, "data-1734591014.h5")
+    selected_self_features = ['cw', 'n_defer_access', 'n_waited_slots', 'n_in_queue', 
+                              'n_sending', 'n_acked', 
                               'n_tx_data', 'n_acked_data', 
                               'last_tx_delay', 'last_txok_delay', 'chan_util', 
-                              'app_interval_mean', 'app_interval_std', 'app_interval_min', 
-                              'app_interval_max', 'tx_interval_mean', 'tx_interval_std', 
-                              'tx_interval_min', 'tx_interval_max', 'tx_duration_mean', 
-                              'tx_duration_std', 'tx_duration_min', 'tx_duration_max']
+                              'app_interval_mean', 'app_interval_std', 'app_interval_min', 'app_interval_max', 
+                              'tx_interval_mean', 'tx_interval_std', 'tx_interval_min', 'tx_interval_max', 
+                            #   'tx_duration_mean', 'tx_duration_std', 'tx_duration_min', 'tx_duration_max'
+                              ]
     selected_neighbor_features = ['role', 'n_tx_data', 'n_acked_data', 'last_tx_delay', 
                                   'last_txok_delay', 'chan_util', 'mean_rssi', 
-                                  'tx_interval_mean', 'tx_interval_std', 'tx_interval_min', 
-                                  'tx_interval_max', 'tx_duration_mean', 'tx_duration_std', 
-                                  'tx_duration_min', 'tx_duration_max']
+                                  'tx_interval_mean', 'tx_interval_std', 'tx_interval_min', 'tx_interval_max', 
+                                #   'tx_duration_mean', 'tx_duration_std', 'tx_duration_min', 'tx_duration_max'
+                                  ]
     training_mode = True
 
     train_dataset = HDF5Dataset(train_file, selected_self_features, selected_neighbor_features)
@@ -67,24 +68,30 @@ if __name__ == '__main__':
     )
 
     # create model
-    enc_model = FullAttentionExtractor(neighbor_dim=len(selected_neighbor_features),
-                                       self_dim=len(selected_self_features),
-                                       output_dim=EMBEDDING_DIM,
-                                       num_heads=NUM_HEADS).to(DEVICE)
-    dec_model = SimpleDecoder(input_dim=2 * EMBEDDING_DIM, hidden_dim=HIDDEN_DIM).to(DEVICE)
+    # enc_model = AttentionFeatureExtractor(neighbor_dim=len(selected_neighbor_features),
+    #                                        self_dim=len(selected_self_features),
+    #                                        output_dim=EMBED_DIM,
+    #                                        num_heads=NUM_HEADS).to(DEVICE)
+    enc_model = TransformerExtractor(neighbor_dim=len(selected_neighbor_features),
+                                     self_dim=len(selected_self_features),
+                                     embed_dim=EMBED_DIM,
+                                     num_heads=NUM_HEADS,
+                                     num_layers=NUM_LAYERS,
+                                     hidden_dim=HIDDEN_DIM).to(DEVICE)
+    dec_model = SimpleDecoder(input_dim=EMBED_DIM, hidden_dim=HIDDEN_DIM).to(DEVICE)
 
     # load model
     try:
-        enc_model.load_state_dict(torch.load(os.path.join(data_dir, 'enc_model1.pth')))
-        dec_model.load_state_dict(torch.load(os.path.join(data_dir, 'dec_model1.pth')))
+        enc_model.load_state_dict(torch.load(os.path.join(data_dir, 'enc_model.pth')))
+        dec_model.load_state_dict(torch.load(os.path.join(data_dir, 'dec_model.pth')))
         print("Pretrained model loaded successfully.")
     except:
         print("No pretrained model found.")
 
-    optimizer = torch.optim.Adam([{'params': enc_model.parameters(), 'lr': 1e-3}, 
-                                  {'params': dec_model.parameters(), 'lr': 1e-3}], weight_decay=1e-4)
+    optimizer = torch.optim.Adam([{'params': enc_model.parameters()}, 
+                                  {'params': dec_model.parameters()}], lr=1e-3, weight_decay=1e-4)
     
-    scheduler = lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=50, T_mult=2)
+    scheduler = lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=30, T_mult=2)
 
     if training_mode:
         train_loss_log = []
@@ -92,7 +99,7 @@ if __name__ == '__main__':
         lr_log = []
         timestamp = int(time.time())
         for epoch in range(EPOCHS):
-            train_loss = train_attention(enc_model, dec_model, optimizer, train_loader, device=DEVICE, clip_grad=1.0) 
+            train_loss = train_attention(enc_model, dec_model, optimizer, train_loader, device=DEVICE, clip_grad=5.0) 
             train_loss_log.append(train_loss)
             print(f"Epoch {epoch+1}: train loss = {train_loss:.4f}")
 
@@ -107,8 +114,8 @@ if __name__ == '__main__':
             scheduler.step()  
 
             # Log learning rates
-            for param_group in optimizer.param_groups:
-                lr_log.append(param_group['lr'])
+            param_group = optimizer.param_groups[0]
+            lr_log.append(param_group['lr'])
             print(f"Epoch {epoch+1}: Learning rate = {param_group['lr']}")
 
         time_cost = int(time.time()) - timestamp
@@ -138,9 +145,6 @@ if __name__ == '__main__':
         plt.close()
     
     else:
-        # Set models to evaluation mode
-        enc_model.eval()
-        dec_model.eval()
-
+        # test the accuracy
         accuracy = eval_attention(enc_model, dec_model, val_loader, device=DEVICE)
         print("Accuracy: {:.4f}".format(accuracy))

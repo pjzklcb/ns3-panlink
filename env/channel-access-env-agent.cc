@@ -68,13 +68,17 @@ ChannelAccessEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, 
 
         // access info
         auto info = sensingMac->GetLastAccessInfo(obs.linkId);
-        env.nInQueuePackets = info.nInQueuePackets;
-        env.nExpiredPackets = info.nExpiredPackets;
-        env.nDroppedPackets = info.nDroppedPackets;
-        env.nSendingPackets = info.nSendingPackets;
-        env.nAckedPackets = info.nAckedPackets;
-        env.nLowDelayPackets = info.nLowDelayPackets;
-        env.nHighDelayPackets = info.nHighDelayPackets;
+        LastAccessObs lastAccessObs{
+            .nInQueuePackets = info.nInQueuePackets,
+            .nExpiredPackets = info.nExpiredPackets,
+            .nDroppedPackets = info.nDroppedPackets,
+            .nSendingPackets = info.nSendingPackets,
+            .nAckedPackets = info.nAckedPackets,
+            .nLowDelayPackets = info.nLowDelayPackets,
+            .nHighDelayPackets = info.nHighDelayPackets,
+            .nRxDropPpdus = info.nRxDropPpdus
+        };
+        env.lastAccessObs = lastAccessObs;
 
         // self link info
         auto selfUtil = sensingMac->GetSelfLinkChannelUtil(obs.period, obs.linkId);
