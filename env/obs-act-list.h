@@ -13,6 +13,21 @@
 #include <cstdint>
 
 /**
+ * The obs collected from the mac on the given link from last interaction.
+ */
+struct LastAccessObs
+{
+    uint32_t nInQueuePackets;
+    uint32_t nExpiredPackets;
+    uint32_t nDroppedPackets;
+    uint32_t nSendingPackets;
+    uint32_t nAckedPackets;
+    uint32_t nLowDelayPackets;
+    uint32_t nHighDelayPackets;
+    uint32_t nRxDropPpdus;
+};
+
+/**
  * The obs collected from the mac on the given link in the last period.
  */
 struct SelfLinkObs
@@ -67,13 +82,7 @@ struct Obs
 
     // self link
     SelfLinkObs selfLinkObs;
-    uint32_t nInQueuePackets;
-    uint32_t nExpiredPackets;
-    uint32_t nDroppedPackets;
-    uint32_t nSendingPackets;
-    uint32_t nAckedPackets;
-    uint32_t nLowDelayPackets;
-    uint32_t nHighDelayPackets;
+    LastAccessObs lastAccessObs;
     uint32_t cw;
     uint32_t nDeferredAccess;
     uint32_t waitedSlots;
