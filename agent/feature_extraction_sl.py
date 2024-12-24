@@ -20,7 +20,7 @@ import torch.optim.lr_scheduler as lr_scheduler
 EMBED_DIM = 64
 HIDDEN_DIM = 128
 NUM_HEADS = 4
-NUM_LAYERS = 2
+NUM_LAYERS = 1
 BATCH_SIZE = 64
 EPOCHS = 200
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -33,12 +33,11 @@ torch.cuda.manual_seed(42)
 
 if __name__ == '__main__':
     data_dir = os.path.dirname(os.path.abspath(__file__)) + "/dataset"
-    train_file = os.path.join(data_dir, "data-1734607299.h5")
-    val_file = os.path.join(data_dir, "data-1734591014.h5")
-    selected_self_features = ['cw', 'n_defer_access', 'n_waited_slots', 'n_in_queue', 
-                              'n_sending', 'n_acked', 
-                              'n_tx_data', 'n_acked_data', 
-                              'last_tx_delay', 'last_txok_delay', 'chan_util', 
+    train_file = os.path.join(data_dir, "data-1735005157_norm.h5")
+    val_file = os.path.join(data_dir, "data-1735005131_norm.h5")
+    selected_self_features = ['delta_time', 'cw', 'n_defer_access', 'n_waited_slots', 
+                              'n_in_queue', 'n_sending', 'n_acked', 'n_rx_drop', 
+                              'n_tx_data', 'n_acked_data', 'last_tx_delay', 'last_txok_delay', 'chan_util', 
                               'app_interval_mean', 'app_interval_std', 'app_interval_min', 'app_interval_max', 
                               'tx_interval_mean', 'tx_interval_std', 'tx_interval_min', 'tx_interval_max', 
                             #   'tx_duration_mean', 'tx_duration_std', 'tx_duration_min', 'tx_duration_max'
