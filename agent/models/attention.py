@@ -224,7 +224,7 @@ def train_attention(enc_model, dec_model, optimizer, data_loader, device='cpu', 
         min_neighbor_backoff = min_neighbor_backoff.to(device)
 
         # Convert min_neighbor_backoff to soft label
-        y_true = torch.exp(-0.5*min_neighbor_backoff)
+        y_true = torch.exp(-min_neighbor_backoff)
 
         # Zero gradients
         optimizer.zero_grad()
@@ -282,7 +282,7 @@ def eval_attention(enc_model, dec_model, data_loader, device='cpu'):
         min_neighbor_backoff = min_neighbor_backoff.to(device)
 
         # Convert min_neighbor_backoff to soft label
-        y_true = torch.exp(-0.5*min_neighbor_backoff)
+        y_true = torch.exp(-min_neighbor_backoff)
 
         # get the embeddings
         embeddings = enc_model(neighbor_features, self_features, key_padding_mask)
