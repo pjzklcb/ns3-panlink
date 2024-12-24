@@ -146,5 +146,5 @@ if __name__ == '__main__':
     
     else:
         # test the accuracy
-        accuracy = eval_attention(enc_model, dec_model, val_loader, device=DEVICE)
+        accuracy = accuracy_attention(enc_model, dec_model, val_loader, device=DEVICE)
         print("Accuracy: {:.4f}".format(accuracy))

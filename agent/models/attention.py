@@ -331,7 +331,7 @@ def accuracy_attention(enc_model, dec_model, data_loader, device='cpu'):
         y_pred = dec_model(embeddings)
 
         # judge if do the correct classification
-        y_pred = (y_pred > 0.5).int().squeeze()
+        y_pred = (y_pred < 0.5).int().squeeze()
 
         accuracy += (y_pred == min_neighbor_backoff).sum().item()
 

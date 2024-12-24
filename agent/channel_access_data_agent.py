@@ -78,7 +78,7 @@ class ChannelAccessRlAgent(RlAgent):
         super().__init__(node_id, memory_id, enable_learning)
         self.agent_type = AgentType.RL_CHANNEL_ACCESS
 
-        state_size = 24
+        state_size = 25
         self.action_size = 4
         self.model = DDQN(state_size, self.action_size, hidden_size=HIDDEN_SIZE, 
                          batch_size=BATCH_SIZE, gamma=GAMMA, 
@@ -136,7 +136,8 @@ class ChannelAccessRlAgent(RlAgent):
         msg_interface.GetPy2CppVector()[self.memory_id].backoff = self.backoff
     
     def choose_action(self):
-        a_cw = math.log(self.access_info.cw + 1, 2)
+        a_dt = self.delta_time
+        a_cw = self.access_info.cw
         a_da = self.access_info.n_deferred_access
         a_nw = self.access_info.n_waited_slot
         a_nq = self.access_info.n_in_queue
@@ -170,7 +171,7 @@ class ChannelAccessRlAgent(RlAgent):
                   f"\t n_rx_drop={a_nrd}, n_neighbor={self.n_neighbor}, n_contention={self.n_contention}, "
                   f"min_neighbor_backoff={self.min_neighbor_backoff}")
 
-        self_features = [a_cw, a_da, a_nw, a_nq, a_ns, a_na, a_nrd] + [l_ns, l_na, l_td, l_ad, l_cu] + \
+        self_features = [a_dt, a_cw, a_da, a_nw, a_nq, a_ns, a_na, a_nrd] + [l_ns, l_na, l_td, l_ad, l_cu] + \
             l_ai + l_tis + l_tus
         
         neighbor_features = []
@@ -197,7 +198,7 @@ class ChannelAccessRlAgent(RlAgent):
         # normalize the obs
         if len(neighbor_features) != 0:
             # save to dataset
-            self_feature_names = ['cw', 'n_defer_access', 'n_waited_slots', 'n_in_queue', 
+            self_feature_names = ['delta_time', 'cw', 'n_defer_access', 'n_waited_slots', 'n_in_queue', 
                                 'n_sending', 'n_acked', 'n_rx_drop', 'n_tx_data', 'n_acked_data', 
                                 'last_tx_delay', 'last_txok_delay', 'chan_util', 
                                 'app_interval_mean', 'app_interval_std', 'app_interval_min', 
