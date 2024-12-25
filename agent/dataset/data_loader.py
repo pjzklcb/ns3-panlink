@@ -15,6 +15,117 @@ import pandas as pd
 from concurrent.futures import ProcessPoolExecutor
 
 
+def dataset_transform(hdf5_file, epsilon=1e-8):
+    """
+    Change the format of the dataset and store them in a new HDF5.
+    """
+    output_file = hdf5_file.replace('.h5', '_trans.h5')
+
+    with h5py.File(hdf5_file, 'r') as f:
+        self_feature_name = f['step_0/self_features'].attrs.get('feature_names')
+        neighbor_feature_name = f['step_0/neighbor_features'].attrs.get('feature_names')
+
+        num_steps = len([key for key in f.keys() if 'step' in key])
+        max_neighbors_per_step = 20 
+        all_self_features = np.zeros((num_steps, len(self_feature_name)))
+        all_neighbor_features = np.zeros((num_steps * max_neighbors_per_step, len(neighbor_feature_name)))
+
+        neighbor_feature_idx = np.zeros((num_steps, 2), dtype=int)
+        min_neighbor_backoff = np.zeros(num_steps)
+        cnt = 0
+        valid_num_steps = 0
+        for step in f.keys():
+            if 'step' not in step:
+                continue
+            group = f[step]
+            self_features = group['self_features'][:]
+            neighbor_features = group['neighbor_features'][:]
+
+            # skip the sample with no neighbor
+            if len(neighbor_features) == 0:
+                continue
+            
+            all_self_features[valid_num_steps] = self_features
+            all_neighbor_features[cnt:cnt+len(neighbor_features)] = neighbor_features
+            neighbor_feature_idx[valid_num_steps] = [cnt, cnt+len(neighbor_features)]
+            min_neighbor_backoff[valid_num_steps] = group['min_neighbor_backoff'][()]
+
+            cnt += len(neighbor_features)
+            valid_num_steps += 1
+
+        all_neighbor_features = all_neighbor_features[:cnt]
+
+        s_df = pd.DataFrame(all_self_features, columns=self_feature_name)
+        n_df = pd.DataFrame(all_neighbor_features, columns=neighbor_feature_name)
+
+        # preprocessing
+        tx_range = s_df['tx_interval_max'] - s_df['tx_interval_min']
+        self_data = {
+            # self only features
+            'delta_time': np.log(1 + s_df['delta_time']),
+            'cw': np.log2(1 + s_df['cw']) / 10,
+            'n_defer_access': np.minimum(s_df['n_defer_access'] / (s_df['cw'] + 1), 1),
+            'n_waited_slots': np.minimum(s_df['n_waited_slots'] / (s_df['cw'] + 1), 1),
+            'n_in_queue': s_df['n_in_queue'],
+            'n_sending': s_df['n_sending'],
+            'n_acked': s_df['n_acked'] / (s_df['n_sending'] + epsilon),
+            'n_rx_drop': np.log(1 + s_df['n_rx_drop']/(s_df['delta_time'] + epsilon)),
+
+            'n_tx_data': s_df['n_tx_data'],
+            'n_acked_data': s_df['n_acked_data'] / (s_df['n_tx_data'] + epsilon),
+            'last_txok_delay': np.log(1 + s_df['last_txok_delay']),
+            'chan_util': s_df['chan_util'],
+            'tx_interval_mean': np.log(1 + s_df['tx_interval_mean']),
+            'tx_interval_std': np.log(1 + s_df['tx_interval_std']),
+            'tx_prob': np.where(
+                s_df['tx_interval_mean'] > 0, np.log2(1 + s_df['last_txok_delay']/s_df['tx_interval_mean']), -1
+            ),
+            'tx_range_to_mean': tx_range / (s_df['tx_interval_mean'] + epsilon),
+            'tx_cv': s_df['tx_interval_std'] / (s_df['tx_interval_mean'] + epsilon),
+            'tx_center_position': (s_df['tx_interval_mean'] - s_df['tx_interval_min']) / (tx_range + epsilon),
+        }
+
+        tx_range = n_df['tx_interval_max'] - n_df['tx_interval_min']
+        neighbor_data = {
+            'n_tx_data': n_df['n_tx_data'],
+            'n_acked_data': n_df['n_acked_data'] / (n_df['n_tx_data'] + epsilon),
+            'last_txok_delay': np.log(1 + n_df['last_txok_delay']),
+            'chan_util': n_df['chan_util'],
+            'tx_interval_mean': np.log(1 + n_df['tx_interval_mean']),
+            'tx_interval_std': np.log(1 + n_df['tx_interval_std']),
+            'tx_prob': np.where(
+                n_df['tx_interval_mean'] > 0, np.log2(1 + n_df['last_txok_delay']/n_df['tx_interval_mean']), -1
+            ),
+            'tx_range_to_mean': tx_range / (n_df['tx_interval_mean'] + epsilon),
+            'tx_cv': n_df['tx_interval_std'] / (n_df['tx_interval_mean'] + epsilon),
+            'tx_center_position': (n_df['tx_interval_mean'] - n_df['tx_interval_min']) / (tx_range + epsilon),
+        }
+
+        # normalization
+        s_df_extend = pd.DataFrame(self_data)
+        n_df_extend = pd.DataFrame(neighbor_data)
+
+        self_only_name = ['delta_time', 'n_in_queue', 'n_sending', 'n_rx_drop']
+        common_name = ['n_tx_data', 'last_txok_delay', 'chan_util', 'tx_interval_mean', 
+                       'tx_interval_std', 'tx_prob', 'tx_range_to_mean', 'tx_cv']
+        s_df_extend[self_only_name] = s_df_extend[self_only_name] / (s_df_extend[self_only_name].max() + epsilon)
+        column_max = np.maximum(s_df_extend[common_name].max(), n_df_extend[common_name].max())
+        s_df_extend[common_name] = s_df_extend[common_name] / (column_max + epsilon)
+        n_df_extend[common_name] = n_df_extend[common_name] / (column_max + epsilon)
+    
+    # save to new hdf5 file
+    with h5py.File(output_file, 'w') as o:
+        # create dataset
+        o.create_dataset('self_features', data=s_df_extend.to_numpy()) # (total_samples, selected_self_dim)
+        o.create_dataset('neighbor_features', data=n_df_extend.to_numpy()) # (total_samples, N*selected_neighbor_dim)
+        o.create_dataset('neighbor_feature_idx', data=neighbor_feature_idx) # (total_samples, 2)
+        o.create_dataset('min_neighbor_backoff', data=min_neighbor_backoff) # (total_samples,)
+        o['self_features'].attrs['feature_names'] = s_df_extend.columns.tolist()
+        o['neighbor_features'].attrs['feature_names'] = n_df_extend.columns.tolist()
+
+    print('Dataset transformation done.')
+
+
 def preprocess_step(hdf5_file, step, self_feature_name, neighbor_feature_name, 
                     self_time_names, time_feature_names, stats, epsilon):
     """
@@ -296,69 +407,69 @@ def collate_fn(batch):
 
 if __name__ == '__main__':
     # preprocess features and store them in a new dataset
-    # tic = time.time()
-    # file_path = os.path.dirname(os.path.abspath(__file__)) + "/data-1735013020.h5"
-    # preprocess_and_store_statistics(file_path)
-    # toc = time.time() - tic
-    # print(f"Cost {toc // 60}min {toc % 60}s")
+    tic = time.time()
+    file_path = os.path.dirname(os.path.abspath(__file__)) + "/data-1735005157.h5"
+    dataset_transform(file_path)
+    toc = time.time() - tic
+    print(f"Cost {toc // 60}min {toc % 60}s")
 
-    file_path = os.path.dirname(os.path.abspath(__file__)) + "/data-1735047611.h5"
-    selected_self_features = [#'delta_time', 'cw', 'n_defer_access', 'n_waited_slots', 
-                            #   'n_in_queue', 'n_sending', 'n_acked', 'n_rx_drop', 
-                            #   'n_tx_data', 'n_acked_data', #'last_tx_delay', 
-                            #   'last_txok_delay', 'chan_util', 
-                            #   'app_interval_mean', 'app_interval_std', 'app_interval_min', 'app_interval_max',
-                            #   'tx_interval_mean', 'tx_interval_std', #'tx_interval_min', 'tx_interval_max', 
-                            #   'tx_duration_mean', 'tx_duration_std', 'tx_duration_min', 'tx_duration_max',
-                            #   'tx_prob', 'tx_range_to_mean', 'tx_cv', 
-                            'tx_center_position'
-                              ]
-    selected_neighbor_features = ['role', 'n_tx_data', 'n_acked_data', #'last_tx_delay', 
-                                  'last_txok_delay', 'chan_util', 'mean_rssi', 
-                                  'tx_interval_mean', 'tx_interval_std', #'tx_interval_min', 'tx_interval_max', 
-                                #   'tx_duration_mean', 'tx_duration_std', 'tx_duration_min', 'tx_duration_max',
-                                  'tx_prob', 'tx_range_to_mean', 'tx_cv', 'tx_center_position'
-                                  ]
+    # file_path = os.path.dirname(os.path.abspath(__file__)) + "/data-1735047611.h5"
+    # selected_self_features = [#'delta_time', 'cw', 'n_defer_access', 'n_waited_slots', 
+    #                         #   'n_in_queue', 'n_sending', 'n_acked', 'n_rx_drop', 
+    #                         #   'n_tx_data', 'n_acked_data', #'last_tx_delay', 
+    #                         #   'last_txok_delay', 'chan_util', 
+    #                         #   'app_interval_mean', 'app_interval_std', 'app_interval_min', 'app_interval_max',
+    #                         #   'tx_interval_mean', 'tx_interval_std', #'tx_interval_min', 'tx_interval_max', 
+    #                         #   'tx_duration_mean', 'tx_duration_std', 'tx_duration_min', 'tx_duration_max',
+    #                         #   'tx_prob', 'tx_range_to_mean', 'tx_cv', 
+    #                         'tx_center_position'
+    #                           ]
+    # selected_neighbor_features = ['role', 'n_tx_data', 'n_acked_data', #'last_tx_delay', 
+    #                               'last_txok_delay', 'chan_util', 'mean_rssi', 
+    #                               'tx_interval_mean', 'tx_interval_std', #'tx_interval_min', 'tx_interval_max', 
+    #                             #   'tx_duration_mean', 'tx_duration_std', 'tx_duration_min', 'tx_duration_max',
+    #                               'tx_prob', 'tx_range_to_mean', 'tx_cv', 'tx_center_position'
+    #                               ]
     
-    dataset = HDF5Dataset(file_path, selected_self_features, selected_neighbor_features)
-    data_loader = DataLoader(
-        dataset,
-        batch_size=32,
-        shuffle=False,
-        num_workers=4,
-        collate_fn=collate_fn
-    )
+    # dataset = HDF5Dataset(file_path, selected_self_features, selected_neighbor_features)
+    # data_loader = DataLoader(
+    #     dataset,
+    #     batch_size=32,
+    #     shuffle=False,
+    #     num_workers=4,
+    #     collate_fn=collate_fn
+    # )
 
-    # # test data loader
-    # for batch_idx, (self_features, padded_neighbors, key_padding_mask, min_neighbor_backoffs) in enumerate(data_loader):
-    #     if batch_idx >= 1:
-    #         break
-    #     print(f"Batch {batch_idx + 1}:")
-    #     print("Self Features Shape:", self_features.shape)
-    #     print("Padded Neighbors Shape:", padded_neighbors.shape)
-    #     print("Key Padding Mask Shape:", key_padding_mask.shape)
-    #     print("Min Neighbor Backoffs Shape:", min_neighbor_backoffs.shape)
+    # # # test data loader
+    # # for batch_idx, (self_features, padded_neighbors, key_padding_mask, min_neighbor_backoffs) in enumerate(data_loader):
+    # #     if batch_idx >= 1:
+    # #         break
+    # #     print(f"Batch {batch_idx + 1}:")
+    # #     print("Self Features Shape:", self_features.shape)
+    # #     print("Padded Neighbors Shape:", padded_neighbors.shape)
+    # #     print("Key Padding Mask Shape:", key_padding_mask.shape)
+    # #     print("Min Neighbor Backoffs Shape:", min_neighbor_backoffs.shape)
     
-    # analyze dataset
-    feature_list = []
-    for feature, _, _, _ in data_loader:
-        batch_feature = feature.view(-1)
-        # batch_feature = feature.view(-1, feature.shape[-1])
-        # batch_feature = feature.squeeze(1)
-        feature_list.extend(batch_feature.tolist())
+    # # analyze dataset
+    # feature_list = []
+    # for feature, _, _, _ in data_loader:
+    #     batch_feature = feature.view(-1)
+    #     # batch_feature = feature.view(-1, feature.shape[-1])
+    #     # batch_feature = feature.squeeze(1)
+    #     feature_list.extend(batch_feature.tolist())
     
-    y = feature_list
-    # y = np.log(np.array(feature_list) + 1)
-    # log_feature = np.log(np.array(feature_list) + 1)
-    # mean = np.mean(log_feature)
-    # std = np.std(log_feature)
-    # y = (log_feature - mean) / std
+    # y = feature_list
+    # # y = np.log(np.array(feature_list) + 1)
+    # # log_feature = np.log(np.array(feature_list) + 1)
+    # # mean = np.mean(log_feature)
+    # # std = np.std(log_feature)
+    # # y = (log_feature - mean) / std
 
-    # last_tx_delay, last_txok_delay = zip(*feature_list)
-    # a = np.array(last_tx_delay)
-    # b = np.array(last_txok_delay)
-    # y = np.where(b > 0, a/b, -1)
+    # # last_tx_delay, last_txok_delay = zip(*feature_list)
+    # # a = np.array(last_tx_delay)
+    # # b = np.array(last_txok_delay)
+    # # y = np.where(b > 0, a/b, -1)
 
-    plt.figure()
-    plt.hist(y, bins=20)
-    plt.show()
+    # plt.figure()
+    # plt.hist(y, bins=20)
+    # plt.show()
