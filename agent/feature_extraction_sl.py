@@ -33,8 +33,8 @@ torch.cuda.manual_seed(42)
 
 if __name__ == '__main__':
     data_dir = os.path.dirname(os.path.abspath(__file__)) + "/dataset"
-    train_file = os.path.join(data_dir, "data-1735005157_norm.h5")
-    val_file = os.path.join(data_dir, "data-1735005131_norm.h5")
+    train_file = os.path.join(data_dir, "data-1735047597.h5")
+    val_file = os.path.join(data_dir, "data-1735047611.h5")
     selected_self_features = ['delta_time', 'cw', 'n_defer_access', 'n_waited_slots', 
                               'n_in_queue', 'n_sending', 'n_acked', 'n_rx_drop', 
                               'n_tx_data', 'n_acked_data', #'last_tx_delay', 
@@ -50,7 +50,7 @@ if __name__ == '__main__':
                                 #   'tx_duration_mean', 'tx_duration_std', 'tx_duration_min', 'tx_duration_max',
                                   'tx_prob', 'tx_range_to_mean', 'tx_cv', 'tx_center_position'
                                   ]
-    training_mode = False
+    training_mode = True
 
     train_dataset = HDF5Dataset(train_file, selected_self_features, selected_neighbor_features)
     val_dataset = HDF5Dataset(val_file, selected_self_features, selected_neighbor_features)
@@ -93,7 +93,7 @@ if __name__ == '__main__':
     optimizer = torch.optim.Adam([{'params': enc_model.parameters()}, 
                                   {'params': dec_model.parameters()}], lr=1e-3, weight_decay=1e-4)
     
-    scheduler = lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=30, T_mult=2)
+    scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.2, patience=5)
 
     if training_mode:
         train_loss_log = []
@@ -106,14 +106,14 @@ if __name__ == '__main__':
             print(f"Epoch {epoch+1}: train loss = {train_loss:.4f}")
 
             # evaluate
-            if epoch % 10 == 0 or epoch == EPOCHS - 1:
-                with torch.no_grad():
-                    val_loss = eval_attention(enc_model, dec_model, val_loader, device=DEVICE)
-                    val_loss_log.append(val_loss)
-                    print(f"Epoch {epoch+1}: val loss = {val_loss:.4f}")
+            # if epoch % 10 == 0 or epoch == EPOCHS - 1:
+            with torch.no_grad():
+                val_loss = eval_attention(enc_model, dec_model, val_loader, device=DEVICE)
+                val_loss_log.append(val_loss)
+                print(f"Epoch {epoch+1}: val loss = {val_loss:.4f}")
 
-            # Adjust learning rate
-            scheduler.step()  
+            # adjust learning rate
+            scheduler.step(val_loss)  
 
             # Log learning rates
             param_group = optimizer.param_groups[0]

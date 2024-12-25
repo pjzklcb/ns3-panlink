@@ -186,7 +186,7 @@ class HDF5Dataset(Dataset):
                                 'tx_interval_mean', 'tx_interval_std', 
                                 'tx_prob', 'tx_range_to_mean', 'tx_cv', 'tx_center_position']
         neighbor_normalize_names = ['last_txok_delay', 'mean_rssi', 'tx_interval_mean', 'tx_interval_std', 
-                                    'tx_prob', 'tx_range_to_mean', 'tx_cv', 'tx_center_position']
+                                    'tx_prob', 'tx_range_to_mean', 'tx_cv']
         return s_df_extend, n_df_extend
 
     def __len__(self):
@@ -221,10 +221,12 @@ class HDF5Dataset(Dataset):
         s_df_extend['n_rx_drop'] = np.log(1 + s_df['n_rx_drop']/(s_df['delta_time'] + self.epsilon))
         s_df_extend['n_acked_data'] = s_df['n_acked_data'] / (s_df['n_tx_data'] + self.epsilon)
         s_df_extend['last_txok_delay'] = np.log(1 + s_df['last_txok_delay'])
-        s_df_extend['chan_util'] = s_df['chan_util'] / 500
+        s_df_extend['chan_util'] = s_df['chan_util'] / 200
         s_df_extend['tx_interval_mean'] = np.log(1 + s_df['tx_interval_mean'])
         s_df_extend['tx_interval_std'] = np.log(1 + s_df['tx_interval_std'])
-        s_df_extend['tx_prob'] = np.log2(1 + s_df['last_txok_delay']/(s_df['tx_interval_mean'] + self.epsilon))
+        s_df_extend['tx_prob'] = np.where(
+            s_df['tx_interval_mean'] > 0, np.log2(1 + s_df['last_txok_delay']/s_df['tx_interval_mean']), -1
+        )
         tx_range = s_df['tx_interval_max'] - s_df['tx_interval_min']
         s_df_extend['tx_range_to_mean'] = tx_range / (s_df['tx_interval_mean'] + self.epsilon)
         s_df_extend['tx_cv'] = s_df['tx_interval_std'] / (s_df['tx_interval_mean'] + self.epsilon)
@@ -233,26 +235,28 @@ class HDF5Dataset(Dataset):
         n_df_extend['role'] = n_df['role'] / 3
         n_df_extend['n_acked_data'] = n_df['n_acked_data'] / (n_df['n_tx_data'] + self.epsilon)
         n_df_extend['last_txok_delay'] = np.log(1 + n_df['last_txok_delay'])
-        n_df_extend['chan_util'] = n_df['chan_util'] / 500
+        n_df_extend['chan_util'] = n_df['chan_util'] / 200
         n_df_extend['mean_rssi'] = n_df['mean_rssi'].replace(0, -40)
         n_df_extend['tx_interval_mean'] = np.log(1 + n_df['tx_interval_mean'])
         n_df_extend['tx_interval_std'] = np.log(1 + n_df['tx_interval_std'])
-        n_df_extend['tx_prob'] = np.log2(1 + n_df['last_txok_delay']/(n_df['tx_interval_mean'] + self.epsilon))
+        n_df_extend['tx_prob'] = np.where(
+            n_df['tx_interval_mean'] > 0, np.log2(1 + n_df['last_txok_delay']/n_df['tx_interval_mean']), -1
+        )
         tx_range = n_df['tx_interval_max'] - n_df['tx_interval_min']
         n_df_extend['tx_range_to_mean'] = tx_range / (n_df['tx_interval_mean'] + self.epsilon)
         n_df_extend['tx_cv'] = n_df['tx_interval_std'] / (n_df['tx_interval_mean'] + self.epsilon)
         n_df_extend['tx_center_position'] = (n_df['tx_interval_mean'] - n_df['tx_interval_min']) / (tx_range + self.epsilon)
 
         # normalize
-        if self.normalize:
-            s_df_extend, n_df_extend = self._normalize(self, s_df_extend, n_df_extend)
+        # if self.normalize:
+        #     s_df_extend, n_df_extend = self._normalize(s_df_extend, n_df_extend)
 
         # pick out selected features
         self_features = s_df_extend[self.selected_self_features].to_numpy()
         neighbor_features = n_df_extend[self.selected_neighbor_features].to_numpy()
 
         return {
-            'self_features': torch.tensor(self_features, dtype=torch.float32).unsqueeze(0), # (1, self_dim)
+            'self_features': torch.tensor(self_features, dtype=torch.float32), # (1, self_dim)
             'neighbor_features': torch.tensor(neighbor_features, dtype=torch.float32),
             'min_neighbor_backoff': torch.tensor(min_neighbor_backoff, dtype=torch.float32)
         }
@@ -298,18 +302,22 @@ if __name__ == '__main__':
     # toc = time.time() - tic
     # print(f"Cost {toc // 60}min {toc % 60}s")
 
-    file_path = os.path.dirname(os.path.abspath(__file__)) + "/data-1735005131.h5"
-    selected_self_features = ['delta_time', 'cw', 'n_defer_access', 'n_waited_slots', 
-                              'n_in_queue', 'n_sending', 'n_acked', 'n_rx_drop', 
-                              'n_tx_data', 'n_acked_data', 'last_tx_delay', 'last_txok_delay', 'chan_util', 
-                              'app_interval_mean', 'app_interval_std', 'app_interval_min', 'app_interval_max',
-                              'tx_interval_mean', 'tx_interval_std', 'tx_interval_min', 'tx_interval_max', 
-                              'tx_duration_mean', 'tx_duration_std', 'tx_duration_min', 'tx_duration_max'
+    file_path = os.path.dirname(os.path.abspath(__file__)) + "/data-1735047611.h5"
+    selected_self_features = [#'delta_time', 'cw', 'n_defer_access', 'n_waited_slots', 
+                            #   'n_in_queue', 'n_sending', 'n_acked', 'n_rx_drop', 
+                            #   'n_tx_data', 'n_acked_data', #'last_tx_delay', 
+                            #   'last_txok_delay', 'chan_util', 
+                            #   'app_interval_mean', 'app_interval_std', 'app_interval_min', 'app_interval_max',
+                            #   'tx_interval_mean', 'tx_interval_std', #'tx_interval_min', 'tx_interval_max', 
+                            #   'tx_duration_mean', 'tx_duration_std', 'tx_duration_min', 'tx_duration_max',
+                            #   'tx_prob', 'tx_range_to_mean', 'tx_cv', 
+                            'tx_center_position'
                               ]
-    selected_neighbor_features = ['role', 'n_tx_data', 'n_acked_data', 
-                                  'last_tx_delay', 'last_txok_delay', #'chan_util', 'mean_rssi', 
-                                #   'tx_interval_mean', 'tx_interval_std', 'tx_interval_min', 'tx_interval_max', 
-                                #   'tx_duration_mean', 'tx_duration_std', 'tx_duration_min', 'tx_duration_max'
+    selected_neighbor_features = ['role', 'n_tx_data', 'n_acked_data', #'last_tx_delay', 
+                                  'last_txok_delay', 'chan_util', 'mean_rssi', 
+                                  'tx_interval_mean', 'tx_interval_std', #'tx_interval_min', 'tx_interval_max', 
+                                #   'tx_duration_mean', 'tx_duration_std', 'tx_duration_min', 'tx_duration_max',
+                                  'tx_prob', 'tx_range_to_mean', 'tx_cv', 'tx_center_position'
                                   ]
     
     dataset = HDF5Dataset(file_path, selected_self_features, selected_neighbor_features)
@@ -333,23 +341,23 @@ if __name__ == '__main__':
     
     # analyze dataset
     feature_list = []
-    for _, feature, _, _ in data_loader:
-        # batch_feature = feature.view(-1)
-        batch_feature = feature.view(-1, feature.shape[-1])
+    for feature, _, _, _ in data_loader:
+        batch_feature = feature.view(-1)
+        # batch_feature = feature.view(-1, feature.shape[-1])
         # batch_feature = feature.squeeze(1)
         feature_list.extend(batch_feature.tolist())
     
-    # y = feature_list
+    y = feature_list
     # y = np.log(np.array(feature_list) + 1)
     # log_feature = np.log(np.array(feature_list) + 1)
     # mean = np.mean(log_feature)
     # std = np.std(log_feature)
     # y = (log_feature - mean) / std
 
-    last_tx_delay, last_txok_delay = zip(*feature_list)
-    a = np.array(last_tx_delay)
-    b = np.array(last_txok_delay)
-    y = np.where(b > 0, a/b, -1)
+    # last_tx_delay, last_txok_delay = zip(*feature_list)
+    # a = np.array(last_tx_delay)
+    # b = np.array(last_txok_delay)
+    # y = np.where(b > 0, a/b, -1)
 
     plt.figure()
     plt.hist(y, bins=20)
