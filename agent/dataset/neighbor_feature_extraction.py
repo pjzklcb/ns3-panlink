@@ -52,7 +52,7 @@ if __name__ == "__main__":
         cnt += batch_size
 
     n_df = pd.DataFrame(neighbor_features, columns=selected_neighbor_features)
-    labels = pd.DataFrame(labels, columns=['backoff'])
+    labels = pd.DataFrame(labels, columns=['backoff']).clip(lower=0, upper=1)
 
     # calculate spearman correlation
     for key in selected_neighbor_features:
@@ -68,7 +68,7 @@ if __name__ == "__main__":
 
     x = n_df['tx_prob']
     y = labels['backoff']
-    plt.hist(x[y==1024], bins=20, alpha=0.5, label='1024', density=True)
-    plt.hist(x[y!=1024], bins=20, alpha=0.5, label='not 1024', density=True)
+    plt.hist(x[y==0], bins=20, alpha=0.5, label='0', density=True)
+    plt.hist(x[y!=0], bins=20, alpha=0.5, label='not 0', density=True)
     plt.legend()
     plt.show()

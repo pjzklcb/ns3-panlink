@@ -150,25 +150,28 @@ if __name__ == '__main__':
     )
 
     # test data loader
-    for batch_idx, (n_neighbors, backoff) in enumerate(data_loader):
-        if batch_idx >= 1:
-            break
-        print(f"Batch {batch_idx + 1}:")
-        print("Neighbors Shape:", n_neighbors.shape)
-        print("Backoffs Shape:", backoff.shape)
+    # for batch_idx, (n_neighbors, backoff) in enumerate(data_loader):
+    #     if batch_idx >= 1:
+    #         break
+    #     print(f"Batch {batch_idx + 1}:")
+    #     print("Neighbors Shape:", n_neighbors.shape)
+    #     print("Backoffs Shape:", backoff.shape)
     
     # analyze dataset
-    # feature_list = np.zeros((len(data_loader.dataset), len(selected_neighbor_features)))
-    # labels = []
-    # cnt = 0
-    # for feature, label in data_loader:
-    #     batch_size = feature.shape[0]
-    #     feature_list[cnt:cnt + batch_size] = feature.numpy()
-    #     labels.extend(label.tolist())
+    feature_list = np.zeros((len(data_loader.dataset), len(selected_neighbor_features)))
+    labels = np.zeros(len(data_loader.dataset))
+    cnt = 0
+    for feature, label in data_loader:
+        batch_size = feature.shape[0]
+        feature_list[cnt:cnt + batch_size] = feature.numpy()
+        labels[cnt:cnt + batch_size] = label.numpy()
+        cnt += batch_size
     
-    # labels = np.array(labels)
     # y = feature_list.reshape(-1)
+    print(sum(labels < 16)/sum(labels != 1024))
+    y = np.array([v for v in labels if v != 1024])
+    y = np.clip(np.log2(y), 0, 15)
 
-    # plt.figure()
-    # plt.hist(y, bins=20)
-    # plt.show()
+    plt.figure()
+    plt.hist(y, bins=20, density=True)
+    plt.show()

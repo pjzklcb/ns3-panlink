@@ -31,7 +31,8 @@ torch.cuda.manual_seed(42)
 if __name__ == '__main__':
     data_dir = os.path.dirname(os.path.abspath(__file__)) + "/dataset"
     train_file = os.path.join(data_dir, "data-1735117245_neighbor.h5")
-    val_file = os.path.join(data_dir, "data-1735116872_neighbor.h5")#"data-1735121289_neighbor.h5")
+    val_file = os.path.join(data_dir, "data-1735121289_neighbor.h5")
+    test_file = os.path.join(data_dir, "data-1735116872_neighbor.h5")
     selected_neighbor_features = [#'role', 
                                   'n_tx_data', #'n_acked_data', 'last_tx_delay', 
                                   'last_txok_delay', 'chan_util', #'mean_rssi', 
