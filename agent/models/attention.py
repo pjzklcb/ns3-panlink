@@ -129,20 +129,6 @@ class FullAttentionExtractor(nn.Module):
         return attn_output
     
 
-class SimpleDecoder(nn.Module):
-    def __init__(self, input_dim, hidden_dim):
-        super(SimpleDecoder, self).__init__()
-        self.fc1 = nn.Linear(input_dim, hidden_dim)
-        self.fc2 = nn.Linear(hidden_dim, 1)
-        self.dropout = nn.Dropout(0.1)
-    
-    def forward(self, x):
-        # x: (batch_size, input_dim)
-        x = F.relu(self.fc1(x))
-        x = self.dropout(x)
-        return F.sigmoid(self.fc2(x))
-
-
 class TransformerExtractor(nn.Module):
     def __init__(self, neighbor_dim, self_dim, embed_dim, num_heads, num_layers, hidden_dim, dropout=0.1):
         super(TransformerExtractor, self).__init__()
@@ -193,9 +179,55 @@ class TransformerExtractor(nn.Module):
 
         # extract features using encoder
         encoded_output = self.encoder(embeddings, 
-                                      src_key_padding_mask=combined_mask)  # (N, batch_size, embed_dim)
+                                      src_key_padding_mask=combined_mask)  # (batch_size, N+1, embed_dim)
         
         return encoded_output[:, 0, :]  # (batch_size, embed_dim)
+    
+
+class PoolingExtractor(nn.Module):
+    def __init__(self, neighbor_dim, self_dim, embed_dim, pooling="mean"):
+        super(PoolingExtractor, self).__init__()
+        self.neighbor_embed = nn.Linear(neighbor_dim, embed_dim)
+        self.self_embed = nn.Linear(self_dim, embed_dim)
+        
+        # Pooling method: mean or max
+        assert pooling in ["mean", "max"], "Pooling must be 'mean' or 'max'"
+        self.pooling = pooling
+
+    def forward(self, neighbor_features, self_features, key_padding_mask=None):
+        # neighbor_features: (batch_size, seq_len, neighbor_dim)
+        # self_features: (batch_size, 1, self_dim)
+
+        batch_size, num_neighbors, _ = neighbor_features.shape
+
+        if key_padding_mask is None:
+            key_padding_mask = torch.zeros(batch_size, num_neighbors, 
+                                           dtype=torch.bool,
+                                           device=neighbor_features.device)
+            
+        # get embeddings
+        neighbor_embedded = self.neighbor_embed(neighbor_features)  # (batch_size, N, embed_dim)
+        self_embedded = self.self_embed(self_features)  # (batch_size, 1, embed_dim)
+
+        # Pooling neighbor_attn
+        if self.pooling == "mean":
+            pooled_neighbor = neighbor_embedded.masked_fill(key_padding_mask.unsqueeze(-1), 0).mean(dim=1)  # (batch_size, output_dim)
+        elif self.pooling == "max":
+            pooled_neighbor = neighbor_embedded.masked_fill(key_padding_mask.unsqueeze(-1), float("-inf")).max(dim=1)[0]  # (batch_size, output_dim)
+
+        # Concatenate self_attn and pooled_neighbor_attn
+        output = torch.cat([self_embedded.squeeze(1), pooled_neighbor], dim=-1)  # (batch_size, 2 * output_dim)
+        return output
+    
+
+class SimpleDecoder(nn.Module):
+    def __init__(self, input_dim):
+        super(SimpleDecoder, self).__init__()
+        self.fc = nn.Linear(input_dim, 1)
+    
+    def forward(self, x):
+        # x: (batch_size, input_dim)
+        return F.sigmoid(self.fc(x))
 
 
 def train_attention(enc_model, dec_model, optimizer, data_loader, device='cpu', clip_grad=None):
@@ -208,7 +240,7 @@ def train_attention(enc_model, dec_model, optimizer, data_loader, device='cpu', 
     :param data_loader: Data loader to generate batches.
     :param device: Device to use ('cpu' or 'cuda').
     :param clip_grad: Optional maximum gradient norm for gradient clipping.
-    :return: List of average chamfer distance loss values for each epoch.
+    :return: List of average loss values for each epoch.
     """
     # set to training mode
     enc_model.train()
@@ -224,7 +256,9 @@ def train_attention(enc_model, dec_model, optimizer, data_loader, device='cpu', 
         min_neighbor_backoff = min_neighbor_backoff.to(device)
 
         # Convert min_neighbor_backoff to soft label
-        y_true = torch.exp(-min_neighbor_backoff)
+        # y_true = torch.exp(-min_neighbor_backoff)
+        min_neighbor_backoff[min_neighbor_backoff > 0] = 1.0
+        y_true = min_neighbor_backoff
 
         # Zero gradients
         optimizer.zero_grad()
@@ -236,7 +270,7 @@ def train_attention(enc_model, dec_model, optimizer, data_loader, device='cpu', 
         y_pred = dec_model(embeddings)
         
         # use BCE as loss function
-        criterion = nn.BCELoss()
+        criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([0.67]))
         loss = criterion(y_pred, y_true.unsqueeze(1))
 
         # Backward pass
@@ -282,7 +316,9 @@ def eval_attention(enc_model, dec_model, data_loader, device='cpu'):
         min_neighbor_backoff = min_neighbor_backoff.to(device)
 
         # Convert min_neighbor_backoff to soft label
-        y_true = torch.exp(-min_neighbor_backoff)
+        # y_true = torch.exp(-min_neighbor_backoff)
+        min_neighbor_backoff[min_neighbor_backoff > 0] = 1.0
+        y_true = min_neighbor_backoff
 
         # get the embeddings
         embeddings = enc_model(neighbor_features, self_features, key_padding_mask)
@@ -291,7 +327,7 @@ def eval_attention(enc_model, dec_model, data_loader, device='cpu'):
         y_pred = dec_model(embeddings)
 
         # use BCE as loss function
-        criterion = nn.BCELoss()
+        criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([0.67]))
         loss = criterion(y_pred, y_true.unsqueeze(1))
 
         total_loss += loss.item()
@@ -331,7 +367,7 @@ def accuracy_attention(enc_model, dec_model, data_loader, device='cpu'):
         y_pred = dec_model(embeddings)
 
         # judge if do the correct classification
-        y_pred = (y_pred < 0.5).int().squeeze()
+        y_pred = (y_pred > 0.5).int().squeeze()
 
         accuracy += (y_pred == min_neighbor_backoff).sum().item()
 

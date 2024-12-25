@@ -21,8 +21,8 @@ EMBED_DIM = 64
 HIDDEN_DIM = 128
 NUM_HEADS = 4
 NUM_LAYERS = 1
-BATCH_SIZE = 64
-EPOCHS = 200
+BATCH_SIZE = 32
+EPOCHS = 100
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 random.seed(42)
@@ -33,22 +33,23 @@ torch.cuda.manual_seed(42)
 
 if __name__ == '__main__':
     data_dir = os.path.dirname(os.path.abspath(__file__)) + "/dataset"
-    train_file = os.path.join(data_dir, "data-1735047597.h5")
-    val_file = os.path.join(data_dir, "data-1735047611.h5")
-    selected_self_features = ['delta_time', 'cw', 'n_defer_access', 'n_waited_slots', 
+    train_file = os.path.join(data_dir, "data-1735005157_trans.h5")
+    val_file = os.path.join(data_dir, "data-1735005131_trans.h5")
+    selected_self_features = [#'delta_time', 'cw', 'n_defer_access', 'n_waited_slots', 
                               'n_in_queue', 'n_sending', 'n_acked', 'n_rx_drop', 
                               'n_tx_data', 'n_acked_data', #'last_tx_delay', 
                               'last_txok_delay', 'chan_util', 
                             #   'app_interval_mean', 'app_interval_std', 'app_interval_min', 'app_interval_max', 
                               'tx_interval_mean', 'tx_interval_std', #'tx_interval_min', 'tx_interval_max', 
                             #   'tx_duration_mean', 'tx_duration_std', 'tx_duration_min', 'tx_duration_max',
-                              'tx_prob', 'tx_range_to_mean', 'tx_cv', 'tx_center_position'
+                              'tx_prob', #'tx_range_to_mean', 'tx_cv', 'tx_center_position'
                               ]
-    selected_neighbor_features = ['role', 'n_tx_data', 'n_acked_data', #'last_tx_delay', 
-                                  'last_txok_delay', 'chan_util', 'mean_rssi', 
+    selected_neighbor_features = [#'role', 
+                                  'n_tx_data', 'n_acked_data', #'last_tx_delay', 
+                                  'last_txok_delay', 'chan_util', #'mean_rssi', 
                                   'tx_interval_mean', 'tx_interval_std', #'tx_interval_min', 'tx_interval_max', 
                                 #   'tx_duration_mean', 'tx_duration_std', 'tx_duration_min', 'tx_duration_max',
-                                  'tx_prob', 'tx_range_to_mean', 'tx_cv', 'tx_center_position'
+                                  'tx_prob', #'tx_range_to_mean', 'tx_cv', 'tx_center_position'
                                   ]
     training_mode = True
 
@@ -70,17 +71,16 @@ if __name__ == '__main__':
     )
 
     # create model
-    # enc_model = AttentionFeatureExtractor(neighbor_dim=len(selected_neighbor_features),
-    #                                        self_dim=len(selected_self_features),
-    #                                        output_dim=EMBED_DIM,
-    #                                        num_heads=NUM_HEADS).to(DEVICE)
-    enc_model = TransformerExtractor(neighbor_dim=len(selected_neighbor_features),
-                                     self_dim=len(selected_self_features),
-                                     embed_dim=EMBED_DIM,
-                                     num_heads=NUM_HEADS,
-                                     num_layers=NUM_LAYERS,
-                                     hidden_dim=HIDDEN_DIM).to(DEVICE)
-    dec_model = SimpleDecoder(input_dim=EMBED_DIM, hidden_dim=HIDDEN_DIM).to(DEVICE)
+    enc_model = PoolingExtractor(neighbor_dim=len(selected_neighbor_features),
+                                 self_dim=len(selected_self_features),
+                                 embed_dim=EMBED_DIM).to(DEVICE)
+    # enc_model = TransformerExtractor(neighbor_dim=len(selected_neighbor_features),
+    #                                  self_dim=len(selected_self_features),
+    #                                  embed_dim=EMBED_DIM,
+    #                                  num_heads=NUM_HEADS,
+    #                                  num_layers=NUM_LAYERS,
+    #                                  hidden_dim=HIDDEN_DIM, dropout=0.01).to(DEVICE)
+    dec_model = SimpleDecoder(input_dim=2*EMBED_DIM).to(DEVICE)
 
     # load model
     try:
@@ -91,9 +91,10 @@ if __name__ == '__main__':
         print("No pretrained model found.")
 
     optimizer = torch.optim.Adam([{'params': enc_model.parameters()}, 
-                                  {'params': dec_model.parameters()}], lr=1e-3, weight_decay=1e-4)
+                                  {'params': dec_model.parameters()}], lr=1e-3)#, weight_decay=1e-5)
     
-    scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.2, patience=5)
+    # scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.2, patience=5)
+    scheduler = lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=10, T_mult=2, eta_min=1e-6)
 
     if training_mode:
         train_loss_log = []
@@ -113,7 +114,7 @@ if __name__ == '__main__':
                 print(f"Epoch {epoch+1}: val loss = {val_loss:.4f}")
 
             # adjust learning rate
-            scheduler.step(val_loss)  
+            scheduler.step()  
 
             # Log learning rates
             param_group = optimizer.param_groups[0]
