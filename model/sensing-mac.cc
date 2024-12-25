@@ -581,6 +581,38 @@ SensingMac::GetMinNeighborBackoff(uint8_t linkId)
     return backoff;
 }
 
+uint32_t 
+SensingMac::GetNeighborBackoff(Mac48Address sta, uint8_t linkId)
+{
+    NS_LOG_FUNCTION(this << sta << linkId);
+
+    uint32_t backoff = 1024;
+    for (uint32_t i = 0; i < NodeList::GetNNodes(); i++)
+    {
+        Ptr<Node> node = NodeList::GetNode(i);
+        Ptr<WifiNetDevice> device = DynamicCast<WifiNetDevice>(node->GetDevice(0));
+        Ptr<WifiMac> mac = device->GetMac();
+        if (mac->GetAddress() == sta)
+        {
+            if (auto queue = mac->GetTxopQueue(AC_BE_NQOS);
+                queue != nullptr && queue->GetNPackets() > 0)
+            {
+                backoff = std::min(backoff, mac->GetTxop()->GetBackoffSlots(linkId));
+            }
+            for (auto [aci, _] : wifiAcList)
+            {
+                if (mac->GetTxopQueue(aci)->GetNPackets() > 0)
+                {
+                    backoff = std::min(backoff, mac->GetQosTxop(aci)->GetBackoffSlots(linkId));
+                }
+            }
+            break;
+        }
+    }
+
+    return backoff;
+}
+
 uint32_t
 SensingMac::GetNNeighborStas(uint8_t linkId) const
 {

@@ -268,6 +268,12 @@ class SensingMac : public Object
      * @returns the minimum backoff of neighbor STAs
      */
     uint32_t GetMinNeighborBackoff(uint8_t linkId);
+    /**
+     * @param sta the mac address
+     * @param linkId the link ID
+     * @returns the backoff slots of the given neighbor STA
+     */
+    uint32_t GetNeighborBackoff(Mac48Address sta, uint8_t linkId);
 
     /**
      * The info collected from the mac since the last access resume.

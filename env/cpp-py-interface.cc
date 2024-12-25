@@ -90,7 +90,8 @@ PYBIND11_MODULE(cpp_py_interface, m)
         .def_readwrite("channelUtil", &NeighborStaObs::channelUtil)
         .def_readwrite("meanRssi", &NeighborStaObs::meanRssi)
         .def_readwrite("dataTxIntervalStats", &NeighborStaObs::dataTxIntervalStats)
-        .def_readwrite("dataTxDurationStats", &NeighborStaObs::dataTxDurationStats);
+        .def_readwrite("dataTxDurationStats", &NeighborStaObs::dataTxDurationStats)
+        .def_readwrite("backoffSlots", &NeighborStaObs::backoffSlots);
 
     py::class_<Obs>(m, "PyEnvStruct")
         .def(py::init<>())
