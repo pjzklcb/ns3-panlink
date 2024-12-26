@@ -17,9 +17,10 @@ import torch.optim.lr_scheduler as lr_scheduler
 
 
 # hyperparameters
-HIDDEN_DIM = 128
+HIDDEN_DIM = 64
+EMBED_DIM = 32
 BATCH_SIZE = 64
-EPOCHS = 20
+EPOCHS = 40
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 random.seed(42)
@@ -30,9 +31,9 @@ torch.cuda.manual_seed(42)
 
 if __name__ == '__main__':
     data_dir = os.path.dirname(os.path.abspath(__file__)) + "/dataset"
-    train_file = os.path.join(data_dir, "data-1735117245_neighbor.h5")
-    val_file = os.path.join(data_dir, "data-1735121289_neighbor.h5")
-    test_file = os.path.join(data_dir, "data-1735116872_neighbor.h5")
+    train_file = os.path.join(data_dir, "data-1735132777_neighbor.h5")
+    val_file = os.path.join(data_dir, "data-1735132750_neighbor.h5")
+    test_file = os.path.join(data_dir, "data-1735132786_neighbor.h5")
     selected_neighbor_features = [#'role', 
                                   'n_tx_data', #'n_acked_data', 'last_tx_delay', 
                                   'last_txok_delay', 'chan_util', #'mean_rssi', 
@@ -44,6 +45,7 @@ if __name__ == '__main__':
 
     train_dataset = HDF5Dataset(train_file, selected_neighbor_features)
     val_dataset = HDF5Dataset(val_file, selected_neighbor_features)
+    test_dataset = HDF5Dataset(test_file, selected_neighbor_features)
     train_loader = DataLoader(
         train_dataset,
         batch_size=BATCH_SIZE,
@@ -56,18 +58,27 @@ if __name__ == '__main__':
         shuffle=False,
         num_workers=4
     )
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=BATCH_SIZE,
+        shuffle=False,
+        num_workers=4
+    )
 
     # create model
-    model = BinaryClassifier(input_dim=len(selected_neighbor_features)).to(DEVICE)
+    enc_model = SimpleExtractor(input_dim=len(selected_neighbor_features), output_dim=EMBED_DIM, hidden_dim=HIDDEN_DIM).to(DEVICE)
+    dec_model = SimpleDecoder(input_dim=EMBED_DIM).to(DEVICE)
 
     # load model
     try:
-        model.load_state_dict(torch.load(os.path.join(data_dir, 'neighbor_model.pth')))
+        enc_model.load_state_dict(torch.load(os.path.join(data_dir, 'neighbor_enc_model.pth')))
+        dec_model.load_state_dict(torch.load(os.path.join(data_dir, 'neighbor_dec_model.pth')))
         print("Pretrained model loaded successfully.")
     except:
         print("No pretrained model found.")
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)#, weight_decay=1e-5)
+    optimizer = torch.optim.Adam([{'params': enc_model.parameters()}, 
+                                  {'params': dec_model.parameters()}], lr=1e-3)#, weight_decay=1e-5)
     
     # scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.2, patience=5)
     scheduler = lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=10, T_mult=2, eta_min=1e-6)
@@ -78,14 +89,14 @@ if __name__ == '__main__':
         lr_log = []
         timestamp = int(time.time())
         for epoch in range(EPOCHS):
-            train_loss = train_neighbor(model, optimizer, train_loader, device=DEVICE, clip_grad=5.0) 
+            train_loss = train_neighbor(enc_model, dec_model, optimizer, train_loader, device=DEVICE, clip_grad=5.0) 
             train_loss_log.append(train_loss)
             print(f"Epoch {epoch+1}: train loss = {train_loss:.4f}")
 
             # evaluate
             if epoch % 10 == 0 or epoch == EPOCHS - 1:
                 with torch.no_grad():
-                    val_loss = eval_neighbor(model, val_loader, device=DEVICE)
+                    val_loss = eval_neighbor(enc_model, dec_model, val_loader, device=DEVICE)
                     val_loss_log.append(val_loss)
                     print(f"Epoch {epoch+1}: val loss = {val_loss:.4f}")
 
@@ -101,7 +112,8 @@ if __name__ == '__main__':
         print("Total time: {}min {:.2f}s".format(time_cost // 60, time_cost % 60))
 
         # save model
-        torch.save(model.state_dict(), os.path.join(data_dir, 'neighbor_model.pth'))
+        torch.save(enc_model.state_dict(), os.path.join(data_dir, 'neighbor_enc_model.pth'))
+        torch.save(dec_model.state_dict(), os.path.join(data_dir, 'neighbor_dec_model.pth'))
 
         # plot loss
         plt.plot(train_loss_log, 'b-', linewidth=1)
@@ -124,5 +136,5 @@ if __name__ == '__main__':
     
     else:
         # test the accuracy
-        accuracy = accuracy_neighbor(model, val_loader, device=DEVICE)
+        accuracy = accuracy_neighbor(enc_model, dec_model, test_loader, device=DEVICE)
         print("Accuracy: {:.4f}".format(accuracy))

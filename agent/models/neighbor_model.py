@@ -10,23 +10,27 @@ import torch.nn as nn
 import torch.nn.functional as F
     
 
-class BinaryClassifier(nn.Module):
-    def __init__(self, input_dim):
-        super(BinaryClassifier, self).__init__()
-        self.fc = nn.Sequential(
-            nn.Linear(input_dim, 64),
-            nn.ReLU(),
-            nn.Linear(64, 32),
-            nn.ReLU(),
-            nn.Linear(32, 1),
-            nn.Sigmoid()
-        )
+class SimpleExtractor(nn.Module):
+    def __init__(self, input_dim, output_dim, hidden_dim):
+        super(SimpleExtractor, self).__init__()
+        self.fc1 = nn.Linear(input_dim, hidden_dim)
+        self.fc2 = nn.Linear(hidden_dim, output_dim)
 
     def forward(self, x):
-        return self.fc(x)
+        x = F.relu(self.fc1(x))
+        return F.relu(self.fc2(x))
+    
+
+class SimpleDecoder(nn.Module):
+    def __init__(self, input_dim):
+        super(SimpleDecoder, self).__init__()
+        self.fc = nn.Linear(input_dim, 1)
+
+    def forward(self, x):
+        return F.sigmoid(self.fc(x))
 
 
-def train_neighbor(model, optimizer, data_loader, device='cpu', clip_grad=None):
+def train_neighbor(enc_model, dec_model, optimizer, data_loader, device='cpu', clip_grad=None):
     """
     Train the model for one epoch
     
@@ -38,7 +42,8 @@ def train_neighbor(model, optimizer, data_loader, device='cpu', clip_grad=None):
     :return: List of average loss values for each epoch.
     """
     # set to training mode
-    model.train()
+    enc_model.train()
+    dec_model.train()
     
     epoch_loss = 0
     num_batches = math.ceil(len(data_loader.dataset) / data_loader.batch_size)
@@ -50,22 +55,22 @@ def train_neighbor(model, optimizer, data_loader, device='cpu', clip_grad=None):
         # Convert backoff to binary label
         y_true = (backoffs == 1024).float()
 
-        # Zero gradients
-        optimizer.zero_grad()
-        
         # do the classification
-        y_pred = model(neighbor_features)
+        embedings = enc_model(neighbor_features)
+        y_pred = dec_model(embedings)
         
         # use BCE as loss function
         criterion = nn.BCELoss()
         loss = criterion(y_pred, y_true.unsqueeze(1))
 
         # Backward pass
+        optimizer.zero_grad()
         loss.backward()
 
         # Optional: Gradient clipping
         if clip_grad is not None:
-            nn.utils.clip_grad_norm_(model.parameters(), max_norm=clip_grad)
+            nn.utils.clip_grad_norm_(enc_model.parameters(), max_norm=clip_grad)
+            nn.utils.clip_grad_norm_(dec_model.parameters(), max_norm=clip_grad)
 
         # Optimization step
         optimizer.step()
@@ -78,7 +83,7 @@ def train_neighbor(model, optimizer, data_loader, device='cpu', clip_grad=None):
     return epoch_loss / num_batches
 
 
-def eval_neighbor(model, data_loader, device='cpu'):
+def eval_neighbor(enc_model, dec_model, data_loader, device='cpu'):
     """
     Evaluate the model.
     
@@ -88,7 +93,8 @@ def eval_neighbor(model, data_loader, device='cpu'):
     :return: the average loss over the test set
     """
     # set to evaluation mode
-    model.eval()
+    enc_model.eval()
+    dec_model.eval()
     
     total_loss = 0
     num_batches = math.ceil(len(data_loader.dataset) / data_loader.batch_size)
@@ -101,7 +107,8 @@ def eval_neighbor(model, data_loader, device='cpu'):
         y_true = (backoffs == 1024).float()
         
         # do the classification
-        y_pred = model(neighbor_features)
+        embedings = enc_model(neighbor_features)
+        y_pred = dec_model(embedings)
         
         # use BCE as loss function
         criterion = nn.BCELoss()
@@ -112,17 +119,18 @@ def eval_neighbor(model, data_loader, device='cpu'):
     return total_loss / num_batches
 
 
-def accuracy_neighbor(model, data_loader, device='cpu'):
+def accuracy_neighbor(enc_model, dec_model, data_loader, device='cpu'):
     """
     Test the classification accuracy of the model.
     
-    :param enc_model: Model to test
+    :param enc_model: 
     :param data_loader: Data loader to generate batches.
     :param device: Device to use ('cpu' or 'cuda').
     :return: the accuracy over the test set
     """
     # set to evaluation mode
-    model.eval()
+    enc_model.eval()
+    dec_model.eval()
 
     accuracy = 0
     for neighbor_features, backoffs in data_loader:
@@ -134,7 +142,8 @@ def accuracy_neighbor(model, data_loader, device='cpu'):
         y_true = (backoffs == 1024).float()
         
         # do the classification
-        y_pred = model(neighbor_features)
+        embedings = enc_model(neighbor_features)
+        y_pred = dec_model(embedings)
 
         # judge if do the correct classification
         y_pred = (y_pred > 0.5).int().squeeze()

@@ -24,7 +24,7 @@ def calculate_mutual_info(x, y):
 
 
 if __name__ == "__main__":
-    file_path = os.path.dirname(os.path.abspath(__file__)) + "/data-1735121289_neighbor.h5"
+    file_path = os.path.dirname(os.path.abspath(__file__)) + "/data-1735132750_neighbor.h5"
     selected_neighbor_features = [#'role', 
                                   'n_tx_data', #'n_acked_data', 'last_tx_delay', 
                                   'last_txok_delay', 'chan_util', #'mean_rssi', 
@@ -52,7 +52,17 @@ if __name__ == "__main__":
         cnt += batch_size
 
     n_df = pd.DataFrame(neighbor_features, columns=selected_neighbor_features)
-    labels = pd.DataFrame(labels, columns=['backoff']).clip(lower=0, upper=1)
+    labels = pd.DataFrame(labels, columns=['backoff'])
+    filtered_indices = labels['backoff'] != 1024
+    n_df = n_df[filtered_indices]
+    labels = labels[filtered_indices]
+
+    # calculate mutual information
+    # for key in selected_neighbor_features:
+    #     metric = calculate_mutual_info(n_df[key], labels['backoff'])
+    #     print(f"{key:>20}  {metric:.4f}")
+    # metric = calculate_mutual_info(labels['backoff'], labels['backoff'])
+    # print(f"{'backoff':>20}  {metric:.4f}")
 
     # calculate spearman correlation
     for key in selected_neighbor_features:
@@ -66,9 +76,9 @@ if __name__ == "__main__":
         chi2, p, dof, _ = chi2_contingency(pd.crosstab(n_df[key], labels['backoff']))
         print(f"{key:>20}: chi^2 = {chi2:.2f}, p = {p:.2f}, dof = {dof:.2f}")
 
-    x = n_df['tx_prob']
+    x = n_df['tx_range_to_mean']
     y = labels['backoff']
     plt.hist(x[y==0], bins=20, alpha=0.5, label='0', density=True)
-    plt.hist(x[y!=0], bins=20, alpha=0.5, label='not 0', density=True)
+    plt.hist(x[y!=1], bins=20, alpha=0.5, label='1', density=True)
     plt.legend()
     plt.show()
