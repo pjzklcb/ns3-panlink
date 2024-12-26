@@ -21,20 +21,30 @@ class SimpleExtractor(nn.Module):
         return F.relu(self.fc2(x))
     
 
-class SimpleDecoder(nn.Module):
+class BinaryClassifier(nn.Module):
     def __init__(self, input_dim):
-        super(SimpleDecoder, self).__init__()
+        super(BinaryClassifier, self).__init__()
         self.fc = nn.Linear(input_dim, 1)
 
     def forward(self, x):
         return F.sigmoid(self.fc(x))
 
 
+class MultiClassClassifier(nn.Module):
+    def __init__(self, input_dim, output_dim):
+        super(MultiClassClassifier, self).__init__()
+        self.fc = nn.Linear(input_dim, output_dim)
+
+    def forward(self, x):
+        return self.fc(x) # (input_dim, output_dim) no need softmax
+    
+
 def train_neighbor(enc_model, dec_model, optimizer, data_loader, device='cpu', clip_grad=None):
     """
     Train the model for one epoch
     
-    :param model: Model to train
+    :param enc_model: Feature Extraction model
+    :param dec_model: Simple Classifier
     :param optimizer: Optimizer for training.
     :param data_loader: Data loader to generate batches.
     :param device: Device to use ('cpu' or 'cuda').
@@ -53,15 +63,23 @@ def train_neighbor(enc_model, dec_model, optimizer, data_loader, device='cpu', c
         backoffs = backoffs.to(device)
 
         # Convert backoff to binary label
-        y_true = (backoffs == 1024).float()
+        # y_true = (backoffs == 1024).float()
+        y_true = torch.where(
+            backoffs == 1024, torch.tensor(2),  # 1024 -> 2
+            torch.where(
+                backoffs >= 1, torch.tensor(1),  # 1~1023 -> 1
+                backoffs                         # 0 -> 0
+            )
+        ).long()
 
         # do the classification
         embedings = enc_model(neighbor_features)
         y_pred = dec_model(embedings)
         
         # use BCE as loss function
-        criterion = nn.BCELoss()
-        loss = criterion(y_pred, y_true.unsqueeze(1))
+        # criterion = nn.BCELoss()
+        criterion = nn.CrossEntropyLoss()
+        loss = criterion(y_pred, y_true)
 
         # Backward pass
         optimizer.zero_grad()
@@ -104,15 +122,23 @@ def eval_neighbor(enc_model, dec_model, data_loader, device='cpu'):
         backoffs = backoffs.to(device)
 
         # Convert backoff to binary label
-        y_true = (backoffs == 1024).float()
+        # y_true = (backoffs == 1024).float()
+        y_true = torch.where(
+            backoffs == 1024, torch.tensor(2),  # 1024 -> 2
+            torch.where(
+                backoffs >= 1, torch.tensor(1),  # 1~1023 -> 1
+                backoffs                         # 0 -> 0
+            )
+        ).long()
         
         # do the classification
         embedings = enc_model(neighbor_features)
         y_pred = dec_model(embedings)
         
         # use BCE as loss function
-        criterion = nn.BCELoss()
-        loss = criterion(y_pred, y_true.unsqueeze(1))
+        # criterion = nn.BCELoss()
+        criterion = nn.CrossEntropyLoss()
+        loss = criterion(y_pred, y_true)
 
         total_loss += loss.item()
 
@@ -139,14 +165,22 @@ def accuracy_neighbor(enc_model, dec_model, data_loader, device='cpu'):
         backoffs = backoffs.to(device)
 
         # Convert backoff to binary label
-        y_true = (backoffs == 1024).float()
+        # y_true = (backoffs == 1024).float()
+        y_true = torch.where(
+            backoffs == 1024, torch.tensor(2),  # 1024 -> 2
+            torch.where(
+                backoffs >= 1, torch.tensor(1),  # 1~1023 -> 1
+                backoffs                         # 0 -> 0
+            )
+        ).long()
         
         # do the classification
         embedings = enc_model(neighbor_features)
         y_pred = dec_model(embedings)
 
         # judge if do the correct classification
-        y_pred = (y_pred > 0.5).int().squeeze()
+        # y_pred = (y_pred > 0.5).int().squeeze()
+        y_pred = torch.argmax(y_pred, dim=1)
 
         accuracy += (y_pred == y_true).sum().item()
 

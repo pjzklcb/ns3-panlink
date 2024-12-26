@@ -20,7 +20,7 @@ import torch.optim.lr_scheduler as lr_scheduler
 HIDDEN_DIM = 64
 EMBED_DIM = 32
 BATCH_SIZE = 64
-EPOCHS = 40
+EPOCHS = 60
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 random.seed(42)
@@ -31,9 +31,9 @@ torch.cuda.manual_seed(42)
 
 if __name__ == '__main__':
     data_dir = os.path.dirname(os.path.abspath(__file__)) + "/dataset"
-    train_file = os.path.join(data_dir, "data-1735132777_neighbor.h5")
-    val_file = os.path.join(data_dir, "data-1735132750_neighbor.h5")
-    test_file = os.path.join(data_dir, "data-1735132786_neighbor.h5")
+    train_file = os.path.join(data_dir, "data-1735116872_neighbor.h5")
+    val_file = os.path.join(data_dir, "data-1735121289_neighbor.h5")
+    test_file = os.path.join(data_dir, "data-1735117245_neighbor.h5")
     selected_neighbor_features = [#'role', 
                                   'n_tx_data', #'n_acked_data', 'last_tx_delay', 
                                   'last_txok_delay', 'chan_util', #'mean_rssi', 
@@ -41,7 +41,7 @@ if __name__ == '__main__':
                                 #   'tx_duration_mean', 'tx_duration_std', 'tx_duration_min', 'tx_duration_max',
                                   'r_acked_data', 'tx_prob', 'tx_range_to_mean', 'tx_cv', 'tx_center_position'
                                   ]
-    training_mode = False
+    training_mode = True
 
     train_dataset = HDF5Dataset(train_file, selected_neighbor_features)
     val_dataset = HDF5Dataset(val_file, selected_neighbor_features)
@@ -67,7 +67,8 @@ if __name__ == '__main__':
 
     # create model
     enc_model = SimpleExtractor(input_dim=len(selected_neighbor_features), output_dim=EMBED_DIM, hidden_dim=HIDDEN_DIM).to(DEVICE)
-    dec_model = SimpleDecoder(input_dim=EMBED_DIM).to(DEVICE)
+    # dec_model = BinaryClassifier(input_dim=EMBED_DIM).to(DEVICE)
+    dec_model = MultiClassClassifier(input_dim=EMBED_DIM, output_dim=3).to(DEVICE)
 
     # load model
     try:
