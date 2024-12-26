@@ -192,7 +192,20 @@ SensingMac::NotifyPhyRxPpduDrop(std::string context,
         return;
     }
     uint8_t linkId = static_cast<uint8_t>(std::stoi(context));
-    m_linkMap[linkId].rxFailTime.push_back({Simulator::Now()});
+    m_linkMap[linkId].rxFailTime.push_back(Simulator::Now());
+}
+
+void
+SensingMac::NotifyPhyState(std::string context, Time begin, Time duration, WifiPhyState state)
+{
+    NS_LOG_FUNCTION(this << context << begin << duration << state);
+
+    uint8_t linkId = static_cast<uint8_t>(std::stoi(context));
+    if (state != WifiPhyState::IDLE)
+    {
+        return;
+    }
+    m_linkMap[linkId].idleTime.push_back({begin, duration});
 }
 
 void
@@ -331,6 +344,75 @@ SensingMac::GetDelay(Time period, AcIndex ac, uint8_t linkId) const
     }
 
     return counter == 0 ? 0 : delay.ToDouble(Time::MS) / counter; // ms
+}
+
+uint32_t
+SensingMac::GetNRxFail(Time period, uint8_t linkId)
+{
+    NS_LOG_FUNCTION(this << period << linkId);
+
+    Time now = Simulator::Now();
+    NS_ASSERT(period > Seconds(0));
+    NS_ASSERT_MSG(period <= m_duration, "Period surpass maximum duration");
+
+    // eliminate staled rx fails
+    while (!m_linkMap[linkId].rxFailTime.empty())
+    {
+        auto fail = m_linkMap[linkId].rxFailTime.front();
+        if (now - fail > m_duration)
+        {
+            m_linkMap[linkId].rxFailTime.pop_front();
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    uint32_t nRxFail = 0;
+    for (const auto& failTime : m_linkMap[linkId].rxFailTime)
+    {
+        if (now - failTime <= period)
+        {
+            nRxFail++;
+        }
+    }
+    return nRxFail;
+}
+
+double
+SensingMac::GetChannelIdleRatio(Time period, uint8_t linkId)
+{
+    NS_LOG_FUNCTION(this << period << linkId);
+
+    Time now = Simulator::Now();
+    NS_ASSERT(period > Seconds(0));
+    NS_ASSERT_MSG(period <= m_duration, "Period surpass maximum duration");
+
+    // eliminate staled idle period
+    while (!m_linkMap[linkId].idleTime.empty())
+    {
+        auto idle = m_linkMap[linkId].idleTime.front();
+        if (now - (idle.first + idle.second) > m_duration)
+        {
+            m_linkMap[linkId].idleTime.pop_front();
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    double idleTime = 0;
+    for (const auto& [begin, duration] : m_linkMap[linkId].idleTime)
+    {
+        Time end = begin + duration;
+        if (now - end <= period)
+        {
+            idleTime += (end - std::max(now - period, begin)).ToDouble(Time::MS);
+        }
+    }
+    return idleTime / period.ToDouble(Time::MS);
 }
 
 void
@@ -581,7 +663,7 @@ SensingMac::GetMinNeighborBackoff(uint8_t linkId)
     return backoff;
 }
 
-uint32_t 
+uint32_t
 SensingMac::GetNeighborBackoff(Mac48Address sta, uint8_t linkId)
 {
     NS_LOG_FUNCTION(this << sta << linkId);
@@ -787,7 +869,6 @@ SensingMac::GetLastAccessInfo(uint8_t linkId)
     }
 
     result.nSendingPackets = m_linkMap[linkId].pendingPackets.size();
-    result.nRxDropPpdus = m_linkMap[linkId].rxFailTime.size();
     for (const auto& uid : m_linkMap[linkId].pendingPackets)
     {
         auto it = m_packetMap.find(uid);
@@ -809,7 +890,6 @@ SensingMac::GetLastAccessInfo(uint8_t linkId)
     }
 
     m_linkMap[linkId].pendingPackets.clear();
-    m_linkMap[linkId].rxFailTime.clear();
 
     return result;
 }

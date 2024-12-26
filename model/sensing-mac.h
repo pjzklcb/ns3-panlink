@@ -16,6 +16,7 @@
 #include "ns3/object.h"
 #include "ns3/packet.h"
 #include "ns3/phy-entity.h"
+#include "ns3/wifi-phy-state.h"
 
 #include <deque>
 
@@ -73,7 +74,8 @@ class SensingMac : public Object
     {
         std::list<uint64_t> pendingPackets; //!< pending packets
         std::deque<std::pair<uint64_t /* uid */, Time /* tx end time */>> channelUtil;
-        std::list<Time> rxFailTime;
+        std::deque<Time> rxFailTime;
+        std::deque<std::pair<Time /* begin */, Time /* duration */>> idleTime;
     };
 
     /**
@@ -127,6 +129,15 @@ class SensingMac : public Object
     void NotifyPhyRxPpduDrop(std::string context,
                              Ptr<const WifiPpdu> ppdu,
                              WifiPhyRxfailureReason reason);
+    /**
+     * Trace the phy state.
+     *
+     * @param context the string contains link ID
+     * @param begin the start time of the state
+     * @param duration the duration of the state
+     * @param state the state
+     */
+    void NotifyPhyState(std::string context, Time begin, Time duration, WifiPhyState state);
 
     /**
      * Handles frames comes from WifiMac::m_ackedMpduCallback.
@@ -171,6 +182,24 @@ class SensingMac : public Object
      * @returns the average delay in milliseconds (0 if no packet tx successfully)
      */
     double GetDelay(Time period, AcIndex ac, uint8_t linkId = SINGLE_LINK_OP_ID) const;
+
+    /**
+     * Get the number of rx fails in the past period of time.
+     *
+     * @param period the period
+     * @param linkId the ID of the link
+     * @returns the number of rx fails
+     */
+    uint32_t GetNRxFail(Time period, uint8_t linkId);
+
+    /**
+     * Get the channel idle ratio in the past period of time.
+     *
+     * @param period the period
+     * @param linkId the ID of the link
+     * @returns the channel idle ratio
+     */
+    double GetChannelIdleRatio(Time period, uint8_t linkId);
 
     /**
      * The role for neighboring STAs.
@@ -287,7 +316,6 @@ class SensingMac : public Object
         uint32_t nAckedPackets{0};
         uint32_t nLowDelayPackets{0};  // latency <= 10ms
         uint32_t nHighDelayPackets{0}; // latency > 30ms
-        uint32_t nRxDropPpdus{0};
     };
 
     /**

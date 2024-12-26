@@ -24,7 +24,6 @@ struct LastAccessObs
     uint32_t nAckedPackets;
     uint32_t nLowDelayPackets;
     uint32_t nHighDelayPackets;
-    uint32_t nRxDropPpdus;
 };
 
 /**
@@ -39,6 +38,9 @@ struct SelfLinkObs
     double lastTxDataDelay; // in ms
     double lastTxOkDelay;
     double channelUtil; // ms
+
+    uint32_t nRxFail;
+    double idleRatio;
 
     std::array<double, 4> dataArrivalIntervalStats; // mean, std, min, max
     std::array<double, 4> dataTxIntervalStats;

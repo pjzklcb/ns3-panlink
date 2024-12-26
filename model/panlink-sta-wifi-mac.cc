@@ -118,6 +118,10 @@ PanlinkStaWifiMac::SetSensingMac(const Ptr<SensingMac> sensingMac)
         link->phy->TraceConnect("PhyRxPpduDrop",
                                 std::to_string(id),
                                 MakeCallback(&SensingMac::NotifyPhyRxPpduDrop, m_sensingMac));
+        link->phy->GetState()->TraceConnect(
+            "State",
+            std::to_string(id),
+            MakeCallback(&SensingMac::NotifyPhyState, m_sensingMac));
     }
 }
 

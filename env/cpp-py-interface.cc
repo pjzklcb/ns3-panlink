@@ -64,8 +64,7 @@ PYBIND11_MODULE(cpp_py_interface, m)
         .def_readwrite("nSendingPackets", &LastAccessObs::nSendingPackets)
         .def_readwrite("nAckedPackets", &LastAccessObs::nAckedPackets)
         .def_readwrite("nLowDelayPackets", &LastAccessObs::nLowDelayPackets)
-        .def_readwrite("nHighDelayPackets", &LastAccessObs::nHighDelayPackets)
-        .def_readwrite("nRxDropPpdus", &LastAccessObs::nRxDropPpdus);
+        .def_readwrite("nHighDelayPackets", &LastAccessObs::nHighDelayPackets);
 
     py::class_<SelfLinkObs>(m, "SelfLinkObs")
         .def(py::init<>())
@@ -75,6 +74,8 @@ PYBIND11_MODULE(cpp_py_interface, m)
         .def_readwrite("lastTxDataDelay", &SelfLinkObs::lastTxDataDelay)
         .def_readwrite("lastTxOkDelay", &SelfLinkObs::lastTxOkDelay)
         .def_readwrite("channelUtil", &SelfLinkObs::channelUtil)
+        .def_readwrite("nRxFail", &SelfLinkObs::nRxFail)
+        .def_readwrite("idleRatio", &SelfLinkObs::idleRatio)
         .def_readwrite("dataArrivalIntervalStats", &SelfLinkObs::dataArrivalIntervalStats)
         .def_readwrite("dataTxIntervalStats", &SelfLinkObs::dataTxIntervalStats)
         .def_readwrite("dataTxDurationStats", &SelfLinkObs::dataTxDurationStats);

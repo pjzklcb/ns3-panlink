@@ -75,8 +75,7 @@ ChannelAccessEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, 
             .nSendingPackets = info.nSendingPackets,
             .nAckedPackets = info.nAckedPackets,
             .nLowDelayPackets = info.nLowDelayPackets,
-            .nHighDelayPackets = info.nHighDelayPackets,
-            .nRxDropPpdus = info.nRxDropPpdus
+            .nHighDelayPackets = info.nHighDelayPackets
         };
         env.lastAccessObs = lastAccessObs;
 
@@ -90,6 +89,8 @@ ChannelAccessEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, 
             .lastTxDataDelay = GetTxDataDelay(selfUtil),
             .lastTxOkDelay = GetTxOkDelay(selfUtil),
             .channelUtil = GetChannelUtil(selfUtil),
+            .nRxFail = sensingMac->GetNRxFail(obs.period, obs.linkId),
+            .idleRatio = sensingMac->GetChannelIdleRatio(obs.period, obs.linkId),
             .dataArrivalIntervalStats = GetDataArrivalIntervalStats(traffics),
             .dataTxIntervalStats = GetDataTxIntervalStats(selfUtil),
             .dataTxDurationStats = GetDataTxDurationStats(selfUtil)
