@@ -24,13 +24,15 @@ def calculate_mutual_info(x, y):
 
 
 if __name__ == "__main__":
-    file_path = os.path.dirname(os.path.abspath(__file__)) + "/data-1735132750_neighbor.h5"
+    file_path = os.path.dirname(os.path.abspath(__file__)) + "/data-1735182796_neighbor.h5"
     selected_neighbor_features = [#'role', 
                                   'n_tx_data', #'n_acked_data', 'last_tx_delay', 
                                   'last_txok_delay', 'chan_util', #'mean_rssi', 
                                   'tx_interval_mean', 'tx_interval_std', #'tx_interval_min', 'tx_interval_max', 
                                 #   'tx_duration_mean', 'tx_duration_std', 'tx_duration_min', 'tx_duration_max',
-                                  'r_acked_data', 'tx_prob', 'tx_range_to_mean', 'tx_cv', 'tx_center_position'
+                                  'n_rx_fail', 'idle_ratio',
+                                  'r_acked_data', 'tx_prob', 'tx_range_to_mean', 'tx_cv', 'tx_center_position',
+                                  'e_idle_slots'
                                   ]
     
     dataset = HDF5Dataset(file_path, selected_neighbor_features)

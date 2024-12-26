@@ -21,30 +21,45 @@ def dataset_transform(hdf5_file, epsilon=1e-8):
     output_file = hdf5_file.replace('.h5', '_neighbor.h5')
 
     with h5py.File(hdf5_file, 'r') as f:
+        self_feature_name = f['step_0/self_features'].attrs.get('feature_names')
         neighbor_feature_name = f['step_0/neighbor_features'].attrs.get('feature_names')
+        common_feature_name = ['n_rx_fail', 'idle_ratio']
+        feature_indices = [i for i, name in enumerate(self_feature_name) if name in common_feature_name]
 
         num_steps = len([key for key in f.keys() if 'step' in key])
         max_neighbors_per_step = 20 # the maximum number of neighbors per step
-        all_neighbor_features = np.zeros((num_steps * max_neighbors_per_step, len(neighbor_feature_name)))
+        # all_self_features = np.zeros((num_steps, len(self_feature_name)))
+        all_neighbor_features = np.zeros((num_steps * max_neighbors_per_step, 
+                                          len(neighbor_feature_name) + len(common_feature_name)))
 
+        # neighbor_feature_idx = np.zeros((num_steps, 2), dtype=int)
         cnt = 0
+        # num_valid_steps = 0
         for step in f.keys():
             if 'step' not in step:
                 continue
             group = f[step]
+            self_features = group['self_features'][:]
             neighbor_features = group['neighbor_features'][:]
 
             # skip the sample with no neighbor
             if len(neighbor_features) == 0:
                 continue
             
-            all_neighbor_features[cnt:cnt+len(neighbor_features)] = neighbor_features
+            # all_self_features[num_valid_steps] = self_features
+            all_neighbor_features[cnt:cnt+len(neighbor_features)] = np.concatenate(
+                (neighbor_features, 
+                 np.tile(self_features[feature_indices], (len(neighbor_features), 1))), axis=1
+            )
+            # neighbor_feature_idx[num_valid_steps] = [cnt, cnt+len(neighbor_features)]
 
             cnt += len(neighbor_features)
+            # num_valid_steps += 1
 
         all_neighbor_features = all_neighbor_features[:cnt]
 
-        n_df = pd.DataFrame(all_neighbor_features, columns=neighbor_feature_name)
+        # s_df = pd.DataFrame(all_self_features, columns=self_feature_name)
+        n_df = pd.DataFrame(all_neighbor_features, columns=neighbor_feature_name.tolist() + common_feature_name)
 
         # preprocessing
         tx_range = n_df['tx_interval_max'] - n_df['tx_interval_min']
@@ -56,6 +71,9 @@ def dataset_transform(hdf5_file, epsilon=1e-8):
             'tx_range_to_mean': tx_range / (n_df['tx_interval_mean'] + epsilon),
             'tx_cv': n_df['tx_interval_std'] / (n_df['tx_interval_mean'] + epsilon),
             'tx_center_position': (n_df['tx_interval_mean'] - n_df['tx_interval_min']) / (tx_range + epsilon),
+            'e_idle_slots': np.maximum(
+                (n_df['last_txok_delay'] - n_df['tx_interval_mean']) * n_df['idle_ratio'], 0
+            )
         }
 
         # normalization
@@ -126,30 +144,32 @@ class HDF5Dataset(Dataset):
 
 if __name__ == '__main__':
     # preprocess features and store them in a new dataset
-    # tic = time.time()
-    # file_path = os.path.dirname(os.path.abspath(__file__)) + "/data-1735121289.h5"
-    # dataset_transform(file_path)
-    # toc = time.time() - tic
-    # print(f"Cost {toc // 60}min {toc % 60}s")
+    tic = time.time()
+    file_path = os.path.dirname(os.path.abspath(__file__)) + "/data-1735182828.h5"
+    dataset_transform(file_path)
+    toc = time.time() - tic
+    print(f"Cost {toc // 60}min {toc % 60}s")
 
-    file_path = os.path.dirname(os.path.abspath(__file__)) + "/data-1735121289_neighbor.h5"
-    selected_neighbor_features = [#'role', 
-                                  'n_tx_data', #'n_acked_data', 'last_tx_delay', 
-                                  'last_txok_delay', 'chan_util', #'mean_rssi', 
-                                  'tx_interval_mean', 'tx_interval_std', #'tx_interval_min', 'tx_interval_max', 
-                                #   'tx_duration_mean', 'tx_duration_std', 'tx_duration_min', 'tx_duration_max',
-                                  'r_acked_data', 'tx_prob', 'tx_range_to_mean', 'tx_cv', 'tx_center_position'
-                                  ]
+    # file_path = os.path.dirname(os.path.abspath(__file__)) + "/data-1735182796_neighbor.h5"
+    # selected_neighbor_features = [#'role', 
+    #                               'n_tx_data', #'n_acked_data', 'last_tx_delay', 
+    #                               'last_txok_delay', 'chan_util', #'mean_rssi', 
+    #                               'tx_interval_mean', 'tx_interval_std', #'tx_interval_min', 'tx_interval_max', 
+    #                             #   'tx_duration_mean', 'tx_duration_std', 'tx_duration_min', 'tx_duration_max',
+    #                               'n_rx_fail', 'idle_ratio',
+    #                               'r_acked_data', 'tx_prob', 'tx_range_to_mean', 'tx_cv', 'tx_center_position',
+    #                               'e_idle_slots'
+    #                               ]
     
-    dataset = HDF5Dataset(file_path, selected_neighbor_features)
-    data_loader = DataLoader(
-        dataset,
-        batch_size=32,
-        shuffle=False,
-        num_workers=4
-    )
+    # dataset = HDF5Dataset(file_path, selected_neighbor_features)
+    # data_loader = DataLoader(
+    #     dataset,
+    #     batch_size=32,
+    #     shuffle=False,
+    #     num_workers=4
+    # )
 
-    # test data loader
+    # # test data loader
     # for batch_idx, (n_neighbors, backoff) in enumerate(data_loader):
     #     if batch_idx >= 1:
     #         break
@@ -158,20 +178,20 @@ if __name__ == '__main__':
     #     print("Backoffs Shape:", backoff.shape)
     
     # analyze dataset
-    feature_list = np.zeros((len(data_loader.dataset), len(selected_neighbor_features)))
-    labels = np.zeros(len(data_loader.dataset))
-    cnt = 0
-    for feature, label in data_loader:
-        batch_size = feature.shape[0]
-        feature_list[cnt:cnt + batch_size] = feature.numpy()
-        labels[cnt:cnt + batch_size] = label.numpy()
-        cnt += batch_size
+    # feature_list = np.zeros((len(data_loader.dataset), len(selected_neighbor_features)))
+    # labels = np.zeros(len(data_loader.dataset))
+    # cnt = 0
+    # for feature, label in data_loader:
+    #     batch_size = feature.shape[0]
+    #     feature_list[cnt:cnt + batch_size] = feature.numpy()
+    #     labels[cnt:cnt + batch_size] = label.numpy()
+    #     cnt += batch_size
     
-    # y = feature_list.reshape(-1)
-    print(sum(labels < 16)/sum(labels != 1024))
-    y = np.array([v for v in labels if v != 1024])
-    y = np.clip(np.log2(y), 0, 15)
+    # # y = feature_list.reshape(-1)
+    # print(sum(labels == 0)/sum(labels != 1024))
+    # y = np.array([v for v in labels if v != 1024])
+    # y = np.clip(np.log2(y), 0, 15)
 
-    plt.figure()
-    plt.hist(y, bins=20, density=True)
-    plt.show()
+    # plt.figure()
+    # plt.hist(y, bins=20, density=True)
+    # plt.show()
