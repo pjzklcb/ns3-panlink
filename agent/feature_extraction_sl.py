@@ -22,7 +22,7 @@ HIDDEN_DIM = 64
 NUM_HEADS = 4
 NUM_LAYERS = 1
 BATCH_SIZE = 64
-EPOCHS = 20
+EPOCHS = 40
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 random.seed(42)
@@ -37,8 +37,8 @@ if __name__ == '__main__':
     val_file = os.path.join(data_dir, "data-1735182796_trans.h5")
     test_file = os.path.join(data_dir, "data-1735182828_trans.h5")
     selected_self_features = [#'delta_time', 'cw', 'n_defer_access', 'n_waited_slots', 
-                            #   'n_in_queue', 'n_sending', 'n_acked', 'n_rx_drop', 
-                            #   'n_tx_data', 'n_acked_data', #'last_tx_delay', 
+                            #   'n_in_queue', 'n_sending', 'r_acked', 'n_rx_drop', 
+                            #   'n_tx_data', 'acked_ratio', #'last_tx_delay', 
                             #   'last_txok_delay', 'chan_util', 
                               'n_rx_fail', 'idle_ratio',
                             #   'app_interval_mean', 'app_interval_std', 'app_interval_min', 'app_interval_max', 
@@ -47,11 +47,11 @@ if __name__ == '__main__':
                             #   'tx_prob', #'tx_range_to_mean', 'tx_cv', 'tx_center_position'
                               ]
     selected_neighbor_features = [#'role', 
-                                  'n_tx_data', 'n_acked_data', #'last_tx_delay', 
+                                  'n_tx_data', 'acked_ratio', #'last_tx_delay', 
                                   'last_txok_delay', #'chan_util', 'mean_rssi', 
                                   'tx_interval_mean', 'tx_interval_std', #'tx_interval_min', 'tx_interval_max', 
                                 #   'tx_duration_mean', 'tx_duration_std', 'tx_duration_min', 'tx_duration_max',
-                                  'tx_prob', 'tx_range_to_mean', 'tx_cv', 'tx_center_position', 'backoff'
+                                  'tx_prob', 'tx_range_to_mean', 'tx_cv', 'tx_center_position', #'backoff'
                                   ]
     training_mode = True
 
@@ -95,8 +95,8 @@ if __name__ == '__main__':
 
     # load model
     try:
-        enc_model.load_state_dict(torch.load(os.path.join(data_dir, 'enc_model.pth')))
-        dec_model.load_state_dict(torch.load(os.path.join(data_dir, 'dec_model.pth')))
+        enc_model.load_state_dict(torch.load(os.path.join(data_dir, 'enc_model1.pth')))
+        dec_model.load_state_dict(torch.load(os.path.join(data_dir, 'dec_model1.pth')))
         print("Pretrained model loaded successfully.")
     except:
         print("No pretrained model found.")
@@ -141,18 +141,21 @@ if __name__ == '__main__':
 
         # plot loss
         plt.plot(train_loss_log, 'b-', linewidth=1)
+        plt.ylim(bottom=0)
         plt.xlabel('Epoch')
         plt.ylabel('Loss')
         plt.savefig(os.path.join(data_dir, 'train_loss.png'))
         plt.close()
 
         plt.plot(val_loss_log, 'b-', linewidth=1)
+        plt.ylim(bottom=0)
         plt.xlabel('Epoch')
         plt.ylabel('Loss')
         plt.savefig(os.path.join(data_dir, 'val_loss.png'))
         plt.close()
         
         plt.plot(lr_log, 'b-', linewidth=1)
+        plt.ylim(bottom=0)
         plt.xlabel('Epoch')
         plt.ylabel('Learning Rate')
         plt.savefig(os.path.join(data_dir, 'lr.png'))

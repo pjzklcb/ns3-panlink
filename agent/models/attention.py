@@ -208,7 +208,7 @@ class PoolingExtractor(nn.Module):
                                            device=neighbor_features.device)
             
         # get embeddings
-        x = torch.cat([self_features.expand(-1, num_neighbors, -1), neighbor_features], dim=-1)  # Efficient expand
+        x = torch.cat([self_features.repeat(1, num_neighbors, 1), neighbor_features], dim=-1)  # Efficient expand
         x = self.relu(self.fc1(x))  # (batch_size, seq_len, hidden_dim)
 
         # Pooling neighbor_attn

@@ -68,10 +68,10 @@ def dataset_transform(hdf5_file, epsilon=1e-8):
             'n_waited_slots': s_df['n_waited_slots'],
             'n_in_queue': s_df['n_in_queue'],
             'n_sending': s_df['n_sending'],
-            'n_acked': s_df['n_acked'] / (s_df['n_sending'] + epsilon),
+            'r_acked': s_df['n_acked'] / (s_df['n_sending'] + epsilon),
 
             'n_tx_data': s_df['n_tx_data'],
-            'n_acked_data': s_df['n_acked_data'] / (s_df['n_tx_data'] + epsilon),
+            'acked_ratio': s_df['n_acked_data'] / (s_df['n_tx_data'] + epsilon),
             'last_txok_delay': s_df['last_txok_delay'],
             'last_tx_delay': s_df['last_tx_delay'],
             'chan_util': s_df['chan_util'],
@@ -90,7 +90,7 @@ def dataset_transform(hdf5_file, epsilon=1e-8):
         tx_range = n_df['tx_interval_max'] - n_df['tx_interval_min']
         neighbor_data = {
             'n_tx_data': n_df['n_tx_data'],
-            'n_acked_data': n_df['n_acked_data'] / (n_df['n_tx_data'] + epsilon),
+            'acked_ratio': n_df['n_acked_data'] / (n_df['n_tx_data'] + epsilon),
             'last_txok_delay': n_df['last_txok_delay'],
             'last_tx_delay': n_df['last_tx_delay'],
             'chan_util': n_df['chan_util'],
@@ -219,65 +219,65 @@ def collate_fn(batch):
 
 if __name__ == '__main__':
     # preprocess features and store them in a new dataset
-    # tic = time.time()
-    # file_path = os.path.dirname(os.path.abspath(__file__)) + "/data-1735182828.h5"
-    # dataset_transform(file_path)
-    # toc = time.time() - tic
-    # print(f"Cost {toc // 60}min {toc % 60}s")
+    tic = time.time()
+    file_path = os.path.dirname(os.path.abspath(__file__)) + "/data-1735182796.h5"
+    dataset_transform(file_path)
+    toc = time.time() - tic
+    print(f"Cost {toc // 60}min {toc % 60}s")
 
-    file_path = os.path.dirname(os.path.abspath(__file__)) + "/data-1735182819_trans.h5"
-    selected_self_features = [#'delta_time', 'cw', 'n_defer_access', 'n_waited_slots', 
-                            #   'n_in_queue', 'n_sending', 'n_acked', 'n_rx_drop', 
-                            #   'n_tx_data', 'n_acked_data', #'last_tx_delay', 
-                            #   'last_txok_delay', 'chan_util', 
-                            #   'app_interval_mean', 'app_interval_std', 'app_interval_min', 'app_interval_max',
-                            #   'tx_interval_mean', 'tx_interval_std', #'tx_interval_min', 'tx_interval_max', 
-                            #   'tx_duration_mean', 'tx_duration_std', 'tx_duration_min', 'tx_duration_max',
-                              'tx_prob', #'tx_range_to_mean', 'tx_cv', 'tx_center_position'
-                              ]
-    selected_neighbor_features = [#'role', 
-                                  'n_tx_data', 'n_acked_data', #'last_tx_delay', 
-                                  'last_txok_delay', 'chan_util', #'mean_rssi', 
-                                  'tx_interval_mean', 'tx_interval_std', #'tx_interval_min', 'tx_interval_max', 
-                                #   'tx_duration_mean', 'tx_duration_std', 'tx_duration_min', 'tx_duration_max',
-                                  'tx_prob', 'tx_range_to_mean', 'tx_cv', 'tx_center_position'
-                                  ]
+    # file_path = os.path.dirname(os.path.abspath(__file__)) + "/data-1735182819_trans.h5"
+    # selected_self_features = [#'delta_time', 'cw', 'n_defer_access', 'n_waited_slots', 
+    #                         #   'n_in_queue', 'n_sending', 'r_acked', 'n_rx_drop', 
+    #                         #   'n_tx_data', 'acked_ratio', #'last_tx_delay', 
+    #                         #   'last_txok_delay', 'chan_util', 
+    #                         #   'app_interval_mean', 'app_interval_std', 'app_interval_min', 'app_interval_max',
+    #                         #   'tx_interval_mean', 'tx_interval_std', #'tx_interval_min', 'tx_interval_max', 
+    #                         #   'tx_duration_mean', 'tx_duration_std', 'tx_duration_min', 'tx_duration_max',
+    #                           'tx_prob', #'tx_range_to_mean', 'tx_cv', 'tx_center_position'
+    #                           ]
+    # selected_neighbor_features = [#'role', 
+    #                               'n_tx_data', 'acked_ratio', #'last_tx_delay', 
+    #                               'last_txok_delay', 'chan_util', #'mean_rssi', 
+    #                               'tx_interval_mean', 'tx_interval_std', #'tx_interval_min', 'tx_interval_max', 
+    #                             #   'tx_duration_mean', 'tx_duration_std', 'tx_duration_min', 'tx_duration_max',
+    #                               'tx_prob', 'tx_range_to_mean', 'tx_cv', 'tx_center_position'
+    #                               ]
     
-    dataset = HDF5Dataset(file_path, selected_self_features, selected_neighbor_features)
-    data_loader = DataLoader(
-        dataset,
-        batch_size=32,
-        shuffle=False,
-        num_workers=4,
-        collate_fn=collate_fn
-    )
+    # dataset = HDF5Dataset(file_path, selected_self_features, selected_neighbor_features)
+    # data_loader = DataLoader(
+    #     dataset,
+    #     batch_size=32,
+    #     shuffle=False,
+    #     num_workers=4,
+    #     collate_fn=collate_fn
+    # )
 
-    # # test data loader
-    # for batch_idx, (self_features, padded_neighbors, key_padding_mask, min_neighbor_backoffs) in enumerate(data_loader):
-    #     if batch_idx >= 1:
-    #         break
-    #     print(f"Batch {batch_idx + 1}:")
-    #     print("Self Features Shape:", self_features.shape)
-    #     print("Padded Neighbors Shape:", padded_neighbors.shape)
-    #     print("Key Padding Mask Shape:", key_padding_mask.shape)
-    #     print("Min Neighbor Backoffs Shape:", min_neighbor_backoffs.shape)
+    # # # test data loader
+    # # for batch_idx, (self_features, padded_neighbors, key_padding_mask, min_neighbor_backoffs) in enumerate(data_loader):
+    # #     if batch_idx >= 1:
+    # #         break
+    # #     print(f"Batch {batch_idx + 1}:")
+    # #     print("Self Features Shape:", self_features.shape)
+    # #     print("Padded Neighbors Shape:", padded_neighbors.shape)
+    # #     print("Key Padding Mask Shape:", key_padding_mask.shape)
+    # #     print("Min Neighbor Backoffs Shape:", min_neighbor_backoffs.shape)
     
-    # # analyze dataset
-    # feature_list = []
-    labels = np.zeros(len(data_loader.dataset))
-    cnt = 0
-    for feature, _, _, min_neighbor_backoff in data_loader:
-        batch_size = feature.shape[0]
-        # batch_feature = feature.view(-1)
-        # batch_feature = feature.view(-1, feature.shape[-1])
-        # batch_feature = feature.squeeze(1)
-        # feature_list.extend(batch_feature.tolist())
-        labels[cnt:cnt + batch_size] = min_neighbor_backoff.numpy()
-        cnt += batch_size
+    # # # analyze dataset
+    # # feature_list = []
+    # labels = np.zeros(len(data_loader.dataset))
+    # cnt = 0
+    # for feature, _, _, min_neighbor_backoff in data_loader:
+    #     batch_size = feature.shape[0]
+    #     # batch_feature = feature.view(-1)
+    #     # batch_feature = feature.view(-1, feature.shape[-1])
+    #     # batch_feature = feature.squeeze(1)
+    #     # feature_list.extend(batch_feature.tolist())
+    #     labels[cnt:cnt + batch_size] = min_neighbor_backoff.numpy()
+    #     cnt += batch_size
     
-    print(sum(labels>0)/len(labels))
-    # y = feature_list
+    # print(sum(labels>0)/len(labels))
+    # # y = feature_list
 
-    # plt.figure()
-    # plt.hist(y, bins=20)
-    # plt.show()
+    # # plt.figure()
+    # # plt.hist(y, bins=20)
+    # # plt.show()
