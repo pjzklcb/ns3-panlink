@@ -185,13 +185,15 @@ class TransformerExtractor(nn.Module):
     
 
 class PoolingExtractor(nn.Module):
-    def __init__(self, neighbor_dim, self_dim, embed_dim, pooling="mean"):
+    def __init__(self, neighbor_dim, self_dim, hidden_dim, embed_dim, pooling="mean"):
         super(PoolingExtractor, self).__init__()
-        self.neighbor_embed = nn.Linear(neighbor_dim, embed_dim)
-        self.self_embed = nn.Linear(self_dim, embed_dim)
-        
+        self.fc1 = nn.Linear(self_dim + neighbor_dim, hidden_dim)
+        self.fc2 = nn.Linear(hidden_dim, embed_dim)
+        self.relu = nn.ReLU()
+
         # Pooling method: mean or max
-        assert pooling in ["mean", "max"], "Pooling must be 'mean' or 'max'"
+        if pooling not in ["mean", "max"]:
+            raise ValueError(f"Unsupported pooling method: {pooling}. Choose 'mean' or 'max'.")
         self.pooling = pooling
 
     def forward(self, neighbor_features, self_features, key_padding_mask=None):
@@ -206,17 +208,17 @@ class PoolingExtractor(nn.Module):
                                            device=neighbor_features.device)
             
         # get embeddings
-        neighbor_embedded = self.neighbor_embed(neighbor_features)  # (batch_size, N, embed_dim)
-        self_embedded = self.self_embed(self_features)  # (batch_size, 1, embed_dim)
+        x = torch.cat([self_features.expand(-1, num_neighbors, -1), neighbor_features], dim=-1)  # Efficient expand
+        x = self.relu(self.fc1(x))  # (batch_size, seq_len, hidden_dim)
 
         # Pooling neighbor_attn
         if self.pooling == "mean":
-            pooled_neighbor = neighbor_embedded.masked_fill(key_padding_mask.unsqueeze(-1), 0).mean(dim=1)  # (batch_size, output_dim)
+            valid_count = (~key_padding_mask).sum(dim=1, keepdim=True).clamp(min=1)
+            pooled_x = x.masked_fill(key_padding_mask.unsqueeze(-1), 0).sum(dim=1) / valid_count
         elif self.pooling == "max":
-            pooled_neighbor = neighbor_embedded.masked_fill(key_padding_mask.unsqueeze(-1), float("-inf")).max(dim=1)[0]  # (batch_size, output_dim)
+            pooled_x = x.masked_fill(key_padding_mask.unsqueeze(-1), float("-inf")).max(dim=1)[0]
 
-        # Concatenate self_attn and pooled_neighbor_attn
-        output = torch.cat([self_embedded.squeeze(1), pooled_neighbor], dim=-1)  # (batch_size, 2 * output_dim)
+        output = self.relu(self.fc2(pooled_x))
         return output
     
 
@@ -257,8 +259,10 @@ def train_attention(enc_model, dec_model, optimizer, data_loader, device='cpu', 
 
         # Convert min_neighbor_backoff to soft label
         # y_true = torch.exp(-min_neighbor_backoff)
-        min_neighbor_backoff[min_neighbor_backoff > 0] = 1.0
-        y_true = min_neighbor_backoff
+        y_true = torch.where(
+            min_neighbor_backoff > 0, torch.tensor(1),  # >0 -> 1
+            min_neighbor_backoff                        # 0 -> 0
+        )
 
         # Zero gradients
         optimizer.zero_grad()
@@ -270,7 +274,7 @@ def train_attention(enc_model, dec_model, optimizer, data_loader, device='cpu', 
         y_pred = dec_model(embeddings)
         
         # use BCE as loss function
-        criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([0.67]))
+        criterion = nn.BCELoss()
         loss = criterion(y_pred, y_true.unsqueeze(1))
 
         # Backward pass
@@ -317,8 +321,10 @@ def eval_attention(enc_model, dec_model, data_loader, device='cpu'):
 
         # Convert min_neighbor_backoff to soft label
         # y_true = torch.exp(-min_neighbor_backoff)
-        min_neighbor_backoff[min_neighbor_backoff > 0] = 1.0
-        y_true = min_neighbor_backoff
+        y_true = torch.where(
+            min_neighbor_backoff > 0, torch.tensor(1),  # >0 -> 1
+            min_neighbor_backoff                        # 0 -> 0
+        )
 
         # get the embeddings
         embeddings = enc_model(neighbor_features, self_features, key_padding_mask)
@@ -327,7 +333,7 @@ def eval_attention(enc_model, dec_model, data_loader, device='cpu'):
         y_pred = dec_model(embeddings)
 
         # use BCE as loss function
-        criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([0.67]))
+        criterion = nn.BCELoss()
         loss = criterion(y_pred, y_true.unsqueeze(1))
 
         total_loss += loss.item()
@@ -358,7 +364,10 @@ def accuracy_attention(enc_model, dec_model, data_loader, device='cpu'):
         min_neighbor_backoff = min_neighbor_backoff.to(device)
 
         # Convert min_neighbor_backoff to binary
-        min_neighbor_backoff[min_neighbor_backoff > 0] = 1.0
+        y_true = torch.where(
+            min_neighbor_backoff > 0, torch.tensor(1),  # >0 -> 1
+            min_neighbor_backoff                        # 0 -> 0
+        ).int()
 
         # get the embeddings
         embeddings = enc_model(neighbor_features, self_features, key_padding_mask)
@@ -369,6 +378,6 @@ def accuracy_attention(enc_model, dec_model, data_loader, device='cpu'):
         # judge if do the correct classification
         y_pred = (y_pred > 0.5).int().squeeze()
 
-        accuracy += (y_pred == min_neighbor_backoff).sum().item()
+        accuracy += (y_pred == y_true).sum().item()
 
     return accuracy / len(data_loader.dataset)

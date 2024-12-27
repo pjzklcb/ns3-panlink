@@ -32,7 +32,7 @@ if __name__ == "__main__":
                                 #   'tx_duration_mean', 'tx_duration_std', 'tx_duration_min', 'tx_duration_max',
                                   'n_rx_fail', 'idle_ratio',
                                   'r_acked_data', 'tx_prob', 'tx_range_to_mean', 'tx_cv', 'tx_center_position',
-                                  'e_idle_slots'
+                                  'mean_idle_slots'
                                   ]
     
     dataset = HDF5Dataset(file_path, selected_neighbor_features)
@@ -78,9 +78,9 @@ if __name__ == "__main__":
         chi2, p, dof, _ = chi2_contingency(pd.crosstab(n_df[key], labels['backoff']))
         print(f"{key:>20}: chi^2 = {chi2:.2f}, p = {p:.2f}, dof = {dof:.2f}")
 
-    x = n_df['tx_range_to_mean']
+    x = n_df['tx_prob']
     y = labels['backoff']
     plt.hist(x[y==0], bins=20, alpha=0.5, label='0', density=True)
-    plt.hist(x[y!=1], bins=20, alpha=0.5, label='1', density=True)
+    plt.hist(x[y!=0], bins=20, alpha=0.5, label='1', density=True)
     plt.legend()
     plt.show()

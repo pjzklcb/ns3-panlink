@@ -204,7 +204,7 @@ class ChannelAccessRlAgent(RlAgent):
                       f"\t\ttx_stats: interval=[{', '.join(f'{v:.2f}' for v in n_tis)}]ms, "
                       f"duration=[{', '.join(f'{v:.2f}' for v in n_tus)}]ms")
 
-        # normalize the obs
+        # save to dataset
         if len(neighbor_features) != 0:
             # save to dataset
             self_feature_names = ['delta_time', 'cw', 'n_defer_access', 'n_waited_slots', 'n_in_queue', 
