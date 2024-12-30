@@ -43,49 +43,23 @@ class ChannelAccessEnvAgent : public EnvAgent
     void SetEnvAct(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, ModuleObs& obs) override;
 
   private:
-    typedef std::vector<SensingMac::ChannelUtilInfo> ChannelUtilList;
-
-    /**
-     * @param util a list of channel utilization information
-     * @returns the number of ACKed data packets
-     */
-    uint32_t GetNAckedDataPackets(const ChannelUtilList& util) const;
-
-    /**
-     * @returns the delay from now to the last tx data packet
-     */
-    double GetTxDataDelay(const ChannelUtilList& util) const;
+    // typedef std::vector<SensingMac::ChannelUtilInfo> ChannelUtilList;
 
     /**
      * @returns the delay from now to the last acked data packet
      */
-    double GetTxOkDelay(const ChannelUtilList& util) const;
+    double GetTxOkDelay(const std::vector<Time>& util) const;
 
     /**
      * @returns the channel utilization time in ms
      */
-    double GetChannelUtil(const ChannelUtilList& util) const;
+    double GetChannelUtil(const std::vector<Time>& util) const;
 
     /**
-     * @returns the mean rssi of the tx packets.
+     * @param vec a vector of time in ascending order
+     * @returns the mean, std, min, max of the time intervals
      */
-    double GetMeanRssi(const ChannelUtilList& util) const;
-
-    /**
-     * @param vec a vector of data arrival time in ascending order
-     * @returns the mean, std, min, max of the data arrival intervals
-     */
-    std::array<double, 4> GetDataArrivalIntervalStats(const std::vector<Time>& vec) const;
-
-    /**
-     * @returns the mean, std, min, max of the tx data intervals
-     */
-    std::array<double, 4> GetDataTxIntervalStats(const ChannelUtilList& util) const;
-
-    /**
-     * @returns the mean, std, min, max of the tx data durations
-     */
-    std::array<double, 4> GetDataTxDurationStats(const ChannelUtilList& util) const;
+    std::array<double, 4> GetIntervalStats(const std::vector<Time>& vec) const;
 
     /**
      * @param vec a vector of double

@@ -35,16 +35,14 @@ struct SelfLinkObs
 
     uint32_t nTxDataPackets;
     uint32_t nAckedDataPackets;
-    double lastTxDataDelay; // in ms
     double lastTxOkDelay;
     double channelUtil; // ms
 
     uint32_t nRxFail;
     double idleRatio;
 
-    std::array<double, 4> dataArrivalIntervalStats; // mean, std, min, max
-    std::array<double, 4> dataTxIntervalStats;
-    std::array<double, 4> dataTxDurationStats;
+    std::array<double, 4> trafficIntervalStats; // mean, std, min, max
+    std::array<double, 4> txDataIntervalStats;
 };
 
 /**
@@ -55,14 +53,12 @@ struct NeighborStaObs
     uint8_t role;
     double period; // period of observation in ms
 
-    uint32_t nTxDataPackets;
-    uint32_t nAckedDataPackets;
+    uint32_t nAcks;
     double lastTxOkDelay; // in ms
     double channelUtil; // in ms
     double meanRssi;    // in dBm
 
-    std::array<double, 4> dataTxIntervalStats;
-    std::array<double, 4> dataTxDurationStats;
+    std::array<double, 4> txOkIntervalStats;
 
     uint32_t backoffSlots;
     std::array<uint32_t, 4> cw;

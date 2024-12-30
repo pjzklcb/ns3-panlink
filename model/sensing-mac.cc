@@ -564,6 +564,22 @@ SensingMac::NotifyLastTxOkSta(Mac48Address sta, uint8_t linkId)
             lastPacket.ackedTime = now;
         }
     }
+
+    it->second.ackedTime.push_back(now);
+
+    // remove staled acked time
+    while (!it->second.ackedTime.empty())
+    {
+        auto ackedTime = it->second.ackedTime.front();
+        if (now - ackedTime > m_duration)
+        {
+            it->second.ackedTime.pop_front();
+        }
+        else
+        {
+            break;
+        }
+    }
 }
 
 void
@@ -695,7 +711,7 @@ SensingMac::GetNeighborBackoff(Mac48Address sta, uint8_t linkId)
     return backoff;
 }
 
-std::array<uint32_t, 4> 
+std::array<uint32_t, 4>
 SensingMac::GetNeighborCw(Mac48Address sta, uint8_t linkId)
 {
     NS_LOG_FUNCTION(this << sta << linkId);
@@ -747,10 +763,10 @@ SensingMac::GetNeighborStaRole(Mac48Address sta) const
     return it->second.role;
 }
 
-std::vector<SensingMac::ChannelUtilInfo>
-SensingMac::GetSelfLinkChannelUtil(Time period, uint8_t linkId) const
+std::vector<Time>
+SensingMac::GetSeltLinkTxDataTime(Time period, uint8_t linkId) const
 {
-    NS_LOG_FUNCTION(this << linkId);
+    NS_LOG_FUNCTION(this << period << linkId);
 
     auto it = m_linkMap.find(linkId);
     NS_ASSERT_MSG(it != m_linkMap.end(), "Link not found");
@@ -758,7 +774,7 @@ SensingMac::GetSelfLinkChannelUtil(Time period, uint8_t linkId) const
     NS_ASSERT(period > Seconds(0));
     NS_ASSERT_MSG(period <= m_duration, "Period surpass maximum duration");
 
-    std::vector<ChannelUtilInfo> result;
+    std::vector<Time> result;
     Time prevEnd = Simulator::Now() - period;
     for (const auto& [uid, txEndTime] : it->second.channelUtil)
     {
@@ -769,21 +785,57 @@ SensingMac::GetSelfLinkChannelUtil(Time period, uint8_t linkId) const
 
         auto packetIt = m_packetMap.find(uid);
         NS_ASSERT(packetIt != m_packetMap.end());
+
+        result.push_back(txEndTime);
+
+        // make sure AMPDU with same tx end time will be ignored
+        prevEnd = txEndTime;
+    }
+
+    return result;
+}
+
+std::vector<Time>
+SensingMac::GetSelfLinkAckedTime(Time period, uint8_t linkId) const
+{
+    NS_LOG_FUNCTION(this << period << linkId);
+
+    auto it = m_linkMap.find(linkId);
+    NS_ASSERT_MSG(it != m_linkMap.end(), "Link not found");
+
+    NS_ASSERT(period > Seconds(0));
+    NS_ASSERT_MSG(period <= m_duration, "Period surpass maximum duration");
+
+    std::vector<Time> result;
+    Time prevEnd = Simulator::Now() - period;
+    for (const auto& [uid, txEndTime] : it->second.channelUtil)
+    {
+        if (txEndTime <= prevEnd) // skip packets not in the period
+        {
+            continue;
+        }
+        auto packetIt = m_packetMap.find(uid);
+        NS_ASSERT(packetIt != m_packetMap.end());
+
         // find this tx in the phyTxTime
         auto vec = packetIt->second.phyTxTime;
         auto phyTxIt = std::find_if(vec.begin(), vec.end(), [txEndTime](const auto& pair) {
             return pair.second == txEndTime;
         });
         // get the duration of this tx
-        Time duration = phyTxIt->second - phyTxIt->first;
+        // Time duration = phyTxIt->second - phyTxIt->first;
         // only the last tx can use acked time
-        Time ackedTime =
-            (std::next(phyTxIt) == vec.end()) ? packetIt->second.ackedTime : Seconds(0);
+        // Time ackedTime =
+        //     (std::next(phyTxIt) == vec.end()) ? packetIt->second.ackedTime : Seconds(0);
 
-        ChannelUtilInfo packetInfo{.duration = duration, // @todo: without SIFS and ack time
-                                   .txEndTime = txEndTime,
-                                   .ackedTime = ackedTime};
-        result.push_back(packetInfo);
+        // ChannelUtilInfo packetInfo{.duration = duration, // @todo: without SIFS and ack time
+        //                            .txEndTime = txEndTime,
+        //                            .ackedTime = ackedTime};
+        if (std::next(phyTxIt) == vec.end() && packetIt->second.ackedTime > prevEnd)
+        {
+            result.push_back(packetIt->second.ackedTime);
+        }
+
         // make sure AMPDU with same tx end time will be ignored
         prevEnd = txEndTime;
     }
@@ -813,10 +865,10 @@ SensingMac::GetSelfAppTraffic(Time period) const
     return result;
 }
 
-std::vector<SensingMac::ChannelUtilInfo>
-SensingMac::GetNeighborChannelUtil(Mac48Address sta, Time period) const
+double
+SensingMac::GetNeighborMeanRssi(Mac48Address sta, Time period) const
 {
-    NS_LOG_FUNCTION(this << sta);
+    NS_LOG_FUNCTION(this << sta << period);
 
     auto it = m_neighborStaMap.find(sta);
     NS_ASSERT_MSG(it != m_neighborStaMap.end(), "STA not found");
@@ -824,37 +876,69 @@ SensingMac::GetNeighborChannelUtil(Mac48Address sta, Time period) const
     NS_ASSERT(period > Seconds(0));
     NS_ASSERT_MSG(period <= m_duration, "Period surpass maximum duration");
 
-    std::vector<ChannelUtilInfo> result;
+    uint32_t nTx = 0;
+    double rssi = 0;
     Time prevEnd = Simulator::Now() - period;
     for (const auto& [uid, rxEndTime] : it->second.channelUtil)
     {
         auto packetIt = m_neighborPacketMap.find(uid);
         NS_ASSERT(packetIt != m_neighborPacketMap.end());
 
-        // skip non-data packets and those not in the period
-        if (!packetIt->second.isData || rxEndTime <= prevEnd)
+        // skip those not in the period
+        if (rxEndTime <= prevEnd)
         {
             continue;
         }
 
-        // find this rx in the phyRxTime
-        auto vec = packetIt->second.phyRxTime;
-        auto phyRxIt = std::find_if(vec.begin(), vec.end(), [rxEndTime](const auto& pair) {
-            return pair.second == rxEndTime;
-        });
-        // get the duration of this rx
-        Time duration = phyRxIt->second - phyRxIt->first;
-        // only the last rx can use acked time
-        Time ackedTime =
-            (std::next(phyRxIt) == vec.end()) ? packetIt->second.ackedTime : Seconds(0);
-
-        ChannelUtilInfo packetInfo{.duration = duration, // @todo: without PHY preamble
-                                   .txEndTime = rxEndTime,
-                                   .ackedTime = ackedTime,
-                                   .rssi = packetIt->second.rssi};
-        result.push_back(packetInfo);
+        nTx++;
+        NS_ASSERT(packetIt->second.rssi <= -10);
+        rssi += packetIt->second.rssi;
         // make sure AMPDU with same rx end time will be ignored
         prevEnd = rxEndTime;
+    }
+
+    return rssi / nTx;
+}
+
+std::vector<Time>
+SensingMac::GetNeighborAckedTime(Mac48Address sta, Time period) const
+{
+    NS_LOG_FUNCTION(this << sta << period);
+
+    auto it = m_neighborStaMap.find(sta);
+    NS_ASSERT_MSG(it != m_neighborStaMap.end(), "STA not found");
+
+    NS_ASSERT(period > Seconds(0));
+    NS_ASSERT_MSG(period <= m_duration, "Period surpass maximum duration");
+
+    std::vector<Time> result;
+    Time prevEnd = Simulator::Now() - period;
+    for (const auto& ackedTime : it->second.ackedTime)
+    {
+        // skip those not in the period
+        if (ackedTime <= prevEnd)
+        {
+            continue;
+        }
+
+        // // find this rx in the phyRxTime
+        // auto vec = packetIt->second.phyRxTime;
+        // auto phyRxIt = std::find_if(vec.begin(), vec.end(), [rxEndTime](const auto& pair) {
+        //     return pair.second == rxEndTime;
+        // });
+        // // get the duration of this rx
+        // Time duration = phyRxIt->second - phyRxIt->first;
+        // // only the last rx can use acked time
+        // Time ackedTime =
+        //     (std::next(phyRxIt) == vec.end()) ? packetIt->second.ackedTime : Seconds(0);
+
+        // ChannelUtilInfo packetInfo{.duration = duration, // @todo: without PHY preamble
+        //                            .txEndTime = rxEndTime,
+        //                            .ackedTime = ackedTime,
+        //                            .rssi = packetIt->second.rssi};
+        result.push_back(ackedTime);
+        // make sure AMPDU with same rx end time will be ignored
+        prevEnd = ackedTime;
     }
 
     return result;

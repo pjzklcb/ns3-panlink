@@ -234,6 +234,7 @@ class SensingMac : public Object
         NeighborStaRole role{UNKNOWN};
         uint8_t linkId;
         std::deque<std::pair<uint64_t /* uid */, Time /* rx end time */>> channelUtil;
+        std::deque<Time> ackedTime;
     };
 
     /**
@@ -333,20 +334,26 @@ class SensingMac : public Object
     /**
      * The info of data packet that utilizes channel
      */
-    struct ChannelUtilInfo
-    {
-        Time duration;
-        Time txEndTime;
-        Time ackedTime{Seconds(0)};
-        double rssi{0};
-    };
+    // struct ChannelUtilInfo
+    // {
+    //     Time duration;
+    //     Time txEndTime;
+    //     Time ackedTime{Seconds(0)};
+    //     double rssi{0};
+    // };
 
     /**
      * @param period the period
      * @param linkId the link ID
-     * @return the channel utilization of the mac on the given link in the past period
+     * @return the time of data packets sent on the given link in the past period
      */
-    std::vector<ChannelUtilInfo> GetSelfLinkChannelUtil(Time period, uint8_t linkId) const;
+    std::vector<Time> GetSeltLinkTxDataTime(Time period, uint8_t linkId) const;
+    /**
+     * @param period the period
+     * @param linkId the link ID
+     * @return the time of ACKs to the mac on the given link in the past period
+     */
+    std::vector<Time> GetSelfLinkAckedTime(Time period, uint8_t linkId) const;
     /**
      * @param period the period
      * @return the application traffic arrival time of this mac
@@ -356,9 +363,15 @@ class SensingMac : public Object
     /**
      * @param sta the MAC address of the neighbor STA
      * @param period the period
-     * @return the obs from the neighbor STA in the past period
+     * @return the average RSSI of neighbor STAs in the past period
      */
-    std::vector<ChannelUtilInfo> GetNeighborChannelUtil(Mac48Address sta, Time period) const;
+    double GetNeighborMeanRssi(Mac48Address sta, Time period) const;
+    /**
+     * @param sta the MAC address of the neighbor STA
+     * @param period the period
+     * @return the time of ACKs to the neighbor STA in the past period
+     */
+    std::vector<Time> GetNeighborAckedTime(Mac48Address sta, Time period) const;
     /**
      * @param linkId the link ID
      * @return the list of MAC addresses of the neighbor STAs

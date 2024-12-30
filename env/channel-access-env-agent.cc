@@ -68,33 +68,29 @@ ChannelAccessEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, 
 
         // access info
         auto info = sensingMac->GetLastAccessInfo(obs.linkId);
-        LastAccessObs lastAccessObs{
-            .nInQueuePackets = info.nInQueuePackets,
-            .nExpiredPackets = info.nExpiredPackets,
-            .nDroppedPackets = info.nDroppedPackets,
-            .nSendingPackets = info.nSendingPackets,
-            .nAckedPackets = info.nAckedPackets,
-            .nLowDelayPackets = info.nLowDelayPackets,
-            .nHighDelayPackets = info.nHighDelayPackets
-        };
+        LastAccessObs lastAccessObs{.nInQueuePackets = info.nInQueuePackets,
+                                    .nExpiredPackets = info.nExpiredPackets,
+                                    .nDroppedPackets = info.nDroppedPackets,
+                                    .nSendingPackets = info.nSendingPackets,
+                                    .nAckedPackets = info.nAckedPackets,
+                                    .nLowDelayPackets = info.nLowDelayPackets,
+                                    .nHighDelayPackets = info.nHighDelayPackets};
         env.lastAccessObs = lastAccessObs;
 
         // self link info
-        auto selfUtil = sensingMac->GetSelfLinkChannelUtil(obs.period, obs.linkId);
+        auto selfTxData = sensingMac->GetSeltLinkTxDataTime(obs.period, obs.linkId);
+        auto selfAcks = sensingMac->GetSelfLinkAckedTime(obs.period, obs.linkId);
         auto traffics = sensingMac->GetSelfAppTraffic(obs.period);
         SelfLinkObs selfLinkObs{
             .period = obs.period.ToDouble(Time::MS),
-            .nTxDataPackets = static_cast<uint32_t>(selfUtil.size()),
-            .nAckedDataPackets = GetNAckedDataPackets(selfUtil),
-            .lastTxDataDelay = GetTxDataDelay(selfUtil),
-            .lastTxOkDelay = GetTxOkDelay(selfUtil),
-            .channelUtil = GetChannelUtil(selfUtil),
+            .nTxDataPackets = static_cast<uint32_t>(selfTxData.size()),
+            .nAckedDataPackets = static_cast<uint32_t>(selfAcks.size()),
+            .lastTxOkDelay = GetTxOkDelay(selfAcks),
+            // .channelUtil = GetChannelUtil(selfUtil),
             .nRxFail = sensingMac->GetNRxFail(obs.period, obs.linkId),
             .idleRatio = sensingMac->GetChannelIdleRatio(obs.period, obs.linkId),
-            .dataArrivalIntervalStats = GetDataArrivalIntervalStats(traffics),
-            .dataTxIntervalStats = GetDataTxIntervalStats(selfUtil),
-            .dataTxDurationStats = GetDataTxDurationStats(selfUtil)
-        };
+            .trafficIntervalStats = GetIntervalStats(traffics),
+            .txDataIntervalStats = GetIntervalStats(selfTxData)};
         env.selfLinkObs = selfLinkObs;
 
         // reset neighbor counter
@@ -108,22 +104,19 @@ ChannelAccessEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, 
     {
         return;
     }
-    auto neighborUtil =
-        sensingMac->GetNeighborChannelUtil(neighborStas[m_idxNeighborSta], obs.period);
+    auto neighborAcks =
+        sensingMac->GetNeighborAckedTime(neighborStas[m_idxNeighborSta], obs.period);
     NeighborStaObs neighborStaObs{
         .role =
             static_cast<uint8_t>(sensingMac->GetNeighborStaRole(neighborStas[m_idxNeighborSta])),
         .period = obs.period.ToDouble(Time::MS),
-        .nTxDataPackets = static_cast<uint32_t>(neighborUtil.size()),
-        .nAckedDataPackets = GetNAckedDataPackets(neighborUtil),
-        .lastTxOkDelay = GetTxOkDelay(neighborUtil),
-        .channelUtil = GetChannelUtil(neighborUtil),
-        .meanRssi = GetMeanRssi(neighborUtil),
-        .dataTxIntervalStats = GetDataTxIntervalStats(neighborUtil),
-        .dataTxDurationStats = GetDataTxDurationStats(neighborUtil),
+        .nAcks = static_cast<uint32_t>(neighborAcks.size()),
+        .lastTxOkDelay = GetTxOkDelay(neighborAcks),
+        // .channelUtil = GetChannelUtil(neighborUtil),
+        .meanRssi = sensingMac->GetNeighborMeanRssi(neighborStas[m_idxNeighborSta], obs.period),
+        .txOkIntervalStats = GetIntervalStats(neighborAcks),
         .backoffSlots = sensingMac->GetNeighborBackoff(neighborStas[m_idxNeighborSta], obs.linkId),
-        .cw = sensingMac->GetNeighborCw(neighborStas[m_idxNeighborSta], obs.linkId)
-    };
+        .cw = sensingMac->GetNeighborCw(neighborStas[m_idxNeighborSta], obs.linkId)};
     env.neighborStaObs = neighborStaObs;
 
     // update more data flag
@@ -156,108 +149,77 @@ ChannelAccessEnvAgent::SetEnvAct(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, 
     txop->SetBackoffSlots(newBackoff, obs.linkId);
 }
 
-uint32_t
-ChannelAccessEnvAgent::GetNAckedDataPackets(const ChannelUtilList& util) const
-{
-    NS_LOG_FUNCTION(this);
-
-    uint32_t nAckedDataPackets = 0;
-    for (auto& packet : util)
-    {
-        if (packet.ackedTime != Seconds(0))
-        {
-            nAckedDataPackets += 1;
-        }
-    }
-    return nAckedDataPackets;
-}
-
 double
-ChannelAccessEnvAgent::GetTxDataDelay(const ChannelUtilList& util) const
+ChannelAccessEnvAgent::GetTxOkDelay(const std::vector<Time>& ackedTimes) const
 {
     NS_LOG_FUNCTION(this);
 
-    if (util.size() == 0)
+    if (!ackedTimes.empty())
     {
-        return Simulator::Now().ToDouble(Time::MS);
-    }
-    return (Simulator::Now() - util.back().txEndTime).ToDouble(Time::MS);
-}
-
-double
-ChannelAccessEnvAgent::GetTxOkDelay(const ChannelUtilList& util) const
-{
-    NS_LOG_FUNCTION(this);
-
-    for (auto it = util.rbegin(); it != util.rend(); it++)
-    {
-        if (it->ackedTime != Seconds(0))
-        {
-            return (Simulator::Now() - it->ackedTime).ToDouble(Time::MS);
-        }
+        return (Simulator::Now() - ackedTimes.back()).ToDouble(Time::MS);
     }
     return Simulator::Now().ToDouble(Time::MS);
 }
 
-double
-ChannelAccessEnvAgent::GetChannelUtil(const ChannelUtilList& util) const
-{
-    NS_LOG_FUNCTION(this);
+// double
+// ChannelAccessEnvAgent::GetChannelUtil(const std::vector<Time>& util) const
+// {
+//     NS_LOG_FUNCTION(this);
 
-    if (util.size() == 0)
-    {
-        return 0;
-    }
+//     if (util.size() == 0)
+//     {
+//         return 0;
+//     }
 
-    // Get the segements in the period
-    std::vector<std::pair<Time, Time>> segments;
-    for (const auto& packet : util)
-    {
-        auto begin = packet.txEndTime - packet.duration;
-        segments.emplace_back(std::make_pair(begin, packet.txEndTime));
-    }
+//     // Get the segements in the period
+//     std::vector<std::pair<Time, Time>> segments;
+//     for (const auto& packet : util)
+//     {
+//         auto begin = packet.txEndTime - packet.duration;
+//         segments.emplace_back(std::make_pair(begin, packet.txEndTime));
+//     }
 
-    // Sort the segments by txTime
-    std::sort(segments.begin(), segments.end(), [](const auto& a, const auto& b) {
-        return a.first < b.first;
-    });
+//     // Sort the segments by txTime
+//     std::sort(segments.begin(), segments.end(), [](const auto& a, const auto& b) {
+//         return a.first < b.first;
+//     });
 
-    // Calculate channel utilization
-    double channelUtil = 0;
-    Time prevEnd = segments.front().first;
-    for (const auto& [begin, end] : segments)
-    {
-        if (end <= prevEnd)
-        {
-            continue;
-        }
-        channelUtil += (end - std::max(begin, prevEnd)).ToDouble(Time::MS);
-        prevEnd = end;
-    }
+//     // Calculate channel utilization
+//     double channelUtil = 0;
+//     Time prevEnd = segments.front().first;
+//     for (const auto& [begin, end] : segments)
+//     {
+//         if (end <= prevEnd)
+//         {
+//             continue;
+//         }
+//         channelUtil += (end - std::max(begin, prevEnd)).ToDouble(Time::MS);
+//         prevEnd = end;
+//     }
 
-    return channelUtil;
-}
+//     return channelUtil;
+// }
 
-double
-ChannelAccessEnvAgent::GetMeanRssi(const ChannelUtilList& util) const
-{
-    NS_LOG_FUNCTION(this);
+// double
+// ChannelAccessEnvAgent::GetMeanRssi(const std::vector<Time>& util) const
+// {
+//     NS_LOG_FUNCTION(this);
 
-    if (util.size() == 0)
-    {
-        return 0;
-    }
+//     if (util.size() == 0)
+//     {
+//         return 0;
+//     }
 
-    double sumRssi = 0;
-    for (auto& packet : util)
-    {
-        sumRssi += packet.rssi;
-    }
-    return sumRssi / util.size();
-}
+//     double sumRssi = 0;
+//     for (auto& packet : util)
+//     {
+//         sumRssi += packet.rssi;
+//     }
+//     return sumRssi / util.size();
+// }
 
 std::array<double, 4>
-ChannelAccessEnvAgent::GetDataArrivalIntervalStats(const std::vector<Time>& vec) const
+ChannelAccessEnvAgent::GetIntervalStats(const std::vector<Time>& vec) const
 {
     NS_LOG_FUNCTION(this);
 
@@ -274,37 +236,6 @@ ChannelAccessEnvAgent::GetDataArrivalIntervalStats(const std::vector<Time>& vec)
         }
     }
     return GetStats(intervals);
-}
-
-std::array<double, 4>
-ChannelAccessEnvAgent::GetDataTxIntervalStats(const ChannelUtilList& util) const
-{
-    NS_LOG_FUNCTION(this);
-
-    std::vector<double> intervals;
-    for (auto it = util.begin(); it != util.end(); it++)
-    {
-        if (it != util.begin())
-        {
-            double diff = (it->txEndTime - (it - 1)->txEndTime).ToDouble(Time::MS);
-            NS_ASSERT(diff > 0);
-            intervals.push_back(diff);
-        }
-    }
-    return GetStats(intervals);
-}
-
-std::array<double, 4> 
-ChannelAccessEnvAgent::GetDataTxDurationStats(const ChannelUtilList& util) const
-{
-    NS_LOG_FUNCTION(this);
-
-    std::vector<double> durations;
-    for (auto& packet : util)
-    {
-        durations.push_back(packet.duration.ToDouble(Time::MS));
-    }
-    return GetStats(durations);
 }
 
 std::array<double, 4>
