@@ -62,7 +62,6 @@ class NeighborLinkInfo:
         self.period = obs.period
         self.n_tx_data = obs.nTxDataPackets
         self.n_acked_data = obs.nAckedDataPackets
-        self.tx_delay = obs.lastTxDataDelay
         self.txok_delay = obs.lastTxOkDelay
         self.chan_util = obs.channelUtil
         self.rssi = obs.meanRssi
@@ -170,7 +169,6 @@ class ChannelAccessRlAgent(RlAgent):
             # n_p = self.neighbor_info[i].period
             n_ns = self.neighbor_info[i].n_tx_data
             n_na = self.neighbor_info[i].n_acked_data
-            n_td = self.neighbor_info[i].tx_delay
             n_ad = self.neighbor_info[i].txok_delay
             n_cu = self.neighbor_info[i].chan_util
             n_rssi = self.neighbor_info[i].rssi
@@ -178,10 +176,9 @@ class ChannelAccessRlAgent(RlAgent):
             n_cw = self.neighbor_info[i].cw[0]  # cw of AC_BE
             n_tis = self.neighbor_info[i].tx_interval_stats
             n_tus = self.neighbor_info[i].tx_duration_stats
-            neighbor_features.append([n_role, n_ns, n_na, n_td, n_ad, 
-                                      n_cu, n_rssi, n_b, n_cw] + n_tis + n_tus)
+            neighbor_features.append([n_role, n_ns, n_na, n_ad, n_cu, n_rssi, n_b, n_cw] + n_tis + n_tus)
             if self.show_log and i == 0:
-                print(f"\t Neighbor {i}: role={n_role}, tx_delay/txok_delay={n_td:.2f}/{n_ad:.2f}ms, "
+                print(f"\t Neighbor {i}: role={n_role}, txok_delay={n_ad:.2f}ms, "
                       f"tx/ack={n_ns}/{n_na}, chan_util={n_cu:.2f}ms, " 
                       f"rssi={n_rssi:.2f}dBm, cw={n_cw}, backoff={n_b} \n"
                       f"\t\ttx_stats: interval=[{', '.join(f'{v:.2f}' for v in n_tis)}]ms, "
@@ -197,11 +194,11 @@ class ChannelAccessRlAgent(RlAgent):
                                 'app_interval_max', 'tx_interval_mean', 'tx_interval_std', 
                                 'tx_interval_min', 'tx_interval_max', 'tx_duration_mean', 
                                 'tx_duration_std', 'tx_duration_min', 'tx_duration_max']
-            neighbor_feature_names = ['role', 'n_tx_data', 'n_acked_data', 'last_tx_delay', 
-                                  'last_txok_delay', 'chan_util', 'mean_rssi', 'backoff', 'cw',
-                                  'tx_interval_mean', 'tx_interval_std', 'tx_interval_min', 
-                                  'tx_interval_max', 'tx_duration_mean', 'tx_duration_std', 
-                                  'tx_duration_min', 'tx_duration_max']
+            neighbor_feature_names = ['role', 'n_tx_data', 'n_acked_data', 
+                                      'last_txok_delay', 'chan_util', 'mean_rssi', 'backoff', 'cw',
+                                      'tx_interval_mean', 'tx_interval_std', 'tx_interval_min', 
+                                      'tx_interval_max', 'tx_duration_mean', 'tx_duration_std', 
+                                      'tx_duration_min', 'tx_duration_max']
             with h5py.File("contrib/panlink/agent/dataset/data-" + self.timestamp + ".h5", 'a') as f:
                 step_group = f.create_group('step_' + str(self.step_count))
                 step_group.create_dataset('self_features', data=self_features)

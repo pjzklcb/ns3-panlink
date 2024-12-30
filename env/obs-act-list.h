@@ -57,8 +57,7 @@ struct NeighborStaObs
 
     uint32_t nTxDataPackets;
     uint32_t nAckedDataPackets;
-    double lastTxDataDelay; // ms
-    double lastTxOkDelay;
+    double lastTxOkDelay; // in ms
     double channelUtil; // in ms
     double meanRssi;    // in dBm
 
