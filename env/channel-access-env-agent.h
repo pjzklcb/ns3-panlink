@@ -51,11 +51,6 @@ class ChannelAccessEnvAgent : public EnvAgent
     double GetTxOkDelay(const std::vector<Time>& util) const;
 
     /**
-     * @returns the channel utilization time in ms
-     */
-    double GetChannelUtil(const std::vector<Time>& util) const;
-
-    /**
      * @param vec a vector of time in ascending order
      * @returns the mean, std, min, max of the time intervals
      */

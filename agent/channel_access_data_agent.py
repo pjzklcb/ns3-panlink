@@ -47,7 +47,6 @@ class SelfLinkInfo:
         self.n_tx_data = obs.nTxDataPackets
         self.n_acked_data = obs.nAckedDataPackets
         self.txok_delay = obs.lastTxOkDelay
-        self.chan_util = obs.channelUtil
         self.n_rx_fail = obs.nRxFail
         self.idle_ratio = obs.idleRatio
         self.app_interval_stats = [v for v in obs.trafficIntervalStats]
@@ -60,7 +59,6 @@ class NeighborLinkInfo:
         self.period = obs.period
         self.n_acks = obs.nAcks
         self.txok_delay = obs.lastTxOkDelay
-        self.chan_util = obs.channelUtil
         self.rssi = obs.meanRssi
         self.txok_interval_stats = [v for v in obs.txOkIntervalStats]
         self.backoff = obs.backoffSlots
@@ -72,7 +70,7 @@ class ChannelAccessRlAgent(RlAgent):
         super().__init__(node_id, memory_id, enable_learning)
         self.agent_type = AgentType.RL_CHANNEL_ACCESS
 
-        state_size = 21
+        state_size = 20
         self.action_size = 4
         self.model = DDQN(state_size, self.action_size, hidden_size=HIDDEN_SIZE, 
                          batch_size=BATCH_SIZE, gamma=GAMMA, 
@@ -134,7 +132,6 @@ class ChannelAccessRlAgent(RlAgent):
         l_ns = self.link_info.n_tx_data
         l_na = self.link_info.n_acked_data
         l_ad = self.link_info.txok_delay
-        l_cu = self.link_info.chan_util
         l_rf = self.link_info.n_rx_fail
         l_ir = self.link_info.idle_ratio
         l_ais = self.link_info.app_interval_stats
@@ -144,15 +141,14 @@ class ChannelAccessRlAgent(RlAgent):
             print(f"At {self.sim_time:6f}s, delta_time={self.delta_time:.3f}ms, " 
                   f"cw={self.access_info.cw}, n_defer={a_da}, n_waited_slot={a_nw}, "
                   f"in_queue/sending/acked={a_nq}/{a_ns}/{a_na}, \n"
-                  f"\t txok_delay={l_ad:.2f}ms, tx/ack={l_ns}/{l_na}, "
-                  f"chan_util={l_cu:.2f}ms, \n"
+                  f"\t txok_delay={l_ad:.2f}ms, tx/ack={l_ns}/{l_na}, \n"
                   f"\t app_stats: interval=[{', '.join(f'{v:.2f}' for v in l_ais)}]ms, \n"
                   f"\t tx_stats: interval=[{', '.join(f'{v:.2f}' for v in l_tis)}]ms, \n"
                   f"\t  n_rx_fail={l_rf}, idle_ratio={l_ir*100:.2f}%,  n_neighbor={self.n_neighbor}, "
                   f"n_contention={self.n_contention}, min_neighbor_backoff={self.min_neighbor_backoff}")
 
         self_features = (
-            [a_dt, a_cw, a_da, a_nw, a_nq, a_ns, a_na] + [l_ns, l_na, l_ad, l_cu, l_rf, l_ir] + 
+            [a_dt, a_cw, a_da, a_nw, a_nq, a_ns, a_na] + [l_ns, l_na, l_ad, l_rf, l_ir] + 
             l_ais + l_tis
         )
         
@@ -162,16 +158,14 @@ class ChannelAccessRlAgent(RlAgent):
             # n_p = self.neighbor_info[i].period
             n_na = self.neighbor_info[i].n_acks
             n_ad = self.neighbor_info[i].txok_delay
-            n_cu = self.neighbor_info[i].chan_util
             n_rssi = self.neighbor_info[i].rssi
             n_b = self.neighbor_info[i].backoff
             n_cw = self.neighbor_info[i].cw[0]  # cw of AC_BE
             n_tis = self.neighbor_info[i].txok_interval_stats
-            neighbor_features.append([n_role, n_na, n_ad, n_cu, n_rssi, n_b, n_cw] + n_tis)
+            neighbor_features.append([n_role, n_na, n_ad, n_rssi, n_b, n_cw] + n_tis)
             if self.show_log and i == 0:
                 print(f"\t Neighbor {i}: role={n_role}, txok_delay={n_ad:.2f}ms, "
-                      f"acks={n_na}, chan_util={n_cu:.2f}ms, " 
-                      f"rssi={n_rssi:.2f}dBm, cw={n_cw}, backoff={n_b} \n"
+                      f"acks={n_na}, rssi={n_rssi:.2f}dBm, cw={n_cw}, backoff={n_b} \n"
                       f"\t\t txok_stats: interval=[{', '.join(f'{v:.2f}' for v in n_tis)}]ms")
 
         # save to dataset
@@ -179,11 +173,11 @@ class ChannelAccessRlAgent(RlAgent):
             # save to dataset
             self_feature_names = ['delta_time', 'cw', 'n_defer_access', 'n_waited_slots', 'n_in_queue', 
                                 'n_sending', 'n_acked', 'n_tx_data', 'n_acked_data', 
-                                'last_tx_delay', 'last_txok_delay', 'chan_util', 'n_rx_fail', 'idle_ratio',
+                                'last_tx_delay', 'last_txok_delay', 'n_rx_fail', 'idle_ratio',
                                 'app_interval_mean', 'app_interval_std', 'app_interval_min', 
                                 'app_interval_max', 'tx_interval_mean', 'tx_interval_std', 
                                 'tx_interval_min', 'tx_interval_max']
-            neighbor_feature_names = ['role', 'n_acks', 'last_txok_delay', 'chan_util', 'mean_rssi', 
+            neighbor_feature_names = ['role', 'n_acks', 'last_txok_delay', 'mean_rssi', 
                                       'backoff', 'cw',
                                       'tx_interval_mean', 'tx_interval_std', 'tx_interval_min', 
                                       'tx_interval_max']

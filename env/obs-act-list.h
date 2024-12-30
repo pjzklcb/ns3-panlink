@@ -35,8 +35,7 @@ struct SelfLinkObs
 
     uint32_t nTxDataPackets;
     uint32_t nAckedDataPackets;
-    double lastTxOkDelay;
-    double channelUtil; // ms
+    double lastTxOkDelay; // in ms
 
     uint32_t nRxFail;
     double idleRatio;
@@ -55,7 +54,6 @@ struct NeighborStaObs
 
     uint32_t nAcks;
     double lastTxOkDelay; // in ms
-    double channelUtil; // in ms
     double meanRssi;    // in dBm
 
     std::array<double, 4> txOkIntervalStats;
