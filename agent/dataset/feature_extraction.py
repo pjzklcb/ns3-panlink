@@ -65,29 +65,32 @@ if __name__ == "__main__":
     #     print("Min Neighbor Backoffs Shape:", min_neighbor_backoffs.shape)
     
     # analyze dataset
-    self_features = np.zeros((len(data_loader.dataset), len(selected_self_features)))
+    # self_features = np.zeros((len(data_loader.dataset), len(selected_self_features)))
     # neighbor_features = np.zeros((len(data_loader.dataset), len(selected_neighbor_features)))
-    tx_prob = np.zeros((len(data_loader.dataset), 20))
-    backoff = np.zeros((len(data_loader.dataset), 20))
-    labels = np.zeros((len(data_loader.dataset), 1))
+    backoff = np.zeros(len(data_loader.dataset))
+    labels = np.zeros(len(data_loader.dataset))
     cnt = 0
     for feature, n_feature, key_padding_mask, label in data_loader:
         batch_size = feature.shape[0]
-        self_features[cnt:cnt + batch_size] = feature.squeeze(1).numpy()
-        tx_prob[cnt:cnt + batch_size] = n_feature[:, :, 0].view(batch_size, -1).numpy()
-        backoff[cnt:cnt + batch_size] = n_feature[:, :, 1].view(batch_size, -1).numpy()
+        # self_features[cnt:cnt + batch_size] = feature.squeeze(1).numpy()
+        n_contention = (n_feature[:, :, 1] != 1024).sum(axis=1)
+        backoff[cnt:cnt + batch_size] = n_contention.numpy()
         # neighbor_features[cnt:cnt + batch_size] = tx_prob.numpy()
-        labels[cnt:cnt + batch_size] = label.unsqueeze(1).numpy()
+        labels[cnt:cnt + batch_size] = label.numpy()
         cnt += batch_size
 
-    s_df = pd.DataFrame(self_features, columns=selected_self_features)
-    # n_df = pd.DataFrame(neighbor_features, columns=list(range(20)))
-    tx_df = pd.DataFrame(tx_prob, columns=list(range(20)))
-    bo_df = pd.DataFrame(backoff, columns=list(range(20)))
-    labels = pd.DataFrame(labels, columns=['min_neighbor_backoff'])#.clip(lower=0, upper=1)
+    plt.plot(backoff[500:600])
+    plt.show()
 
-    x = pd.concat([s_df, tx_df, bo_df], axis=1)
-    x.to_csv('contrib/panlink/agent/output.csv', index=True)
+    plt.figure()
+    plt.hist(backoff[labels==0], bins=20, density=True, alpha=0.5, label='0')
+    plt.hist(backoff[labels==3], bins=20, density=True, alpha=0.5, label='3')
+    plt.hist(backoff[labels==6], bins=20, density=True, alpha=0.5, label='6')
+    plt.legend()
+    # s_df = pd.DataFrame(self_features, columns=selected_self_features)
+    # n_df = pd.DataFrame(neighbor_features, columns=list(range(20)))
+    # labels = pd.DataFrame(labels, columns=['min_neighbor_backoff'])#.clip(lower=0, upper=1)
+
     # calculate spearman correlation
     # for key in selected_self_features:
     #     metric = labels['min_neighbor_backoff'].corr(s_df[key], method='spearman')
@@ -107,7 +110,7 @@ if __name__ == "__main__":
     #     print(f"{key:>20}: chi^2 = {chi2:.2f}, p = {p:.2f}, dof = {dof:.2f}")
 
     # x = n_df['tx_prob']
-    # # x = s_df['n_rx_drop']
+    x = 0
     # y = labels['min_neighbor_backoff']
     # plt.hist(x[y==0], bins=20, alpha=0.5, label='0', density=True)
     # plt.hist(x[y==1], bins=20, alpha=0.5, label='1', density=True)
