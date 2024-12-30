@@ -90,6 +90,8 @@ if __name__ == '__main__':
                         default=5, help='total simulation time of ns-3')
     parser.add_argument('--enable_intf', action='store_true',
                         help='whether to enable interference')
+    parser.add_argument('--max_mpdus', type=int,
+                        default=255, help='maximum number of MPDUs per AMPDU')
     parser.add_argument('--pcap', action='store_true',
                         help='whether to enable pcap')
     parser.add_argument('--stats', action='store_true',
@@ -116,6 +118,7 @@ if __name__ == '__main__':
         'configIntf': os.path.join(config_dir, args.config_intf),
         'simulationTime': args.simulation_time,
         'enableIntf': args.enable_intf,
+        'maxMpdus': args.max_mpdus,
         'pcap': args.pcap,
         'stats': args.stats,
         "verbose": args.ns3_log

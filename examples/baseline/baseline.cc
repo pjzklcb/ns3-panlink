@@ -87,6 +87,7 @@ main(int argc, char* argv[])
         "muSchedAccessReqInterval",
         "Duration of the interval between two requests for channel access made by the MU scheduler",
         accessReqInterval);
+    cmd.AddValue("maxMpdus", "The maximum number of MPDUs per A-MPDU", maxMpdus);
     cmd.AddValue("fragmentSize", "The maximum size of each fragment", fragmentSize);
     cmd.AddValue("pcap", "Enable generating pcap files", pcap);
     cmd.AddValue("stats", "Enable results saving", stats);
@@ -272,7 +273,8 @@ main(int argc, char* argv[])
                                       "Period",
                                       TimeValue(Seconds(period)));
                 g_envHelper.Install(g_agentHelper, panlinkNodes.Get(nodeId));
-                std::cout << "Node-" << nodeId << " installs " << agentType << "EnvAgent" << std::endl;
+                std::cout << "Node-" << nodeId << " installs " << agentType << "EnvAgent"
+                          << std::endl;
             }
 
             bool enableChannelAccess =
