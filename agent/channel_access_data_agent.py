@@ -59,6 +59,7 @@ class NeighborLinkInfo:
         self.period = obs.period
         self.n_acks = obs.nAcks
         self.txok_delay = obs.lastTxOkDelay
+        self.txok_idle_time = obs.lastTxOkIdleTime
         self.rssi = obs.meanRssi
         self.txok_interval_stats = [v for v in obs.txOkIntervalStats]
         self.backoff = obs.backoffSlots
@@ -142,8 +143,8 @@ class ChannelAccessRlAgent(RlAgent):
                   f"cw={self.access_info.cw}, n_defer={a_da}, n_waited_slot={a_nw}, "
                   f"in_queue/sending/acked={a_nq}/{a_ns}/{a_na}, \n"
                   f"\t txok_delay={l_ad:.2f}ms, tx/ack={l_ns}/{l_na}, \n"
-                  f"\t app_stats: interval=[{', '.join(f'{v:.2f}' for v in l_ais)}]ms, \n"
-                  f"\t tx_stats: interval=[{', '.join(f'{v:.2f}' for v in l_tis)}]ms, \n"
+                  f"\t app_stats: interval=[{', '.join(f'{v:.2f}' for v in l_ais)}]ms, "
+                  f"tx_stats: interval=[{', '.join(f'{v:.2f}' for v in l_tis)}]ms, \n"
                   f"\t  n_rx_fail={l_rf}, idle_ratio={l_ir*100:.2f}%,  n_neighbor={self.n_neighbor}, "
                   f"n_contention={self.n_contention}, min_neighbor_backoff={self.min_neighbor_backoff}")
 
@@ -158,13 +159,14 @@ class ChannelAccessRlAgent(RlAgent):
             # n_p = self.neighbor_info[i].period
             n_na = self.neighbor_info[i].n_acks
             n_ad = self.neighbor_info[i].txok_delay
+            n_it = self.neighbor_info[i].txok_idle_time
             n_rssi = self.neighbor_info[i].rssi
             n_b = self.neighbor_info[i].backoff
             n_cw = self.neighbor_info[i].cw[0]  # cw of AC_BE
             n_tis = self.neighbor_info[i].txok_interval_stats
             neighbor_features.append([n_role, n_na, n_ad, n_rssi, n_b, n_cw] + n_tis)
             if self.show_log and i == 0:
-                print(f"\t Neighbor {i}: role={n_role}, txok_delay={n_ad:.2f}ms, "
+                print(f"\t Neighbor {i}: role={n_role}, txok_delay/idle_time={n_ad:.2f}/{n_it:.2f}ms, "
                       f"acks={n_na}, rssi={n_rssi:.2f}dBm, cw={n_cw}, backoff={n_b} \n"
                       f"\t\t txok_stats: interval=[{', '.join(f'{v:.2f}' for v in n_tis)}]ms")
 
@@ -177,7 +179,7 @@ class ChannelAccessRlAgent(RlAgent):
                                 'app_interval_mean', 'app_interval_std', 'app_interval_min', 
                                 'app_interval_max', 'tx_interval_mean', 'tx_interval_std', 
                                 'tx_interval_min', 'tx_interval_max']
-            neighbor_feature_names = ['role', 'n_acks', 'last_txok_delay', 'mean_rssi', 
+            neighbor_feature_names = ['role', 'n_acks', 'last_txok_delay', 'idle_time', 'mean_rssi', 
                                       'backoff', 'cw',
                                       'tx_interval_mean', 'tx_interval_std', 'tx_interval_min', 
                                       'tx_interval_max']

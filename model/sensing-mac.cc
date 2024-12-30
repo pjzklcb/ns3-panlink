@@ -900,6 +900,34 @@ SensingMac::GetNeighborMeanRssi(Mac48Address sta, Time period) const
     return rssi / nTx;
 }
 
+double
+SensingMac::GetNeighborLastTxOkIdleTime(Mac48Address sta) const
+{
+    NS_LOG_FUNCTION(this << sta);
+
+    auto it = m_neighborStaMap.find(sta);
+    NS_ASSERT_MSG(it != m_neighborStaMap.end(), "STA not found");
+
+    if (it->second.ackedTime.empty())
+    {
+        return 0;
+    }
+
+    Time lastTxOk = it->second.ackedTime.back();
+    double result = 0;
+    for (const auto& [begin, duration] : m_linkMap.at(it->second.linkId).idleTime)
+    {
+        if (lastTxOk > begin)
+        {
+            continue;
+        }
+
+        result += duration.ToDouble(Time::MS);
+    }
+
+    return result;
+}
+
 std::vector<Time>
 SensingMac::GetNeighborAckedTime(Mac48Address sta, Time period) const
 {

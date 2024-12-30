@@ -53,8 +53,9 @@ struct NeighborStaObs
     double period; // period of observation in ms
 
     uint32_t nAcks;
-    double lastTxOkDelay; // in ms
-    double meanRssi;    // in dBm
+    double lastTxOkDelay;    // in ms
+    double lastTxOkIdleTime; // the total channel idle time from last ack
+    double meanRssi;         // in dBm
 
     std::array<double, 4> txOkIntervalStats;
 
