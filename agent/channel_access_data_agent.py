@@ -139,8 +139,8 @@ class ChannelAccessRlAgent(RlAgent):
         l_tis = self.link_info.tx_interval_stats
         
         if self.show_log:
-            print(f"At {self.sim_time:6f}s, delta_time={self.delta_time:.3f}ms, " 
-                  f"cw={self.access_info.cw}, n_defer={a_da}, n_waited_slot={a_nw}, "
+            print(f"At {self.sim_time:6f}s, delta_time={a_dt:.3f}ms, " 
+                  f"cw={a_cw}, n_defer={a_da}, n_waited_slot={a_nw}, "
                   f"in_queue/sending/acked={a_nq}/{a_ns}/{a_na}, \n"
                   f"\t txok_delay={l_ad:.2f}ms, tx/ack={l_ns}/{l_na}, \n"
                   f"\t app_stats: interval=[{', '.join(f'{v:.2f}' for v in l_ais)}]ms, "

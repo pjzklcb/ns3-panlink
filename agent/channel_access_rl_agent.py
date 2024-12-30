@@ -25,54 +25,46 @@ LEARNING_RATE = 1e-4
 EPSILON_START = 1.0
 HIDDEN_SIZE = 64
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-LATENT_DIM = 64
-NUM_HEADS = 4
 
 
 class AccessInfo:
-    def __init__(self, ac, cw, n_deferred_access, n_waited_slot, 
-                 n_in_queue, n_expired, n_dropped, n_sending, n_acked, 
-                 n_low_delay, n_high_delay):
+    def __init__(self, ac, cw, n_deferred_access, n_waited_slot, obs):
         self.ac = ac
         self.cw = cw
         self.n_deferred_access = n_deferred_access
         self.n_waited_slot = n_waited_slot
-        self.n_in_queue = n_in_queue
-        self.n_expired = n_expired
-        self.n_dropped = n_dropped
-        self.n_sending = n_sending
-        self.n_acked = n_acked
-        self.n_low_delay = n_low_delay
-        self.n_high_delay = n_high_delay
+        self.n_in_queue = obs.nInQueuePackets
+        self.n_expired = obs.nExpiredPackets
+        self.n_dropped = obs.nDroppedPackets
+        self.n_sending = obs.nSendingPackets
+        self.n_acked = obs.nAckedPackets
+        self.n_low_delay = obs.nLowDelayPackets
+        self.n_high_delay = obs.nHighDelayPackets
 
 
 class SelfLinkInfo:
-    def __init__(self, period, n_tx_data, n_acked_data, tx_delay, txok_delay, 
-                 chan_util, app_interval_stats, tx_interval_stats, tx_duration_stats):
-        self.period = period
-        self.n_tx_data = n_tx_data
-        self.n_acked_data = n_acked_data
-        self.tx_delay = tx_delay
-        self.txok_delay = txok_delay
-        self.chan_util = chan_util
-        self.app_interval_stats = [v for v in app_interval_stats]
-        self.tx_interval_stats = [v for v in tx_interval_stats]
-        self.tx_duration_stats = [v for v in tx_duration_stats]
+    def __init__(self, obs):
+        self.period = obs.period
+        self.n_tx_data = obs.nTxDataPackets
+        self.n_acked_data = obs.nAckedDataPackets
+        self.txok_delay = obs.lastTxOkDelay
+        self.n_rx_fail = obs.nRxFail
+        self.idle_ratio = obs.idleRatio
+        self.app_interval_stats = [v for v in obs.trafficIntervalStats]
+        self.tx_interval_stats = [v for v in obs.txDataIntervalStats]
 
 
 class NeighborLinkInfo:
-    def __init__(self, role, period, n_tx_data, n_acked_data, tx_delay, txok_delay, 
-                 chan_util, rssi, tx_interval_stats, tx_duration_stats):
-        self.role = role
-        self.period = period
-        self.n_tx_data = n_tx_data
-        self.n_acked_data = n_acked_data
-        self.tx_delay = tx_delay
-        self.txok_delay = txok_delay
-        self.chan_util = chan_util
-        self.rssi = rssi
-        self.tx_interval_stats = [v for v in tx_interval_stats]
-        self.tx_duration_stats = [v for v in tx_duration_stats]
+    def __init__(self, obs):
+        self.role = obs.role
+        self.period = obs.period
+        self.n_acks = obs.nAcks
+        self.txok_delay = obs.lastTxOkDelay
+        self.txok_idle_time = obs.lastTxOkIdleTime
+        self.rssi = obs.meanRssi
+        self.txok_interval_stats = [v for v in obs.txOkIntervalStats]
+        self.backoff = obs.backoffSlots
+        self.cw = [v for v in obs.cw]
 
 
 class ChannelAccessRlAgent(RlAgent):
@@ -80,8 +72,8 @@ class ChannelAccessRlAgent(RlAgent):
         super().__init__(node_id, memory_id, enable_learning)
         self.agent_type = AgentType.RL_CHANNEL_ACCESS
 
-        state_size = 6 + LATENT_DIM
-        self.action_size = 4
+        state_size = 11
+        self.action_size = 2
         self.model = DDQN(state_size, self.action_size, hidden_size=HIDDEN_SIZE, 
                          batch_size=BATCH_SIZE, gamma=GAMMA, 
                          epsilon=EPSILON_START if self.enable_learning else 0, 
@@ -90,10 +82,7 @@ class ChannelAccessRlAgent(RlAgent):
         self.neighbor_info = []
         self.backoff = 0
         self.backoff_log = []
-
-        self.feature_extractor = self._load_feature_extractor()
-        self.self_norm = MinMaxScaler()
-        self.neighbor_norm = MinMaxScaler(neighbor=True)
+        self.debug = []
 
         # load pretrained model
         try:
@@ -105,53 +94,19 @@ class ChannelAccessRlAgent(RlAgent):
         
         if not self.enable_learning:
             self.model.epsilon = 0
-
-    def _load_feature_extractor(self):
-        neighbor_dim = 15
-        self_dim = 17
-        extractor_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'dataset/attn_model3.pth')
-        feature_extractor = AttentionFeatureExtractor(neighbor_dim, self_dim, LATENT_DIM, num_heads=NUM_HEADS)
-        feature_extractor.load_state_dict(torch.load(extractor_path))
-        feature_extractor.eval()
-        # freeze all params
-        for param in feature_extractor.parameters():
-            param.requires_grad = False
-        return feature_extractor
-
-    def _get_latent_feature(self, neighbor_features, self_features):
-        # neighbor_features shape: (N, neighbor_dim)
-        # self_features shape: (1, self_dim)
-        with torch.no_grad(): 
-            neighbor_features = torch.tensor(neighbor_features, dtype=torch.float32).unsqueeze(0).to(DEVICE)
-            self_features = torch.tensor(self_features, dtype=torch.float32).unsqueeze(0).to(DEVICE)
-            latent_features = self.feature_extractor(neighbor_features, self_features)
-        
-        return latent_features
     
     def get_obs(self, msg_interface):
         env = msg_interface.GetCpp2PyVector()[self.memory_id]
         if not self.more_data:
-            self.last_nw = 0 if len(self.backoff_log) == 0 else self.access_info.n_waited_slot
             self.n_contention = env.nStasWithPackets
             self.min_neighbor_backoff = env.minNeighborBackoff
             self.access_info = AccessInfo(AcIndex(env.ac), env.cw, env.nDeferredAccess, 
-                                            env.waitedSlots, env.nInQueuePackets, 
-                                            env.nExpiredPackets, env.nDroppedPackets, 
-                                            env.nSendingPackets, env.nAckedPackets, 
-                                            env.nLowDelayPackets, env.nHighDelayPackets)
-            obs = env.selfLinkObs
-            self.link_info = SelfLinkInfo(obs.period, obs.nTxDataPackets, obs.nAckedDataPackets, 
-                                          obs.lastTxDataDelay, obs.lastTxOkDelay, obs.channelUtil,
-                                          obs.dataArrivalIntervalStats, obs.dataTxIntervalStats,
-                                          obs.dataTxDurationStats)
+                                          env.waitedSlots, env.lastAccessObs)
+            self.link_info = SelfLinkInfo(env.selfLinkObs)
             
         self.n_neighbor = env.nNeighborStas
         if self.n_neighbor > 0:
-            obs = env.neighborStaObs
-            neighbor_info = NeighborLinkInfo(obs.role, obs.period, obs.nTxDataPackets, 
-                                             obs.nAckedDataPackets, obs.lastTxDataDelay, 
-                                             obs.lastTxOkDelay, obs.channelUtil, obs.meanRssi,
-                                             obs.dataTxIntervalStats, obs.dataTxDurationStats)
+            neighbor_info = NeighborLinkInfo(env.neighborStaObs)
             self.neighbor_info.append(neighbor_info)
             # print("python get {}/{}".format(len(self.neighbor_info), self.n_neighbor))
             self.more_data = env.moreData
@@ -162,7 +117,8 @@ class ChannelAccessRlAgent(RlAgent):
         msg_interface.GetPy2CppVector()[self.memory_id].backoff = self.backoff
     
     def choose_action(self):
-        a_cw = math.log(self.access_info.cw + 1, 2)
+        a_dt = self.delta_time
+        a_cw = self.access_info.cw
         a_da = self.access_info.n_deferred_access
         a_nw = self.access_info.n_waited_slot
         a_nq = self.access_info.n_in_queue
@@ -176,67 +132,48 @@ class ChannelAccessRlAgent(RlAgent):
         # l_p = self.link_info.period
         l_ns = self.link_info.n_tx_data
         l_na = self.link_info.n_acked_data
-        l_td = self.link_info.tx_delay
         l_ad = self.link_info.txok_delay
-        l_cu = self.link_info.chan_util
-        l_ai = self.link_info.app_interval_stats
+        l_rf = self.link_info.n_rx_fail
+        l_ir = self.link_info.idle_ratio
+        l_ais = self.link_info.app_interval_stats
         l_tis = self.link_info.tx_interval_stats
-        l_tus = self.link_info.tx_duration_stats
         
         if self.show_log:
-            print(f"At {self.sim_time:6f}s, delta_time={self.delta_time:.3f}ms, " 
-                  f"cw={self.access_info.cw}, n_defer={a_da}, n_waited_slot={a_nw}, "
+            print(f"At {self.sim_time:6f}s, delta_time={a_dt:.3f}ms, " 
+                  f"cw={a_cw}, n_defer={a_da}, n_waited_slot={a_nw}, "
                   f"in_queue/sending/acked={a_nq}/{a_ns}/{a_na}, \n"
-                  f"\t tx_delay/txok_delay={l_td:.2f}/{l_ad:.2f}ms, tx/ack={l_ns}/{l_na}, "
-                  f"chan_util={l_cu:.2f}ms, \n"
-                  f"\t app_stats: interval=[{', '.join(f'{v:.2f}' for v in l_ai)}]ms, \n"
-                  f"\t tx_stats: interval=[{', '.join(f'{v:.2f}' for v in l_tis)}]ms, "
-                  f"duration=[{', '.join(f'{v:.2f}' for v in l_tus)}]ms, \n"
-                  f"\t n_neighbor={self.n_neighbor}, n_contention={self.n_contention}, "
-                  f"min_neighbor_backoff={self.min_neighbor_backoff}")
+                  f"\t txok_delay={l_ad:.2f}ms, tx/ack={l_ns}/{l_na}, \n"
+                  f"\t app_stats: interval=[{', '.join(f'{v:.2f}' for v in l_ais)}]ms, "
+                  f"tx_stats: interval=[{', '.join(f'{v:.2f}' for v in l_tis)}]ms, \n"
+                  f"\t  n_rx_fail={l_rf}, idle_ratio={l_ir*100:.2f}%,  n_neighbor={self.n_neighbor}, "
+                  f"n_contention={self.n_contention}, min_neighbor_backoff={self.min_neighbor_backoff}")
 
-        self_features = [a_cw, a_da, a_nw, a_nq, a_ns, a_na] + \
-                        [l_ns, l_na, l_td, l_ad, l_cu] + \
-                        l_ai + l_tis + l_tus
+        self_features = [a_da, a_nw, a_nq, a_ns, a_na] 
         
         neighbor_features = []
         for i in range(self.n_neighbor):
             n_role = self.neighbor_info[i].role
             # n_p = self.neighbor_info[i].period
-            n_ns = self.neighbor_info[i].n_tx_data
-            n_na = self.neighbor_info[i].n_acked_data
-            n_td = self.neighbor_info[i].tx_delay
+            n_na = self.neighbor_info[i].n_acks
             n_ad = self.neighbor_info[i].txok_delay
-            n_cu = self.neighbor_info[i].chan_util
+            n_it = self.neighbor_info[i].txok_idle_time
             n_rssi = self.neighbor_info[i].rssi
-            n_tis = self.neighbor_info[i].tx_interval_stats
-            n_tus = self.neighbor_info[i].tx_duration_stats
-            neighbor_features.append([n_role, n_ns, n_na, n_td, n_ad, 
-                                      n_cu, n_rssi] + n_tis + n_tus)
+            n_b = self.neighbor_info[i].backoff
+            n_cw = self.neighbor_info[i].cw[0]  # cw of AC_BE
+            n_tis = self.neighbor_info[i].txok_interval_stats
+            if n_role != 0:
+                neighbor_features += [n_ad, n_it]
             if self.show_log and i == 0:
-                print(f"\t Neighbor {i}: role={n_role}, tx_delay/txok_delay={n_td:.2f}/{n_ad:.2f}ms, "
-                      f"tx/ack={n_ns}/{n_na}, chan_util={n_cu:.2f}ms, " 
-                      f"rssi={n_rssi:.2f}dBm, \n"
-                      f"\t\ttx_stats: interval=[{', '.join(f'{v:.2f}' for v in n_tis)}]ms, "
-                      f"duration=[{', '.join(f'{v:.2f}' for v in n_tus)}]ms")
+                print(f"\t Neighbor {i}: role={n_role}, txok_delay/idle_time={n_ad:.2f}/{n_it:.2f}ms, "
+                      f"acks={n_na}, rssi={n_rssi:.2f}dBm, cw={n_cw}, backoff={n_b} \n"
+                      f"\t\t txok_stats: interval=[{', '.join(f'{v:.2f}' for v in n_tis)}]ms")
 
-        # extract latent features
-        latent_features = [0] * LATENT_DIM
-        if len(neighbor_features) != 0:
-            # normalize the obs
-            normalized_self_features = self.self_norm.normalize([self_features[6:]])
-            normalized_neighbor_features = self.neighbor_norm.normalize(neighbor_features)
-
-            # extract latent features
-            latent_features = self._get_latent_feature(normalized_neighbor_features, normalized_self_features)
-            latent_features = latent_features.squeeze().tolist() # (LATENT_DIM,)
-
-        next_state = self_features[:6] + latent_features
+        next_state = self_features + neighbor_features + [0] * (6-len(neighbor_features))
         if self.state:
             # caculate reward
             r_tx = a_na if a_na else -a_ns
-            r_wait = 1 if a_da and (a_nw - self.last_nw) == 0 and self.action else 0
-            reward = r_tx + r_wait
+            # r_wait = 1 if a_da and (a_nw - self.last_nw) == 0 and self.action else 0
+            reward = r_tx #+ r_wait
             self.reward_log.append(reward)
             self.model.store_transition(self.state, self.action, reward, next_state)
             if self.enable_learning:
@@ -247,7 +184,7 @@ class ChannelAccessRlAgent(RlAgent):
         # self.action = random.randint(0, self.access_info.cw - a_nw)
         self.action_log.append(self.action)
         
-        self.backoff = self.action * 8
+        self.backoff = self.action * (a_cw + 1)
         self.backoff_log.append(self.backoff)
         if self.show_log:
             print("New Backoff={}".format(self.backoff))
