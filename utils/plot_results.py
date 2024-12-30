@@ -265,7 +265,7 @@ class PlotResults(object):
             n_tx_data += info.tx_counter
             n_tx_fail += info.tx_counter - 1 if info.acked else info.tx_counter
 
-        fail_rate = round(n_tx_fail*100 / n_tx_data, 2)
+        fail_rate = round(n_tx_fail*100 / max(1, n_tx_data), 2)
         # write to txt
         with open(self.result_dir + "figures/channel_load.txt", 'a') as f:
             f.write('Node-{}: tx_data={},  tx_fail={}, fail_rate={}%\n'.format(node_id, n_tx_data, n_tx_fail, fail_rate))
@@ -546,5 +546,5 @@ class PlotResults(object):
         
 
 if __name__ == '__main__':
-    timestamp = "1734005773"
-    PlotResults(timestamp, episode=60, target_nodes=[0,1,2,3,4]).do_plot()
+    timestamp = "1735552132"
+    PlotResults(timestamp, episode=0, target_nodes=[0,1,2,3,4]).do_plot()
