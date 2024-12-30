@@ -55,6 +55,7 @@ bind_array(py::module& m, const std::string& name)
 PYBIND11_MODULE(cpp_py_interface, m)
 {
     bind_array<double, 4>(m, "Double4Array");
+    bind_array<uint32_t, 4>(m, "Uint4Array");
     
     py::class_<LastAccessObs>(m, "LastAccessObs")
         .def(py::init<>())
@@ -92,7 +93,8 @@ PYBIND11_MODULE(cpp_py_interface, m)
         .def_readwrite("meanRssi", &NeighborStaObs::meanRssi)
         .def_readwrite("dataTxIntervalStats", &NeighborStaObs::dataTxIntervalStats)
         .def_readwrite("dataTxDurationStats", &NeighborStaObs::dataTxDurationStats)
-        .def_readwrite("backoffSlots", &NeighborStaObs::backoffSlots);
+        .def_readwrite("backoffSlots", &NeighborStaObs::backoffSlots)
+        .def_readwrite("cw", &NeighborStaObs::cw);
 
     py::class_<Obs>(m, "PyEnvStruct")
         .def(py::init<>())

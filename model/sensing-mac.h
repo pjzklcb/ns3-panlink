@@ -303,6 +303,12 @@ class SensingMac : public Object
      * @returns the backoff slots of the given neighbor STA
      */
     uint32_t GetNeighborBackoff(Mac48Address sta, uint8_t linkId);
+    /**
+     * @param sta the mac address
+     * @param linkId the link ID
+     * @returns the cw of each AC the given neighbor STA
+     */
+    std::array<uint32_t, 4> GetNeighborCw(Mac48Address sta, uint8_t linkId);
 
     /**
      * The info collected from the mac since the last access resume.

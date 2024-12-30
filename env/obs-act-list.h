@@ -66,6 +66,7 @@ struct NeighborStaObs
     std::array<double, 4> dataTxDurationStats;
 
     uint32_t backoffSlots;
+    std::array<uint32_t, 4> cw;
 };
 
 struct Obs

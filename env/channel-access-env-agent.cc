@@ -122,7 +122,8 @@ ChannelAccessEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, 
         .meanRssi = GetMeanRssi(neighborUtil),
         .dataTxIntervalStats = GetDataTxIntervalStats(neighborUtil),
         .dataTxDurationStats = GetDataTxDurationStats(neighborUtil),
-        .backoffSlots = sensingMac->GetNeighborBackoff(neighborStas[m_idxNeighborSta], obs.linkId)
+        .backoffSlots = sensingMac->GetNeighborBackoff(neighborStas[m_idxNeighborSta], obs.linkId),
+        .cw = sensingMac->GetNeighborCw(neighborStas[m_idxNeighborSta], obs.linkId)
     };
     env.neighborStaObs = neighborStaObs;
 
