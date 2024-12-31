@@ -37,6 +37,8 @@ struct SelfLinkObs
     uint32_t nAckedDataPackets;
     double lastTxOkDelay; // in ms
 
+    double lastRxFailDelay;
+    double lastRxFailIdleTime;
     uint32_t nRxFail;
     double idleRatio;
 

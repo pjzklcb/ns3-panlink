@@ -184,24 +184,6 @@ class SensingMac : public Object
     double GetDelay(Time period, AcIndex ac, uint8_t linkId = SINGLE_LINK_OP_ID) const;
 
     /**
-     * Get the number of rx fails in the past period of time.
-     *
-     * @param period the period
-     * @param linkId the ID of the link
-     * @returns the number of rx fails
-     */
-    uint32_t GetNRxFail(Time period, uint8_t linkId);
-
-    /**
-     * Get the channel idle ratio in the past period of time.
-     *
-     * @param period the period
-     * @param linkId the ID of the link
-     * @returns the channel idle ratio
-     */
-    double GetChannelIdleRatio(Time period, uint8_t linkId);
-
-    /**
      * The role for neighboring STAs.
      */
     enum NeighborStaRole
@@ -359,6 +341,27 @@ class SensingMac : public Object
      * @returns the application traffic arrival time of this mac
      */
     std::vector<Time> GetSelfAppTraffic(Time period) const;
+
+    /**
+     * @param period the period
+     * @param linkId the ID of the link
+     * @returns the time of rx fails to indicate the collisions on the given link in 
+     * the past period
+     */
+    std::vector<Time> GetRxFailTime(Time period, uint8_t linkId);
+    /**
+     * @param linkId the ID of the link
+     * @returns the total channel idle time from last rx fail
+     */
+    double GetLastRxFailIdleTime(uint8_t linkId) const;
+    /**
+     * Get the channel idle ratio in the past period of time.
+     *
+     * @param period the period
+     * @param linkId the ID of the link
+     * @returns the channel idle ratio
+     */
+    double GetChannelIdleRatio(Time period, uint8_t linkId);
 
     /**
      * @param sta the MAC address of the neighbor STA

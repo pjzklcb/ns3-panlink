@@ -47,6 +47,8 @@ class SelfLinkInfo:
         self.n_tx_data = obs.nTxDataPackets
         self.n_acked_data = obs.nAckedDataPackets
         self.txok_delay = obs.lastTxOkDelay
+        self.rx_fail_delay = obs.lastRxFailDelay
+        self.rx_fail_idle_time = obs.lastRxFailIdleTime
         self.n_rx_fail = obs.nRxFail
         self.idle_ratio = obs.idleRatio
         self.app_interval_stats = [v for v in obs.trafficIntervalStats]
@@ -71,7 +73,7 @@ class ChannelAccessRlAgent(RlAgent):
         super().__init__(node_id, memory_id, enable_learning)
         self.agent_type = AgentType.RL_CHANNEL_ACCESS
 
-        state_size = 20
+        state_size = 22
         self.action_size = 4
         self.model = DDQN(state_size, self.action_size, hidden_size=HIDDEN_SIZE, 
                          batch_size=BATCH_SIZE, gamma=GAMMA, 
@@ -133,6 +135,8 @@ class ChannelAccessRlAgent(RlAgent):
         l_ns = self.link_info.n_tx_data
         l_na = self.link_info.n_acked_data
         l_ad = self.link_info.txok_delay
+        l_rd = self.link_info.rx_fail_delay
+        l_ri = self.link_info.rx_fail_idle_time
         l_rf = self.link_info.n_rx_fail
         l_ir = self.link_info.idle_ratio
         l_ais = self.link_info.app_interval_stats
@@ -145,11 +149,11 @@ class ChannelAccessRlAgent(RlAgent):
                   f"\t txok_delay={l_ad:.2f}ms, tx/ack={l_ns}/{l_na}, \n"
                   f"\t app_stats: interval=[{', '.join(f'{v:.2f}' for v in l_ais)}]ms, "
                   f"tx_stats: interval=[{', '.join(f'{v:.2f}' for v in l_tis)}]ms, \n"
-                  f"\t  n_rx_fail={l_rf}, idle_ratio={l_ir*100:.2f}%,  n_neighbor={self.n_neighbor}, "
-                  f"n_contention={self.n_contention}, min_neighbor_backoff={self.min_neighbor_backoff}")
+                  f"\t rx_fail_delay/idle_time={l_rd}/{l_ri}ms, n_rx_fail={l_rf}, idle_ratio={l_ir*100:.2f}%, \n"
+                  f"\t n_neighbor/contention={self.n_neighbor}/{self.n_contention}, min_backoff={self.min_neighbor_backoff}")
 
         self_features = (
-            [a_dt, a_cw, a_da, a_nw, a_nq, a_ns, a_na] + [l_ns, l_na, l_ad, l_rf, l_ir] + 
+            [a_dt, a_cw, a_da, a_nw, a_nq, a_ns, a_na] + [l_ns, l_na, l_ad, l_rd, l_ri, l_ir, l_rf] + 
             l_ais + l_tis
         )
         
@@ -175,7 +179,8 @@ class ChannelAccessRlAgent(RlAgent):
             # save to dataset
             self_feature_names = ['delta_time', 'cw', 'n_defer_access', 'n_waited_slots', 'n_in_queue', 
                                 'n_sending', 'n_acked', 'n_tx_data', 'n_acked_data', 
-                                'last_tx_delay', 'last_txok_delay', 'n_rx_fail', 'idle_ratio',
+                                'last_tx_delay', 'last_txok_delay', 'rx_fail_delay', 'rx_fail_idle_time', 
+                                'n_rx_fail', 'idle_ratio',
                                 'app_interval_mean', 'app_interval_std', 'app_interval_min', 
                                 'app_interval_max', 'tx_interval_mean', 'tx_interval_std', 
                                 'tx_interval_min', 'tx_interval_max']

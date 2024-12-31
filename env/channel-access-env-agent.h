@@ -46,9 +46,10 @@ class ChannelAccessEnvAgent : public EnvAgent
     // typedef std::vector<SensingMac::ChannelUtilInfo> ChannelUtilList;
 
     /**
-     * @returns the delay from now to the last acked data packet
+     * @param vec a vector of time in ascending order
+     * @returns the delay from now to the latest event time
      */
-    double GetTxOkDelay(const std::vector<Time>& util) const;
+    double GetLastDelay(const std::vector<Time>& vec) const;
 
     /**
      * @param vec a vector of time in ascending order

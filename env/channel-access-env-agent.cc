@@ -81,12 +81,15 @@ ChannelAccessEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, 
         auto selfTxData = sensingMac->GetSeltLinkTxDataTime(obs.period, obs.linkId);
         auto selfAcks = sensingMac->GetSelfLinkAckedTime(obs.period, obs.linkId);
         auto traffics = sensingMac->GetSelfAppTraffic(obs.period);
+        auto rxFails = sensingMac->GetRxFailTime(obs.period, obs.linkId);
         SelfLinkObs selfLinkObs{
             .period = obs.period.ToDouble(Time::MS),
             .nTxDataPackets = static_cast<uint32_t>(selfTxData.size()),
             .nAckedDataPackets = static_cast<uint32_t>(selfAcks.size()),
-            .lastTxOkDelay = GetTxOkDelay(selfAcks),
-            .nRxFail = sensingMac->GetNRxFail(obs.period, obs.linkId),
+            .lastTxOkDelay = GetLastDelay(selfAcks),
+            .lastRxFailDelay = GetLastDelay(rxFails),
+            .lastRxFailIdleTime = sensingMac->GetLastRxFailIdleTime(obs.linkId),
+            .nRxFail = static_cast<uint32_t>(rxFails.size()),
             .idleRatio = sensingMac->GetChannelIdleRatio(obs.period, obs.linkId),
             .trafficIntervalStats = GetIntervalStats(traffics),
             .txDataIntervalStats = GetIntervalStats(selfTxData)};
@@ -110,7 +113,7 @@ ChannelAccessEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, 
             static_cast<uint8_t>(sensingMac->GetNeighborStaRole(neighborStas[m_idxNeighborSta])),
         .period = obs.period.ToDouble(Time::MS),
         .nAcks = static_cast<uint32_t>(neighborAcks.size()),
-        .lastTxOkDelay = GetTxOkDelay(neighborAcks),
+        .lastTxOkDelay = GetLastDelay(neighborAcks),
         .lastTxOkIdleTime = sensingMac->GetNeighborLastTxOkIdleTime(neighborStas[m_idxNeighborSta]),
         .meanRssi = sensingMac->GetNeighborMeanRssi(neighborStas[m_idxNeighborSta], obs.period),
         .txOkIntervalStats = GetIntervalStats(neighborAcks),
@@ -149,13 +152,13 @@ ChannelAccessEnvAgent::SetEnvAct(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, 
 }
 
 double
-ChannelAccessEnvAgent::GetTxOkDelay(const std::vector<Time>& ackedTimes) const
+ChannelAccessEnvAgent::GetLastDelay(const std::vector<Time>& vec) const
 {
     NS_LOG_FUNCTION(this);
 
-    if (!ackedTimes.empty())
+    if (!vec.empty())
     {
-        return (Simulator::Now() - ackedTimes.back()).ToDouble(Time::MS);
+        return (Simulator::Now() - vec.back()).ToDouble(Time::MS);
     }
     return Simulator::Now().ToDouble(Time::MS);
 }
@@ -197,24 +200,6 @@ ChannelAccessEnvAgent::GetTxOkDelay(const std::vector<Time>& ackedTimes) const
 //     }
 
 //     return channelUtil;
-// }
-
-// double
-// ChannelAccessEnvAgent::GetMeanRssi(const std::vector<Time>& util) const
-// {
-//     NS_LOG_FUNCTION(this);
-
-//     if (util.size() == 0)
-//     {
-//         return 0;
-//     }
-
-//     double sumRssi = 0;
-//     for (auto& packet : util)
-//     {
-//         sumRssi += packet.rssi;
-//     }
-//     return sumRssi / util.size();
 // }
 
 std::array<double, 4>

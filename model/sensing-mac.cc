@@ -346,75 +346,6 @@ SensingMac::GetDelay(Time period, AcIndex ac, uint8_t linkId) const
     return counter == 0 ? 0 : delay.ToDouble(Time::MS) / counter; // ms
 }
 
-uint32_t
-SensingMac::GetNRxFail(Time period, uint8_t linkId)
-{
-    NS_LOG_FUNCTION(this << period << linkId);
-
-    Time now = Simulator::Now();
-    NS_ASSERT(period > Seconds(0));
-    NS_ASSERT_MSG(period <= m_duration, "Period surpass maximum duration");
-
-    // eliminate staled rx fails
-    while (!m_linkMap[linkId].rxFailTime.empty())
-    {
-        auto fail = m_linkMap[linkId].rxFailTime.front();
-        if (now - fail > m_duration)
-        {
-            m_linkMap[linkId].rxFailTime.pop_front();
-        }
-        else
-        {
-            break;
-        }
-    }
-
-    uint32_t nRxFail = 0;
-    for (const auto& failTime : m_linkMap[linkId].rxFailTime)
-    {
-        if (now - failTime <= period)
-        {
-            nRxFail++;
-        }
-    }
-    return nRxFail;
-}
-
-double
-SensingMac::GetChannelIdleRatio(Time period, uint8_t linkId)
-{
-    NS_LOG_FUNCTION(this << period << linkId);
-
-    Time now = Simulator::Now();
-    NS_ASSERT(period > Seconds(0));
-    NS_ASSERT_MSG(period <= m_duration, "Period surpass maximum duration");
-
-    // eliminate staled idle period
-    while (!m_linkMap[linkId].idleTime.empty())
-    {
-        auto idle = m_linkMap[linkId].idleTime.front();
-        if (now - (idle.first + idle.second) > m_duration)
-        {
-            m_linkMap[linkId].idleTime.pop_front();
-        }
-        else
-        {
-            break;
-        }
-    }
-
-    double idleTime = 0;
-    for (const auto& [begin, duration] : m_linkMap[linkId].idleTime)
-    {
-        Time end = begin + duration;
-        if (now - end <= period)
-        {
-            idleTime += (end - std::max(now - period, begin)).ToDouble(Time::MS);
-        }
-    }
-    return idleTime / period.ToDouble(Time::MS);
-}
-
 void
 SensingMac::NotifyPhyRxBegin(std::string context,
                              Ptr<const Packet> p,
@@ -863,6 +794,101 @@ SensingMac::GetSelfAppTraffic(Time period) const
     }
     std::sort(result.begin(), result.end());
     return result;
+}
+
+std::vector<Time>
+SensingMac::GetRxFailTime(Time period, uint8_t linkId)
+{
+    NS_LOG_FUNCTION(this << period << linkId);
+
+    Time now = Simulator::Now();
+    NS_ASSERT(period > Seconds(0));
+    NS_ASSERT_MSG(period <= m_duration, "Period surpass maximum duration");
+
+    // eliminate staled rx fails
+    while (!m_linkMap[linkId].rxFailTime.empty())
+    {
+        auto fail = m_linkMap[linkId].rxFailTime.front();
+        if (now - fail > m_duration)
+        {
+            m_linkMap[linkId].rxFailTime.pop_front();
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    std::vector<Time> result;
+    for (const auto& failTime : m_linkMap[linkId].rxFailTime)
+    {
+        if (now - failTime <= period)
+        {
+            result.push_back(failTime);
+        }
+    }
+    return result;
+}
+
+double 
+SensingMac::GetLastRxFailIdleTime(uint8_t linkId) const
+{
+    NS_LOG_FUNCTION(this << linkId);
+
+    auto it = m_linkMap.find(linkId);
+    if (it->second.rxFailTime.empty())
+    {
+        return 0;
+    }
+
+    Time lastRxFail = it->second.rxFailTime.back();
+    double result = 0;
+    for (const auto& [begin, duration] : it->second.idleTime)
+    {
+        if (lastRxFail > begin)
+        {
+            continue;
+        }
+
+        result += duration.ToDouble(Time::MS);
+    }
+
+    return result;
+}
+
+double
+SensingMac::GetChannelIdleRatio(Time period, uint8_t linkId)
+{
+    NS_LOG_FUNCTION(this << period << linkId);
+
+    Time now = Simulator::Now();
+    NS_ASSERT(period > Seconds(0));
+    NS_ASSERT_MSG(period <= m_duration, "Period surpass maximum duration");
+
+    // eliminate staled idle period
+    while (!m_linkMap[linkId].idleTime.empty())
+    {
+        auto idle = m_linkMap[linkId].idleTime.front();
+        if (now - (idle.first + idle.second) > m_duration)
+        {
+            m_linkMap[linkId].idleTime.pop_front();
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    double idleTime = 0;
+    for (const auto& [begin, duration] : m_linkMap[linkId].idleTime)
+    {
+        Time end = begin + duration;
+        if (now - end <= period)
+        {
+            idleTime += (end - std::max(now - period, begin)).ToDouble(Time::MS);
+        }
+    }
+    return idleTime / period.ToDouble(Time::MS);
 }
 
 double
