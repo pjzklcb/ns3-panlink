@@ -10,10 +10,10 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
+from collections import deque
 import torch
 from agent_utils import *
 from rl_agent import RlAgent
-from models.attention import AttentionFeatureExtractor
 from models.ddqn import DDQN
 
 
@@ -27,52 +27,12 @@ HIDDEN_SIZE = 64
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-class AccessInfo:
-    def __init__(self, ac, cw, n_deferred_access, n_waited_slot, obs):
-        self.ac = ac
-        self.cw = cw
-        self.n_deferred_access = n_deferred_access
-        self.n_waited_slot = n_waited_slot
-        self.n_in_queue = obs.nInQueuePackets
-        self.n_expired = obs.nExpiredPackets
-        self.n_dropped = obs.nDroppedPackets
-        self.n_sending = obs.nSendingPackets
-        self.n_acked = obs.nAckedPackets
-        self.n_low_delay = obs.nLowDelayPackets
-        self.n_high_delay = obs.nHighDelayPackets
-
-
-class SelfLinkInfo:
-    def __init__(self, obs):
-        self.period = obs.period
-        self.n_tx_data = obs.nTxDataPackets
-        self.n_acked_data = obs.nAckedDataPackets
-        self.txok_delay = obs.lastTxOkDelay
-        self.n_rx_fail = obs.nRxFail
-        self.idle_ratio = obs.idleRatio
-        self.app_interval_stats = [v for v in obs.trafficIntervalStats]
-        self.tx_interval_stats = [v for v in obs.txDataIntervalStats]
-
-
-class NeighborLinkInfo:
-    def __init__(self, obs):
-        self.role = obs.role
-        self.period = obs.period
-        self.n_acks = obs.nAcks
-        self.txok_delay = obs.lastTxOkDelay
-        self.txok_idle_time = obs.lastTxOkIdleTime
-        self.rssi = obs.meanRssi
-        self.txok_interval_stats = [v for v in obs.txOkIntervalStats]
-        self.backoff = obs.backoffSlots
-        self.cw = [v for v in obs.cw]
-
-
 class ChannelAccessRlAgent(RlAgent):
     def __init__(self, node_id, memory_id, enable_learning=True, pretrained_model=None):
         super().__init__(node_id, memory_id, enable_learning)
         self.agent_type = AgentType.RL_CHANNEL_ACCESS
 
-        state_size = 11
+        state_size = 10
         self.action_size = 2
         self.model = DDQN(state_size, self.action_size, hidden_size=HIDDEN_SIZE, 
                          batch_size=BATCH_SIZE, gamma=GAMMA, 
@@ -82,7 +42,8 @@ class ChannelAccessRlAgent(RlAgent):
         self.neighbor_info = []
         self.backoff = 0
         self.backoff_log = []
-        self.debug = []
+        self.debug_mode = False
+        self.txok_log = deque([0]*20, maxlen=20)
 
         # load pretrained model
         try:
@@ -133,7 +94,9 @@ class ChannelAccessRlAgent(RlAgent):
         l_ns = self.link_info.n_tx_data
         l_na = self.link_info.n_acked_data
         l_ad = self.link_info.txok_delay
-        l_rf = self.link_info.n_rx_fail
+        l_cd = self.link_info.chan_fail_delay
+        l_ci = self.link_info.chan_fail_idle_time
+        l_cf = self.link_info.n_chan_fail
         l_ir = self.link_info.idle_ratio
         l_ais = self.link_info.app_interval_stats
         l_tis = self.link_info.tx_interval_stats
@@ -145,10 +108,12 @@ class ChannelAccessRlAgent(RlAgent):
                   f"\t txok_delay={l_ad:.2f}ms, tx/ack={l_ns}/{l_na}, \n"
                   f"\t app_stats: interval=[{', '.join(f'{v:.2f}' for v in l_ais)}]ms, "
                   f"tx_stats: interval=[{', '.join(f'{v:.2f}' for v in l_tis)}]ms, \n"
-                  f"\t  n_rx_fail={l_rf}, idle_ratio={l_ir*100:.2f}%,  n_neighbor={self.n_neighbor}, "
-                  f"n_contention={self.n_contention}, min_neighbor_backoff={self.min_neighbor_backoff}")
+                  f"\t chan_fail_delay/idle_time={l_cd:.2f}/{l_ci:.2f}ms, "
+                  f"n_chan_fail={l_cf}, idle_ratio={l_ir*100:.2f}%, \n"
+                  f"\t n_neighbor/contention={self.n_neighbor}/{self.n_contention}, "
+                  f"min_neighbor_backoff={self.min_neighbor_backoff}")
 
-        self_features = [a_da, a_nw, a_nq, a_ns, a_na] 
+        self_features = [a_da, a_nw, l_cd, l_ci] 
         
         neighbor_features = []
         for i in range(self.n_neighbor):
@@ -168,12 +133,19 @@ class ChannelAccessRlAgent(RlAgent):
                       f"acks={n_na}, rssi={n_rssi:.2f}dBm, cw={n_cw}, backoff={n_b} \n"
                       f"\t\t txok_stats: interval=[{', '.join(f'{v:.2f}' for v in n_tis)}]ms")
 
-        next_state = self_features + neighbor_features + [0] * (6-len(neighbor_features))
+        next_state = self_features + neighbor_features[:min(6, len(neighbor_features))] + [0] * (6-len(neighbor_features))
         if self.state:
             # caculate reward
-            r_tx = a_na if a_na else -a_ns
-            # r_wait = 1 if a_da and (a_nw - self.last_nw) == 0 and self.action else 0
-            reward = r_tx #+ r_wait
+            if a_ns:
+                if a_na:
+                    self.txok_log.append(1)
+                    reward = sum([v > 0 for v in self.txok_log]) / 10
+                else:
+                    self.txok_log.append(-1)
+                    reward = -sum([v < 0 for v in self.txok_log]) / 10
+            else:
+                reward = 0
+            
             self.reward_log.append(reward)
             self.model.store_transition(self.state, self.action, reward, next_state)
             if self.enable_learning:

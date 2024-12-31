@@ -26,48 +26,6 @@ EPSILON_START = 1.0
 HIDDEN_SIZE = 64
 
 
-class AccessInfo:
-    def __init__(self, ac, cw, n_deferred_access, n_waited_slot, obs):
-        self.ac = ac
-        self.cw = cw
-        self.n_deferred_access = n_deferred_access
-        self.n_waited_slot = n_waited_slot
-        self.n_in_queue = obs.nInQueuePackets
-        self.n_expired = obs.nExpiredPackets
-        self.n_dropped = obs.nDroppedPackets
-        self.n_sending = obs.nSendingPackets
-        self.n_acked = obs.nAckedPackets
-        self.n_low_delay = obs.nLowDelayPackets
-        self.n_high_delay = obs.nHighDelayPackets
-
-
-class SelfLinkInfo:
-    def __init__(self, obs):
-        self.period = obs.period
-        self.n_tx_data = obs.nTxDataPackets
-        self.n_acked_data = obs.nAckedDataPackets
-        self.txok_delay = obs.lastTxOkDelay
-        self.rx_fail_delay = obs.lastRxFailDelay
-        self.rx_fail_idle_time = obs.lastRxFailIdleTime
-        self.n_rx_fail = obs.nRxFail
-        self.idle_ratio = obs.idleRatio
-        self.app_interval_stats = [v for v in obs.trafficIntervalStats]
-        self.tx_interval_stats = [v for v in obs.txDataIntervalStats]
-
-
-class NeighborLinkInfo:
-    def __init__(self, obs):
-        self.role = obs.role
-        self.period = obs.period
-        self.n_acks = obs.nAcks
-        self.txok_delay = obs.lastTxOkDelay
-        self.txok_idle_time = obs.lastTxOkIdleTime
-        self.rssi = obs.meanRssi
-        self.txok_interval_stats = [v for v in obs.txOkIntervalStats]
-        self.backoff = obs.backoffSlots
-        self.cw = [v for v in obs.cw]
-
-
 class ChannelAccessRlAgent(RlAgent):
     def __init__(self, node_id, memory_id, enable_learning=True, pretrained_model=None):
         super().__init__(node_id, memory_id, enable_learning)
@@ -135,9 +93,9 @@ class ChannelAccessRlAgent(RlAgent):
         l_ns = self.link_info.n_tx_data
         l_na = self.link_info.n_acked_data
         l_ad = self.link_info.txok_delay
-        l_rd = self.link_info.rx_fail_delay
-        l_ri = self.link_info.rx_fail_idle_time
-        l_rf = self.link_info.n_rx_fail
+        l_cd = self.link_info.chan_fail_delay
+        l_ci = self.link_info.chan_fail_idle_time
+        l_cf = self.link_info.n_chan_fail
         l_ir = self.link_info.idle_ratio
         l_ais = self.link_info.app_interval_stats
         l_tis = self.link_info.tx_interval_stats
@@ -149,11 +107,13 @@ class ChannelAccessRlAgent(RlAgent):
                   f"\t txok_delay={l_ad:.2f}ms, tx/ack={l_ns}/{l_na}, \n"
                   f"\t app_stats: interval=[{', '.join(f'{v:.2f}' for v in l_ais)}]ms, "
                   f"tx_stats: interval=[{', '.join(f'{v:.2f}' for v in l_tis)}]ms, \n"
-                  f"\t rx_fail_delay/idle_time={l_rd}/{l_ri}ms, n_rx_fail={l_rf}, idle_ratio={l_ir*100:.2f}%, \n"
-                  f"\t n_neighbor/contention={self.n_neighbor}/{self.n_contention}, min_backoff={self.min_neighbor_backoff}")
+                  f"\t chan_fail_delay/idle_time={l_cd:.2f}/{l_ci:.2f}ms, "
+                  f"n_chan_fail={l_cf}, idle_ratio={l_ir*100:.2f}%, \n"
+                  f"\t n_neighbor/contention={self.n_neighbor}/{self.n_contention}, "
+                  f"min_neighbor_backoff={self.min_neighbor_backoff}")
 
         self_features = (
-            [a_dt, a_cw, a_da, a_nw, a_nq, a_ns, a_na] + [l_ns, l_na, l_ad, l_rd, l_ri, l_ir, l_rf] + 
+            [a_dt, a_cw, a_da, a_nw, a_nq, a_ns, a_na] + [l_ns, l_na, l_ad, l_cd, l_ci, l_ir, l_cf] + 
             l_ais + l_tis
         )
         
@@ -179,8 +139,8 @@ class ChannelAccessRlAgent(RlAgent):
             # save to dataset
             self_feature_names = ['delta_time', 'cw', 'n_defer_access', 'n_waited_slots', 'n_in_queue', 
                                 'n_sending', 'n_acked', 'n_tx_data', 'n_acked_data', 
-                                'last_tx_delay', 'last_txok_delay', 'rx_fail_delay', 'rx_fail_idle_time', 
-                                'n_rx_fail', 'idle_ratio',
+                                'last_tx_delay', 'last_txok_delay', 'chan_fail_delay', 'chan_fail_idle_time', 
+                                'n_chan_fail', 'idle_ratio',
                                 'app_interval_mean', 'app_interval_std', 'app_interval_min', 
                                 'app_interval_max', 'tx_interval_mean', 'tx_interval_std', 
                                 'tx_interval_min', 'tx_interval_max']

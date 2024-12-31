@@ -22,6 +22,48 @@ class AcIndex(Enum):
     AC_VO = 3
 
 
+class AccessInfo:
+    def __init__(self, ac, cw, n_deferred_access, n_waited_slot, obs):
+        self.ac = ac
+        self.cw = cw
+        self.n_deferred_access = n_deferred_access
+        self.n_waited_slot = n_waited_slot
+        self.n_in_queue = obs.nInQueuePackets
+        self.n_expired = obs.nExpiredPackets
+        self.n_dropped = obs.nDroppedPackets
+        self.n_sending = obs.nSendingPackets
+        self.n_acked = obs.nAckedPackets
+        self.n_low_delay = obs.nLowDelayPackets
+        self.n_high_delay = obs.nHighDelayPackets
+
+
+class SelfLinkInfo:
+    def __init__(self, obs):
+        self.period = obs.period
+        self.n_tx_data = obs.nTxDataPackets
+        self.n_acked_data = obs.nAckedDataPackets
+        self.txok_delay = obs.lastTxOkDelay
+        self.chan_fail_delay = obs.lastChannelFailDelay
+        self.chan_fail_idle_time = obs.lastChannelFailIdleTime
+        self.n_chan_fail = obs.nChannelFail
+        self.idle_ratio = obs.idleRatio
+        self.app_interval_stats = [v for v in obs.trafficIntervalStats]
+        self.tx_interval_stats = [v for v in obs.txDataIntervalStats]
+
+
+class NeighborLinkInfo:
+    def __init__(self, obs):
+        self.role = obs.role
+        self.period = obs.period
+        self.n_acks = obs.nAcks
+        self.txok_delay = obs.lastTxOkDelay
+        self.txok_idle_time = obs.lastTxOkIdleTime
+        self.rssi = obs.meanRssi
+        self.txok_interval_stats = [v for v in obs.txOkIntervalStats]
+        self.backoff = obs.backoffSlots
+        self.cw = [v for v in obs.cw]
+
+
 class RunningMeanStd(object):
     def __init__(self, epsilon=1e-4, shape=()):
         self.mean = np.zeros(shape, 'float32')
