@@ -36,10 +36,9 @@ struct SelfLinkObs
     uint32_t nTxDataPackets;
     uint32_t nAckedDataPackets;
     double lastTxOkDelay; // in ms
-
-    double lastRxFailDelay;
-    double lastRxFailIdleTime;
-    uint32_t nRxFail;
+    double lastChannelFailDelay;
+    double lastChannelFailIdleTime;
+    uint32_t nChannelFail;
     double idleRatio;
 
     std::array<double, 4> trafficIntervalStats; // mean, std, min, max

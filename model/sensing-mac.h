@@ -345,15 +345,15 @@ class SensingMac : public Object
     /**
      * @param period the period
      * @param linkId the ID of the link
-     * @returns the time of rx fails to indicate the collisions on the given link in 
-     * the past period
+     * @returns the time of TX and RX fails to indicate the collisions on the
+     * given link in the past period
      */
-    std::vector<Time> GetRxFailTime(Time period, uint8_t linkId);
+    std::vector<Time> GetChannelFailTime(Time period, uint8_t linkId);
     /**
      * @param linkId the ID of the link
      * @returns the total channel idle time from last rx fail
      */
-    double GetLastRxFailIdleTime(uint8_t linkId) const;
+    double GetLastChannelFailIdleTime(uint8_t linkId) const;
     /**
      * Get the channel idle ratio in the past period of time.
      *
@@ -400,6 +400,13 @@ class SensingMac : public Object
      * Wipe all neighbor STAs that have not been active for a long time.
      */
     virtual void WipeAllInactiveNeighborStas();
+
+    /**
+     * @param period the period
+     * @param linkId the link ID
+     * @returns the list of TX end times that are not acked on the given link in the past period
+     */
+    std::vector<Time> GetSelfLinkNAckTime(Time period, uint8_t linkId) const;
 
   private:
     Ptr<WifiMac> m_mac; //!< associated MAC

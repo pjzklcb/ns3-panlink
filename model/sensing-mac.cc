@@ -775,6 +775,43 @@ SensingMac::GetSelfLinkAckedTime(Time period, uint8_t linkId) const
 }
 
 std::vector<Time>
+SensingMac::GetSelfLinkNAckTime(Time period, uint8_t linkId) const
+{
+    NS_LOG_FUNCTION(this << linkId);
+
+    auto it = m_linkMap.find(linkId);
+    NS_ASSERT_MSG(it != m_linkMap.end(), "Link not found");
+
+    std::vector<Time> result;
+    Time prevEnd = Simulator::Now() - period;
+    for (const auto& [uid, txEndTime] : it->second.channelUtil)
+    {
+        if (txEndTime <= prevEnd) // skip packets not in the period
+        {
+            continue;
+        }
+        auto packetIt = m_packetMap.find(uid);
+        NS_ASSERT(packetIt != m_packetMap.end());
+
+        // find this tx in the phyTxTime
+        auto vec = packetIt->second.phyTxTime;
+        auto phyTxIt = std::find_if(vec.begin(), vec.end(), [txEndTime](const auto& pair) {
+            return pair.second == txEndTime;
+        });
+
+        if (packetIt->second.ackedTime == Seconds(0) || std::next(phyTxIt) != vec.end())
+        {
+            result.push_back(txEndTime);
+        }
+
+        // make sure AMPDU with same tx end time will be ignored
+        prevEnd = txEndTime;
+    }
+
+    return result;
+}
+
+std::vector<Time>
 SensingMac::GetSelfAppTraffic(Time period) const
 {
     NS_LOG_FUNCTION(this << period);
@@ -797,7 +834,7 @@ SensingMac::GetSelfAppTraffic(Time period) const
 }
 
 std::vector<Time>
-SensingMac::GetRxFailTime(Time period, uint8_t linkId)
+SensingMac::GetChannelFailTime(Time period, uint8_t linkId)
 {
     NS_LOG_FUNCTION(this << period << linkId);
 
@@ -819,7 +856,9 @@ SensingMac::GetRxFailTime(Time period, uint8_t linkId)
         }
     }
 
-    std::vector<Time> result;
+    // get nack tx time
+    std::vector<Time> result = GetSelfLinkNAckTime(period, linkId);
+    // add rx fail time
     for (const auto& failTime : m_linkMap[linkId].rxFailTime)
     {
         if (now - failTime <= period)
@@ -827,25 +866,35 @@ SensingMac::GetRxFailTime(Time period, uint8_t linkId)
             result.push_back(failTime);
         }
     }
+
+    std::sort(result.begin(), result.end());
     return result;
 }
 
-double 
-SensingMac::GetLastRxFailIdleTime(uint8_t linkId) const
+double
+SensingMac::GetLastChannelFailIdleTime(uint8_t linkId) const
 {
     NS_LOG_FUNCTION(this << linkId);
 
+    Time lastTxFail = Seconds(0);
     auto it = m_linkMap.find(linkId);
-    if (it->second.rxFailTime.empty())
+    if (!it->second.rxFailTime.empty())
     {
-        return 0;
+        lastTxFail = it->second.rxFailTime.back();
     }
 
-    Time lastRxFail = it->second.rxFailTime.back();
+    Time lastRxFail = Seconds(0);
+    auto nackTimes = GetSelfLinkNAckTime(m_duration, linkId);
+    if (!nackTimes.empty())
+    {
+        lastRxFail = nackTimes.back();
+    }
+
+    Time lastChannelFail = std::max(lastTxFail, lastRxFail);
     double result = 0;
     for (const auto& [begin, duration] : it->second.idleTime)
     {
-        if (lastRxFail > begin)
+        if (begin < lastChannelFail)
         {
             continue;
         }

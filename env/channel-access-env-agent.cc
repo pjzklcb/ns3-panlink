@@ -81,15 +81,15 @@ ChannelAccessEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, 
         auto selfTxData = sensingMac->GetSeltLinkTxDataTime(obs.period, obs.linkId);
         auto selfAcks = sensingMac->GetSelfLinkAckedTime(obs.period, obs.linkId);
         auto traffics = sensingMac->GetSelfAppTraffic(obs.period);
-        auto rxFails = sensingMac->GetRxFailTime(obs.period, obs.linkId);
+        auto channelFails = sensingMac->GetChannelFailTime(obs.period, obs.linkId);
         SelfLinkObs selfLinkObs{
             .period = obs.period.ToDouble(Time::MS),
             .nTxDataPackets = static_cast<uint32_t>(selfTxData.size()),
             .nAckedDataPackets = static_cast<uint32_t>(selfAcks.size()),
             .lastTxOkDelay = GetLastDelay(selfAcks),
-            .lastRxFailDelay = GetLastDelay(rxFails),
-            .lastRxFailIdleTime = sensingMac->GetLastRxFailIdleTime(obs.linkId),
-            .nRxFail = static_cast<uint32_t>(rxFails.size()),
+            .lastChannelFailDelay = GetLastDelay(channelFails),
+            .lastChannelFailIdleTime = sensingMac->GetLastChannelFailIdleTime(obs.linkId),
+            .nChannelFail = static_cast<uint32_t>(channelFails.size()),
             .idleRatio = sensingMac->GetChannelIdleRatio(obs.period, obs.linkId),
             .trafficIntervalStats = GetIntervalStats(traffics),
             .txDataIntervalStats = GetIntervalStats(selfTxData)};
