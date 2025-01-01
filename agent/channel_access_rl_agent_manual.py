@@ -1,0 +1,145 @@
+# Copyright (c) 2024
+#
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Author: Pan Jinzhe <pjzklcb@gmail.com>
+
+import os
+import math
+import random
+import numpy as np
+from collections import deque
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+from agent_utils import *
+from rl_agent import RlAgent
+from models.ddqn import DDQN
+
+
+class ChannelAccessRlAgent(RlAgent):
+    def __init__(self, node_id, memory_id, enable_learning=True, pretrained_model=None):
+        super().__init__(node_id, memory_id, enable_learning)
+        self.agent_type = AgentType.RL_CHANNEL_ACCESS
+        
+        self.neighbor_info = []
+        self.backoff = 0
+        self.mean_backoff = 8
+        self.last_backoff = 0
+        self.last_cw = 15
+        self.backoff_log = []
+        self.debug_mode = False
+    
+    def get_obs(self, msg_interface):
+        env = msg_interface.GetCpp2PyVector()[self.memory_id]
+        if not self.more_data:
+            self.n_contention = env.nStasWithPackets
+            self.min_neighbor_backoff = env.minNeighborBackoff
+            self.access_info = AccessInfo(AcIndex(env.ac), env.cw, env.nDeferredAccess, 
+                                          env.waitedSlots, env.lastAccessObs)
+            self.link_info = SelfLinkInfo(env.selfLinkObs)
+            
+        self.n_neighbor = env.nNeighborStas
+        if self.n_neighbor > 0:
+            neighbor_info = NeighborLinkInfo(env.neighborStaObs)
+            self.neighbor_info.append(neighbor_info)
+            # print("python get {}/{}".format(len(self.neighbor_info), self.n_neighbor))
+            self.more_data = env.moreData
+
+    def set_action(self, msg_interface):
+        self.choose_action()
+        self.neighbor_info = []
+        msg_interface.GetPy2CppVector()[self.memory_id].backoff = self.backoff
+    
+    def choose_action(self):
+        a_dt = self.delta_time
+        a_cw = self.access_info.cw
+        a_da = self.access_info.n_deferred_access
+        a_nw = self.access_info.n_waited_slot
+        a_nq = self.access_info.n_in_queue
+        # a_ne = self.access_info.n_expired
+        # a_nd = self.access_info.n_dropped
+        a_ns = self.access_info.n_sending
+        a_na = self.access_info.n_acked
+        # a_nl = self.access_info.n_low_delay
+        # a_nh = self.access_info.n_high_delay
+
+        # l_p = self.link_info.period
+        l_ns = self.link_info.n_tx_data
+        l_na = self.link_info.n_acked_data
+        l_ad = self.link_info.txok_delay
+        l_cd = self.link_info.chan_fail_delay
+        l_ci = self.link_info.chan_fail_idle_time
+        l_cf = self.link_info.n_chan_fail
+        l_ir = self.link_info.idle_ratio
+        l_ais = self.link_info.app_interval_stats
+        l_tis = self.link_info.tx_interval_stats
+        
+        if self.show_log:
+            print(f"At {self.sim_time:6f}s, delta_time={a_dt:.3f}ms, " 
+                  f"cw={a_cw}, n_defer={a_da}, n_waited_slot={a_nw}, "
+                  f"in_queue/sending/acked={a_nq}/{a_ns}/{a_na}, \n"
+                  f"\t txok_delay={l_ad:.2f}ms, tx/ack={l_ns}/{l_na}, \n"
+                  f"\t app_stats: interval=[{', '.join(f'{v:.2f}' for v in l_ais)}]ms, "
+                  f"tx_stats: interval=[{', '.join(f'{v:.2f}' for v in l_tis)}]ms, \n"
+                  f"\t chan_fail_delay/idle_time={l_cd:.2f}/{l_ci:.2f}ms, "
+                  f"n_chan_fail={l_cf}, idle_ratio={l_ir*100:.2f}%, \n"
+                  f"\t n_neighbor/contention={self.n_neighbor}/{self.n_contention}, "
+                  f"min_neighbor_backoff={self.min_neighbor_backoff}")
+        
+        neighbor_features = []
+        for i in range(self.n_neighbor):
+            n_role = self.neighbor_info[i].role
+            # n_p = self.neighbor_info[i].period
+            n_na = self.neighbor_info[i].n_acks
+            n_ad = self.neighbor_info[i].txok_delay
+            n_it = self.neighbor_info[i].txok_idle_time
+            n_rssi = self.neighbor_info[i].rssi
+            n_b = self.neighbor_info[i].backoff
+            n_cw = self.neighbor_info[i].cw[0]  # cw of AC_BE
+            n_tis = self.neighbor_info[i].txok_interval_stats
+            if n_role != 0:
+                neighbor_features += [n_ad, n_it]
+            if self.show_log and i == 0:
+                print(f"\t Neighbor {i}: role={n_role}, txok_delay/idle_time={n_ad:.2f}/{n_it:.2f}ms, "
+                      f"acks={n_na}, rssi={n_rssi:.2f}dBm, cw={n_cw}, backoff={n_b} \n"
+                      f"\t\t txok_stats: interval=[{', '.join(f'{v:.2f}' for v in n_tis)}]ms")
+
+        if a_da == 0:
+            self.n_waited_slot_log = [0]
+        elif a_nw > self.n_waited_slot_log[-1]:
+            self.n_waited_slot_log.append(a_nw)
+
+        k = len(self.n_waited_slot_log) - 1
+        new_cw = 2**k * a_cw - 2 * a_nw
+        for i, j in enumerate(self.n_waited_slot_log):
+            if i == k:
+                break
+            new_cw -= 2**(k - i) * j
+
+        # choose action
+        self.action = random.randint(0, 1)
+        self.action_log.append(self.action)
+        
+        self.backoff = self.action * new_cw
+        self.backoff_log.append(self.backoff)
+        if self.show_log:
+            print("New Backoff={}".format(self.backoff))
+        self.last_backoff = self.access_info.n_waited_slot
+        self.last_cw = self.access_info.cw
+
+    def reset(self):
+        super().reset()
+        self.backoff_log = []
+
+    def plot_results(self, save_dir=None):
+        save_dir = save_dir if save_dir is not None else self.save_dir
+
+        y = self.action_log
+        plt.figure()
+        plt.scatter(range(len(y)), [0.5 if x == 0 else x for x in y], c='r', marker='.', s=8, alpha=0.5)
+        plt.yscale('log', base=2)
+        plt.xlabel('Step number')
+        plt.ylabel('Action')
+        plt.savefig('{}/node_{}_{}_action.png'.format(save_dir, self.node_id, self.agent_type.name))
+        plt.close()

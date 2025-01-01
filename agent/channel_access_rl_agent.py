@@ -6,12 +6,12 @@
 
 import os
 import math
+import random
+import numpy as np
+from collections import deque
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import numpy as np
-from collections import deque
-import torch
 from agent_utils import *
 from rl_agent import RlAgent
 from models.ddqn import DDQN
@@ -24,7 +24,6 @@ MEMORY_SIZE = 2000
 LEARNING_RATE = 1e-4
 EPSILON_START = 1.0
 HIDDEN_SIZE = 64
-DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 class ChannelAccessRlAgent(RlAgent):
@@ -41,6 +40,9 @@ class ChannelAccessRlAgent(RlAgent):
         
         self.neighbor_info = []
         self.backoff = 0
+        self.mean_backoff = 8
+        self.last_backoff = 0
+        self.last_cw = 15
         self.backoff_log = []
         self.debug_mode = False
         self.txok_log = deque([0]*20, maxlen=20)
@@ -137,12 +139,19 @@ class ChannelAccessRlAgent(RlAgent):
         if self.state:
             # caculate reward
             if a_ns:
+                self.mean_backoff = 0.9*self.mean_backoff + 0.1*self.last_backoff
+                if self.mean_backoff >= self.last_cw / 2:
+                    r_backoff = 1 / (self.mean_backoff - self.last_cw/2 + 1)
+                else:
+                    r_backoff = self.mean_backoff*2 / self.last_cw - 1
                 if a_na:
                     self.txok_log.append(1)
-                    reward = sum([v > 0 for v in self.txok_log]) / 10
+                    r_tx = sum([v > 0 for v in self.txok_log]) / 10
                 else:
                     self.txok_log.append(-1)
-                    reward = -sum([v < 0 for v in self.txok_log]) / 10
+                    r_tx = -sum([v < 0 for v in self.txok_log]) / 10
+
+                reward = r_tx + r_backoff
             else:
                 reward = 0
             
@@ -156,11 +165,13 @@ class ChannelAccessRlAgent(RlAgent):
         # self.action = random.randint(0, self.access_info.cw - a_nw)
         self.action_log.append(self.action)
         
-        self.backoff = self.action * (a_cw + 1)
+        self.backoff = self.action * a_cw
         self.backoff_log.append(self.backoff)
         if self.show_log:
             print("New Backoff={}".format(self.backoff))
         self.state = next_state
+        self.last_backoff = self.access_info.n_waited_slot
+        self.last_cw = self.access_info.cw
 
     def reset(self):
         super().reset()

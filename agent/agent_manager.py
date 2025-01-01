@@ -7,7 +7,7 @@
 import json
 from rl_agent import RlAgent
 from cca_rl_agent import CcaRlAgent
-from channel_access_rl_agent import ChannelAccessRlAgent
+from channel_access_rl_agent_manual import ChannelAccessRlAgent
 # from channel_access_data_agent import ChannelAccessRlAgent
 
 class AgentManager:
