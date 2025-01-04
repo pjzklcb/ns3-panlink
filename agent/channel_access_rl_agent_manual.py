@@ -25,8 +25,6 @@ class ChannelAccessRlAgent(RlAgent):
         self.neighbor_info = []
         self.backoff = 0
         self.mean_backoff = 8
-        self.last_backoff = 0
-        self.last_cw = 15
         self.backoff_log = []
         self.debug_mode = False
     
@@ -105,28 +103,22 @@ class ChannelAccessRlAgent(RlAgent):
                       f"acks={n_na}, rssi={n_rssi:.2f}dBm, cw={n_cw}, backoff={n_b} \n"
                       f"\t\t txok_stats: interval=[{', '.join(f'{v:.2f}' for v in n_tis)}]ms")
 
-        if a_da == 0:
-            self.n_waited_slot_log = [0]
-        elif a_nw > self.n_waited_slot_log[-1]:
-            self.n_waited_slot_log.append(a_nw)
-
-        k = len(self.n_waited_slot_log) - 1
-        new_cw = 2**k * a_cw - 2 * a_nw
-        for i, j in enumerate(self.n_waited_slot_log):
-            if i == k:
-                break
-            new_cw -= 2**(k - i) * j
-
         # choose action
-        self.action = random.randint(0, 1)
+        if a_da == 0:
+            self.last_n_waited_slot = -1
+        if a_nw > self.last_n_waited_slot:
+            self.next_Ek = (a_cw + 1 + a_nw) / 2
+            p_k = (a_nw - self.last_n_waited_slot) / (a_cw + 1 - a_nw) if a_nw < a_cw + 1 else 1
+            self.action = 0 if random.random() <= p_k else 1
+            print(self.next_Ek, p_k)
+        # self.action = random.randint(0, 1)
         self.action_log.append(self.action)
         
-        self.backoff = self.action * new_cw
+        self.backoff = self.action * int(self.next_Ek)
         self.backoff_log.append(self.backoff)
         if self.show_log:
             print("New Backoff={}".format(self.backoff))
-        self.last_backoff = self.access_info.n_waited_slot
-        self.last_cw = self.access_info.cw
+        self.last_n_waited_slot = a_nw
 
     def reset(self):
         super().reset()
