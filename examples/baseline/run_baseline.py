@@ -36,36 +36,36 @@ def run_new_episode(exp, ns3_settings, agent_manager, episode=0):
     msg_interface = exp.run(setting=ns3_settings, show_output=True)
 
     step = 0
-    try:
+    # try:
+    while True:
+        msg_interface.PyRecvBegin()
+        ns3_time_cost += time.time() - tic  # wait for CppSendEnd
+        if msg_interface.PyGetFinished():
+            msg_interface.PyRecvEnd()
+            break
+
+        print("Episode {}, step {}".format(episode, step))
+        step += 1
+
+        agent_manager.get_active_agent(msg_interface)
         while True:
-            msg_interface.PyRecvBegin()
-            ns3_time_cost += time.time() - tic  # wait for CppSendEnd
-            if msg_interface.PyGetFinished():
-                msg_interface.PyRecvEnd()
+            agent_manager.get_obs(msg_interface)
+            msg_interface.PyRecvEnd()
+            if agent_manager.has_more_data():
+                msg_interface.PyRecvBegin()
+            else:
                 break
 
-            print("Episode {}, step {}".format(episode, step))
-            step += 1
+        msg_interface.PySendBegin()
+        agent_manager.set_action(msg_interface)
+        tic = time.time()   # reset tic before CppRecvEnd
+        msg_interface.PySendEnd()
 
-            agent_manager.get_active_agent(msg_interface)
-            while True:
-                agent_manager.get_obs(msg_interface)
-                msg_interface.PyRecvEnd()
-                if agent_manager.has_more_data():
-                    msg_interface.PyRecvBegin()
-                else:
-                    break
-
-            msg_interface.PySendBegin()
-            agent_manager.set_action(msg_interface)
-            tic = time.time()   # reset tic before CppRecvEnd
-            msg_interface.PySendEnd()
-
-    except Exception as e:
-        exc_type, exc_value, exc_traceback = sys.exc_info()
-        print("Episode {} finished with exception {}".format(episode, e))
-        print("Traceback (most recent call last):")
-        traceback.print_tb(exc_traceback)
+    # except Exception as e:
+    #     exc_type, exc_value, exc_traceback = sys.exc_info()
+    #     print("Episode {} finished with exception {}".format(episode, e))
+    #     print("Traceback (most recent call last):")
+    #     traceback.print_tb(exc_traceback)
     
     exp.kill()
     print("Simulation ended at {}".format(int(time.time())))

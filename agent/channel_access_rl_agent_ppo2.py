@@ -12,7 +12,6 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from collections import deque
-import torch
 from agent_utils import *
 from rl_agent import RlAgent
 from models.ppo import PPO
@@ -35,20 +34,19 @@ class ChannelAccessRlAgent(RlAgent):
         self.agent_type = AgentType.RL_CHANNEL_ACCESS
 
         state_size = 10
-        action_size = 2
+        action_size = 16
         self.model = PPO(state_size, action_size, hidden_size=HIDDEN_SIZE, 
                          actor_lr=ACTOR_LR, critic_lr=CRITIC_LR, gamma=GAMMA, 
                          lmbda=LMBDA, n_epochs=N_EPOCHS, eps=EPS)
         
         self.neighbor_info = []
-        self.backoff = 0
         self.mean_backoff = 8
         self.last_waited_slots = 0
         self.last_cw = 15
         self.backoff_log = []
-        self.debug_mode = False
-        self.obs_log = []
         self.txok_log = deque([0]*20, maxlen=20)
+        self.debug_mode = True
+        self.debug_log = []
 
         # load pretrained model
         try:
@@ -76,9 +74,8 @@ class ChannelAccessRlAgent(RlAgent):
             self.more_data = env.moreData
 
     def set_action(self, msg_interface):
-        self.choose_action()
+        msg_interface.GetPy2CppVector()[self.memory_id].backoff = self.choose_action()
         self.neighbor_info = []
-        msg_interface.GetPy2CppVector()[self.memory_id].backoff = self.backoff
     
     def choose_action(self):
         a_dt = self.delta_time
@@ -147,10 +144,10 @@ class ChannelAccessRlAgent(RlAgent):
                     r_backoff = self.mean_backoff*2 / self.last_cw - 1
                 if a_na:
                     self.txok_log.append(1)
-                    r_tx = sum([v > 0 for v in self.txok_log]) / 10
+                    r_tx = sum([v > 0 for v in self.txok_log]) / len(self.txok_log)
                 else:
                     self.txok_log.append(-1)
-                    r_tx = -sum([v < 0 for v in self.txok_log]) / 10
+                    r_tx = -sum([v < 0 for v in self.txok_log]) / len(self.txok_log)
 
                 reward = r_tx + r_backoff
             else:
@@ -164,18 +161,24 @@ class ChannelAccessRlAgent(RlAgent):
         # self.action = random.randint(0, self.access_info.cw - a_nw)
         self.action_log.append(self.action)
         
-        self.backoff = self.action * (a_cw + 1)
-        self.backoff_log.append(self.backoff)
+        backoff = self.action# * (a_cw + 1)
+        self.backoff_log.append(backoff)
         if self.show_log:
-            print("New Backoff={}".format(self.backoff))
+            print("New Backoff={}".format(backoff))
         self.state = next_state
         self.last_waited_slots = self.access_info.n_waited_slot
         self.last_cw = self.access_info.cw
 
+        if self.debug_mode:
+            self.debug_log.append([self.sim_time, self.delta_time, a_cw] + self_features + neighbor_features + 
+                                  [self.n_contention, self.min_neighbor_backoff])
+        
+        return backoff
+
     def reset(self):
         super().reset()
         self.backoff_log = []
-        self.obs_log = []
+        self.debug_log = []
         if self.enable_learning:
             self.model.learn()
             self.plot_loss()
@@ -195,16 +198,13 @@ class ChannelAccessRlAgent(RlAgent):
         save_dir = save_dir if save_dir is not None else self.save_dir
         with open(os.path.join(save_dir, 'debug.csv'), 'w') as f:
             writer = csv.writer(f)
-            writer.writerow(['delta_time', 'equal_backoff', 
-                             'cw', 'n_deferred', 'n_waited_slots', 
-                             'n_in_queue', 'n_sending', 'n_acked', 
-                             'n_sta',
-                             'n10', 'n20', 'n30', 'n40', 'n50', 'n100', 
-                             'ni10', 'ni20', 'ni30', 'ni40', 'ni50', 'ni100', 
-                             'nn', 'min_neighbor_backoff',
+            writer.writerow(['sim_time', 'delta_time', 
+                             'cw', 'n_deferred', 'n_waited_slots', 'chan_fail_delay', 'chan_fail_idle_time'] +
+                            ['txok_delay', 'tx_idle_time']*3 +
+                            ['n_contention', 'min_neighbor_backoff',
                              'action', 'new_backoff', 'reward'])
-            for i in range(len(self.obs_log) - 1):
-                writer.writerow(self.obs_log[i] + [self.action_log[i]] + [self.backoff_log[i]] + [self.reward_log[i]])
+            for i in range(len(self.debug_log) - 1):
+                writer.writerow(self.debug_log[i] + [self.action_log[i]] + [self.backoff_log[i]] + [self.reward_log[i]])
 
     def plot_results(self, save_dir=None):
         save_dir = save_dir if save_dir is not None else self.save_dir
