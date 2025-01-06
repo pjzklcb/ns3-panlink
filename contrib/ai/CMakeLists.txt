@@ -90,20 +90,20 @@ else()
 endif()
 
 # Compile proto files
-# add_library(proto-objects OBJECT "${CMAKE_CURRENT_SOURCE_DIR}/model/gym-interface/messages.proto")
-# protobuf_generate(
-#         TARGET proto-objects
-#         IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/model/gym-interface"
-#         LANGUAGE cpp
-#         PROTOC_OUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/model/gym-interface/cpp"
-# )
-# protobuf_generate(
-#         TARGET proto-objects
-#         IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/model/gym-interface"
-#         LANGUAGE python
-#         PROTOC_OUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/model/gym-interface/py"
-# )
-# add_dependencies(${libai} proto-objects)
+add_library(proto-objects OBJECT "${CMAKE_CURRENT_SOURCE_DIR}/model/gym-interface/messages.proto")
+protobuf_generate(
+        TARGET proto-objects
+        IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/model/gym-interface"
+        LANGUAGE cpp
+        PROTOC_OUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/model/gym-interface/cpp"
+)
+protobuf_generate(
+        TARGET proto-objects
+        IMPORT_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/model/gym-interface"
+        LANGUAGE python
+        PROTOC_OUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/model/gym-interface/py"
+)
+add_dependencies(${libai} proto-objects)
 
-# # Build Gym msg binding module
-# add_subdirectory(model/gym-interface/py)
+# Build Gym msg binding module
+add_subdirectory(model/gym-interface/py)
