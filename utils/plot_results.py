@@ -202,16 +202,17 @@ class PlotResults(object):
                     prev = time
                 subfig.plot([prev, self.sim_time], [cw, cw], "b")
 
-                time_list = []
-                backoff_list = []
-                for time, backoff in self.backoff_map[node_id][ac]:
-                    time_list.append(time)
-                    backoff_list.append(backoff)
-                mean = np.mean([v if v !=0.5 else 0 for v in backoff_list])
-                subfig.scatter(time_list, backoff_list, color="r", marker='.', s=8, alpha=0.5,
-                               label='average backoff={:.2f}'.format(mean))
-                
-                subfig.legend(loc='upper right')
+                if ac in self.backoff_map[node_id]:
+                    time_list = []
+                    backoff_list = []
+                    for time, backoff in self.backoff_map[node_id][ac]:
+                        time_list.append(time)
+                        backoff_list.append(backoff)
+                    mean = np.mean([v if v !=0.5 else 0 for v in backoff_list])
+                    subfig.scatter(time_list, backoff_list, color="r", marker='.', s=8, alpha=0.5,
+                                label='average backoff={:.2f}'.format(mean))
+                    subfig.legend(loc='upper right')
+                    
                 subfig.set_yscale('log', base=2)
                 subfig.set_xlabel("Time (s)")
                 subfig.set_ylabel("CW")
