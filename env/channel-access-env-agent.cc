@@ -109,6 +109,7 @@ ChannelAccessEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, 
     auto neighborAcks =
         sensingMac->GetNeighborAckedTime(neighborStas[m_idxNeighborSta], obs.period);
     NeighborStaObs neighborStaObs{
+        .nodeId = sensingMac->GetNeighborStaId(neighborStas[m_idxNeighborSta]),
         .role =
             static_cast<uint8_t>(sensingMac->GetNeighborStaRole(neighborStas[m_idxNeighborSta])),
         .period = obs.period.ToDouble(Time::MS),

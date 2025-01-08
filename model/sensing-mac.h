@@ -271,6 +271,11 @@ class SensingMac : public Object
     NeighborStaRole GetNeighborStaRole(Mac48Address sta) const;
 
     /**
+     * @param sta the mac address
+     * @returns the node ID of the neighbor STA
+     */
+    uint32_t GetNeighborStaId(Mac48Address sta) const;
+    /**
      * @param linkId the link ID
      * @returns the number of STAs with non-empty MAC queue at the moment.
      */

@@ -82,6 +82,7 @@ PYBIND11_MODULE(cpp_py_interface, m)
 
     py::class_<NeighborStaObs>(m, "NeighborStaObs")
         .def(py::init<>())
+        .def_readwrite("nodeId", &NeighborStaObs::nodeId)
         .def_readwrite("role", &NeighborStaObs::role)
         .def_readwrite("period", &NeighborStaObs::period)
         .def_readwrite("nAcks", &NeighborStaObs::nAcks)

@@ -53,6 +53,7 @@ class SelfLinkInfo:
 
 class NeighborLinkInfo:
     def __init__(self, obs):
+        self.node_id = obs.nodeId
         self.role = obs.role
         self.period = obs.period
         self.n_acks = obs.nAcks

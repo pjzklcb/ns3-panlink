@@ -50,6 +50,7 @@ struct SelfLinkObs
  */
 struct NeighborStaObs
 {
+    uint32_t nodeId;
     uint8_t role;
     double period; // period of observation in ms
 

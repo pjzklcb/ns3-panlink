@@ -87,6 +87,7 @@ class ChannelAccessRlAgent(RlAgent):
         
         neighbor_features = []
         for i in range(self.n_neighbor):
+            n_id = self.neighbor_info[i].node_id
             n_role = self.neighbor_info[i].role
             # n_p = self.neighbor_info[i].period
             n_na = self.neighbor_info[i].n_acks
@@ -96,10 +97,9 @@ class ChannelAccessRlAgent(RlAgent):
             n_b = self.neighbor_info[i].backoff
             n_cw = self.neighbor_info[i].cw[0]  # cw of AC_BE
             n_tis = self.neighbor_info[i].txok_interval_stats
-            if n_role != 0:
-                neighbor_features += [n_ad, n_it]
+            neighbor_features.append([n_id, n_b])
             if self.show_log and i == 0:
-                print(f"\t Neighbor {i}: role={n_role}, txok_delay/idle_time={n_ad:.2f}/{n_it:.2f}ms, "
+                print(f"\t Neighbor {n_id}: role={n_role}, txok_delay/idle_time={n_ad:.2f}/{n_it:.2f}ms, "
                       f"acks={n_na}, rssi={n_rssi:.2f}dBm, cw={n_cw}, backoff={n_b} \n"
                       f"\t\t txok_stats: interval=[{', '.join(f'{v:.2f}' for v in n_tis)}]ms")
 

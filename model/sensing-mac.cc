@@ -694,6 +694,25 @@ SensingMac::GetNeighborStaRole(Mac48Address sta) const
     return it->second.role;
 }
 
+uint32_t 
+SensingMac::GetNeighborStaId(Mac48Address sta) const
+{
+    NS_LOG_FUNCTION(this << sta);
+
+    for (uint32_t i = 0; i < NodeList::GetNNodes(); i++)
+    {
+        Ptr<Node> node = NodeList::GetNode(i);
+        Ptr<WifiNetDevice> device = DynamicCast<WifiNetDevice>(node->GetDevice(0));
+        Ptr<WifiMac> mac = device->GetMac();
+        if (mac->GetAddress() == sta)
+        {
+            return node->GetId();
+        }
+    }
+
+    return 0;
+}
+
 std::vector<Time>
 SensingMac::GetSeltLinkTxDataTime(Time period, uint8_t linkId) const
 {
