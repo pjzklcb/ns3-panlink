@@ -7,6 +7,7 @@
 import os
 import math
 import random
+import csv
 import numpy as np
 from collections import deque
 import matplotlib
@@ -14,7 +15,6 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from agent_utils import *
 from rl_agent import RlAgent
-from models.ddqn import DDQN
 
 
 class ChannelAccessRlAgent(RlAgent):
@@ -26,7 +26,7 @@ class ChannelAccessRlAgent(RlAgent):
         self.backoff = 0
         self.mean_backoff = 8
         self.backoff_log = []
-        self.debug_mode = False
+        self.debug_mode = True
     
     def get_obs(self, msg_interface):
         env = msg_interface.GetCpp2PyVector()[self.memory_id]
@@ -103,25 +103,57 @@ class ChannelAccessRlAgent(RlAgent):
                       f"acks={n_na}, rssi={n_rssi:.2f}dBm, cw={n_cw}, backoff={n_b} \n"
                       f"\t\t txok_stats: interval=[{', '.join(f'{v:.2f}' for v in n_tis)}]ms")
 
+        self_features = [a_cw, a_da, a_nw]
+        next_state = self_features
+        if self.state:
+            reward = a_na if a_na else -a_ns
+            self.reward_log.append(reward)
+
+            if self.debug_mode:
+                s_feature = [self.sim_time, self.delta_time] + self_features + [self.min_neighbor_backoff]
+                self.write_to_csv(s_feature, neighbor_features, self.action, self.backoff, reward)
+
         # choose action
-        if a_da == 0:
-            self.last_n_waited_slot = -1
-        self.next_Ek = (a_cw + 1 + a_nw) / 2
-        p_k = (a_nw - self.last_n_waited_slot) / (a_cw + 1 - a_nw) if a_nw < a_cw + 1 else 1
-        self.action = 0 if random.random() <= p_k else 1
-        print(self.next_Ek, p_k)
+        # if a_da == 0:
+        #     self.last_n_waited_slot = -1
+        # self.next_Ek = (a_cw + 1 + a_nw) / 2
+        # p_k = (a_nw - self.last_n_waited_slot) / (a_cw + 1 - a_nw) if a_nw < a_cw + 1 else 1
+        # self.action = 0 if random.random() <= p_k else 1
         # self.action = random.randint(0, 1)
+        self.action = 0 if self.min_neighbor_backoff else 1
         self.action_log.append(self.action)
         
-        self.backoff = self.action * int(self.next_Ek)
+        self.backoff = self.action * (a_cw+1) #int(self.next_Ek)
         self.backoff_log.append(self.backoff)
         if self.show_log:
             print("New Backoff={}".format(self.backoff))
+        self.state = next_state
         self.last_n_waited_slot = a_nw
 
     def reset(self):
         super().reset()
         self.backoff_log = []
+        self.self_feature_log = []
+        self.neighbor_features_log = []
+
+    def write_to_csv(self, s_feature, n_features, action, backoff, reward, save_dir=None):
+        save_dir = save_dir if save_dir is not None else self.save_dir
+        debug_file = os.path.join(save_dir, 'debug.csv')
+        if not os.path.exists(debug_file):
+            with open(debug_file, 'w') as f:
+                writer = csv.writer(f)
+                writer.writerow(['sim_time', 'delta_time', 'cw', 'n_deferred', 'n_waited_slots', 'min_neighbor_backoff',
+                                 'node_id', 'backoff',
+                                 'action', 'new_backoff', 'reward'])
+
+        with open(debug_file, 'a') as f:
+            writer = csv.writer(f)
+            if len(n_features) == 0:
+                writer.writerow(s_feature + ['', '', action, backoff, reward])
+            else:
+                writer.writerow(s_feature + n_features[0] + [action, backoff, reward])
+                for i in range(1, len(n_features)):
+                    writer.writerow(['']*len(s_feature) + n_features[i])
 
     def plot_results(self, save_dir=None):
         save_dir = save_dir if save_dir is not None else self.save_dir
