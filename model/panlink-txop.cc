@@ -104,7 +104,7 @@ PanlinkTxop::NotifyChannelReleased(uint8_t linkId)
     // does not transmit any frame corresponding to that AC for the reasons stated above may:
     // - invoke a backoff for the EDCAF associated with that AC as allowed per h) of 10.23.2.2
     //   (EDCA backoff procedure).
-    auto hasTransmitted = link.startTxop.has_value() && Simulator::Now() > *link.startTxop;
+    // auto hasTransmitted = link.startTxop.has_value() && Simulator::Now() > *link.startTxop;
 
     m_queue->WipeAllExpiredMpdus();
     // if ((hasTransmitted) ||
@@ -122,12 +122,6 @@ PanlinkTxop::NotifyChannelReleased(uint8_t linkId)
     link.startTxop.reset();
     GetLink(linkId).access = NOT_REQUESTED;
     StartAccessAfterEvent(linkId, DIDNT_HAVE_FRAMES_TO_TRANSMIT, CHECK_MEDIUM_BUSY);
-}
-
-void
-PanlinkTxop::SetBackoffSlots(uint32_t backoff, uint8_t linkId)
-{
-    GetLink(linkId).backoffSlots = backoff;
 }
 
 uint32_t

@@ -32,14 +32,6 @@ class PanlinkTxop : public QosTxop
     void NotifyChannelReleased(uint8_t linkId) override;
 
     /**
-     * Set the backoff value of the given link.
-     *
-     * @param backoff the new backoff
-     * @param linkId the link ID
-     */
-    void SetBackoffSlots(uint32_t backoff, uint8_t linkId);
-
-    /**
      * Get the backoff value of the given link.
      *
      * @param linkId the link ID

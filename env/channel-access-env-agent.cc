@@ -149,7 +149,7 @@ ChannelAccessEnvAgent::SetEnvAct(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, 
     {
         NS_LOG_DEBUG("start backoff=" << newBackoff << " slots");
     }
-    txop->SetBackoffSlots(newBackoff, obs.linkId);
+    txop->StartBackoffNow(newBackoff, obs.linkId);
 }
 
 double
