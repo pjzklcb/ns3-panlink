@@ -128,7 +128,7 @@ class ChannelAccessManager : public Object
      *                        of the medium
      * @return true if backoff needs to be generated, false otherwise
      */
-    bool NeedBackoffUponAccess(Ptr<Txop> txop, bool hadFramesToTransmit, bool checkMediumBusy);
+    virtual bool NeedBackoffUponAccess(Ptr<Txop> txop, bool hadFramesToTransmit, bool checkMediumBusy);
 
     /**
      * @param txop a Txop

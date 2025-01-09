@@ -103,15 +103,15 @@ class ChannelAccessRlAgent(RlAgent):
                       f"acks={n_na}, rssi={n_rssi:.2f}dBm, cw={n_cw}, backoff={n_b} \n"
                       f"\t\t txok_stats: interval=[{', '.join(f'{v:.2f}' for v in n_tis)}]ms")
 
-        self_features = [a_cw, a_da, a_nw]
+        self_features = [self.sim_time, self.delta_time] + [a_cw, a_da, a_nw] + [self.min_neighbor_backoff]
+        next_transition = (self_features, neighbor_features)
         next_state = self_features
         if self.state:
             reward = a_na if a_na else -a_ns
             self.reward_log.append(reward)
 
             if self.debug_mode:
-                s_feature = [self.sim_time, self.delta_time] + self_features + [self.min_neighbor_backoff]
-                self.write_to_csv(s_feature, neighbor_features, self.action, self.backoff, reward)
+                self.write_to_csv(self.transition + (self.action, self.backoff, reward))
 
         # choose action
         # if a_da == 0:
@@ -129,6 +129,7 @@ class ChannelAccessRlAgent(RlAgent):
             print("New Backoff={}".format(self.backoff))
         self.state = next_state
         self.last_n_waited_slot = a_nw
+        self.transition = next_transition
 
     def reset(self):
         super().reset()
@@ -136,7 +137,7 @@ class ChannelAccessRlAgent(RlAgent):
         self.self_feature_log = []
         self.neighbor_features_log = []
 
-    def write_to_csv(self, s_feature, n_features, action, backoff, reward, save_dir=None):
+    def write_to_csv(self, transition, save_dir=None):
         save_dir = save_dir if save_dir is not None else self.save_dir
         debug_file = os.path.join(save_dir, 'debug.csv')
         if not os.path.exists(debug_file):
@@ -146,6 +147,7 @@ class ChannelAccessRlAgent(RlAgent):
                                  'node_id', 'backoff',
                                  'action', 'new_backoff', 'reward'])
 
+        s_feature, n_features, action, backoff, reward = transition
         with open(debug_file, 'a') as f:
             writer = csv.writer(f)
             if len(n_features) == 0:

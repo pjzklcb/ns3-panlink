@@ -31,6 +31,8 @@ class PanlinkChannelAccessManager : public ChannelAccessManager
     PanlinkChannelAccessManager();
     ~PanlinkChannelAccessManager() override;
 
+    bool NeedBackoffUponAccess(Ptr<Txop> txop, bool hadFramesToTransmit, bool checkMediumBusy) override;
+
   protected:
     void DisableEdcaFor(Ptr<Txop> qosTxop, Time duration) override;
     void NotifyRxStartNow(Time duration) override;

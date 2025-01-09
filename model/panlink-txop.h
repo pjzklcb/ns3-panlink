@@ -34,22 +34,22 @@ class PanlinkTxop : public QosTxop
     /**
      * Set the backoff value of the given link.
      *
-     * \param backoff the new backoff
-     * \param linkId the link ID
+     * @param backoff the new backoff
+     * @param linkId the link ID
      */
     void SetBackoffSlots(uint32_t backoff, uint8_t linkId);
 
     /**
      * Get the backoff value of the given link.
      *
-     * \param linkId the link ID
+     * @param linkId the link ID
      */
     uint32_t GetBackoffSlots(uint8_t linkId) const;
 
     /**
      * Get the times of deferred access on the given link by far.
      *
-     * \param linkId the link ID
+     * @param linkId the link ID
      */
     uint32_t GetNDeferredAccess(uint8_t linkId) const;
 
@@ -71,9 +71,16 @@ class PanlinkTxop : public QosTxop
     /**
      * Generate new backoff for the given link after deferred access.
      *
-     * \param linkId the link ID
+     * @param linkId the link ID
      */
     void GenerateNewBackoff(uint8_t linkId);
+
+    /**
+     * Reset access related parameters when channel released.
+     * 
+     * @param linkId the link ID
+     */
+    void ResetBackoff(uint8_t linkId);
 
     /**
      * Structure holding information specific to a single link. Here, the meaning of
@@ -92,7 +99,7 @@ class PanlinkTxop : public QosTxop
     /**
      * Get a reference to the link associated with the given ID.
      *
-     * \param linkId the given link ID
+     * @param linkId the given link ID
      * \return a reference to the link associated with the given ID
      */
     PanLinkEntity& GetLink(uint8_t linkId) const;

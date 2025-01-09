@@ -43,3 +43,4 @@ File Details
 * :ref:`channel-access-manager.h <src/wifi/model/channel-access-manager.h>`
    - Make all of the private members and methods protected.
    - Make methods related to access defer virtual, so that restore access can be scheduled.
+   - Make NeedBackoffUponAccess virtual to change the backoff generation logic.

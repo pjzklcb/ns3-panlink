@@ -43,6 +43,37 @@ PanlinkChannelAccessManager::~PanlinkChannelAccessManager()
     NS_LOG_FUNCTION(this);
 }
 
+bool 
+PanlinkChannelAccessManager::NeedBackoffUponAccess(Ptr<Txop> txop, bool hadFramesToTransmit, bool checkMediumBusy)
+{
+    NS_LOG_FUNCTION(this << txop << hadFramesToTransmit << checkMediumBusy);
+
+    // No backoff needed if in sleep mode or off. Checking if m_phy is nullptr is a workaround
+    // needed for EMLSR and may be removed in the future
+    if (m_sleeping || m_off || !m_phy)
+    {
+        return false;
+    }
+
+    // the Txop might have a stale value of remaining backoff slots
+    UpdateBackoff();
+
+    if (!hadFramesToTransmit && txop->HasFramesToTransmit(m_linkId) &&
+        txop->GetAccessStatus(m_linkId) != Txop::GRANTED && txop->GetBackoffSlots(m_linkId) == 0)
+    {
+        if (checkMediumBusy && !IsBusy())
+        {
+            return true;
+        }
+        else
+        {
+            // medium busy, backoff will be regenerated anyway when access resume
+            return false;
+        }
+    }
+    return false;
+}
+
 void
 PanlinkChannelAccessManager::DoResumeAccessIfNeeded()
 {

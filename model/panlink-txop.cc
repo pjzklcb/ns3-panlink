@@ -63,16 +63,16 @@ PanlinkTxop::DoInitialize()
 {
     NS_LOG_FUNCTION(this);
 
-    // if (!GetEnablePanlinkChannelAccess())
-    // {
-    QosTxop::DoInitialize();
-    //     return;
-    // }
+    if (!GetEnablePanlinkChannelAccess())
+    {
+        QosTxop::DoInitialize();
+        return;
+    }
 
-    // for (const auto& [id, link] : GetLinks())
-    // {
-    //     ResetCw(id);
-    // }
+    for (const auto& [id, link] : GetLinks())
+    {
+        ResetCw(id);
+    }
 }
 
 void
@@ -80,32 +80,33 @@ PanlinkTxop::NotifyChannelReleased(uint8_t linkId)
 {
     NS_LOG_FUNCTION(this << +linkId);
 
-    // if (!GetEnablePanlinkChannelAccess())
-    // {
-    QosTxop::NotifyChannelReleased(linkId);
-    //     return;
-    // }
+    if (!GetEnablePanlinkChannelAccess())
+    {
+        QosTxop::NotifyChannelReleased(linkId);
+        return;
+    }
 
-    // auto& link = GetLink(linkId);
+    ResetBackoff(linkId);
+    auto& link = GetLink(linkId);
 
-    // if (link.startTxop)
-    // {
-    //     NS_LOG_DEBUG("Terminating TXOP. Duration = " << Simulator::Now() - *link.startTxop);
-    //     // m_txopTrace(*link.startTxop, Simulator::Now() - *link.startTxop, linkId);
-    // }
+    if (link.startTxop)
+    {
+        NS_LOG_DEBUG("Terminating TXOP. Duration = " << Simulator::Now() - *link.startTxop);
+        // m_txopTrace(*link.startTxop, Simulator::Now() - *link.startTxop, linkId);
+    }
 
-    // // generate a new backoff value if either the TXOP duration is not null (i.e., some frames
-    // // were transmitted) or no frame was transmitted but the queue actually contains frame to
-    // // transmit and the user indicated that a backoff value should be generated in this situation.
-    // // This behavior reflects the following specs text (Sec. 35.3.16.4 of 802.11be D4.0):
-    // // An AP or non-AP STA affiliated with an MLD that has gained the right to initiate the
-    // // transmission of a frame as described in 10.23.2.4 (Obtaining an EDCA TXOP) for an AC but
-    // // does not transmit any frame corresponding to that AC for the reasons stated above may:
-    // // - invoke a backoff for the EDCAF associated with that AC as allowed per h) of 10.23.2.2
-    // //   (EDCA backoff procedure).
-    // auto hasTransmitted = link.startTxop.has_value() && Simulator::Now() > *link.startTxop;
+    // generate a new backoff value if either the TXOP duration is not null (i.e., some frames
+    // were transmitted) or no frame was transmitted but the queue actually contains frame to
+    // transmit and the user indicated that a backoff value should be generated in this situation.
+    // This behavior reflects the following specs text (Sec. 35.3.16.4 of 802.11be D4.0):
+    // An AP or non-AP STA affiliated with an MLD that has gained the right to initiate the
+    // transmission of a frame as described in 10.23.2.4 (Obtaining an EDCA TXOP) for an AC but
+    // does not transmit any frame corresponding to that AC for the reasons stated above may:
+    // - invoke a backoff for the EDCAF associated with that AC as allowed per h) of 10.23.2.2
+    //   (EDCA backoff procedure).
+    auto hasTransmitted = link.startTxop.has_value() && Simulator::Now() > *link.startTxop;
 
-    // m_queue->WipeAllExpiredMpdus();
+    m_queue->WipeAllExpiredMpdus();
     // if ((hasTransmitted) ||
     //     (!m_queue->IsEmpty() && m_mac->GetChannelAccessManager(linkId)->GetGenerateBackoffOnNoTx()))
     // {
@@ -118,8 +119,9 @@ PanlinkTxop::NotifyChannelReleased(uint8_t linkId)
     //                                this);
     //     }
     // }
-    // link.startTxop.reset();
-    // GetLink(linkId).access = NOT_REQUESTED;
+    link.startTxop.reset();
+    GetLink(linkId).access = NOT_REQUESTED;
+    StartAccessAfterEvent(linkId, DIDNT_HAVE_FRAMES_TO_TRANSMIT, CHECK_MEDIUM_BUSY);
 }
 
 void
@@ -163,15 +165,6 @@ PanlinkTxop::GenerateBackoff(uint8_t linkId)
 
     auto& link = GetLink(linkId);
     NS_LOG_FUNCTION(this << linkId << link.nDeferredAccess << link.waitedSlots);
-
-    // trace last access's total number of waited slots as equivalent backoff
-    m_backoffTrace(link.waitedSlots, linkId);
-
-    // reset access-related values
-    link.backoffStart = Simulator::Now();
-    link.nDeferredAccess = 0;
-    link.waitedSlots = 0;
-    // link.backoffSlots = m_rng->GetInteger(0, GetCw(linkId));
 
     auto obs = ChannelAccessEnvAgent::ChannelAccessObs();
     obs.linkId = linkId;
@@ -228,6 +221,22 @@ PanlinkTxop::GenerateNewBackoff(uint8_t linkId)
                      << " slots, and new backoff=" << link.backoffSlots);
         m_waitedSlotsTrace(link.nDeferredAccess, link.waitedSlots, link.backoffSlots, linkId);
     }
+}
+
+void 
+PanlinkTxop::ResetBackoff(uint8_t linkId)
+{
+    auto& link = GetLink(linkId);
+    NS_LOG_FUNCTION(this << linkId << link.nDeferredAccess << link.waitedSlots);
+
+    // trace last access's total number of waited slots as equivalent backoff
+    m_backoffTrace(link.waitedSlots, linkId);
+
+    // reset access-related values
+    link.backoffStart = Simulator::Now();
+    link.nDeferredAccess = 0;
+    link.waitedSlots = 0;
+    // link.backoffSlots = m_rng->GetInteger(0, GetCw(linkId));
 }
 
 } // namespace ns3
