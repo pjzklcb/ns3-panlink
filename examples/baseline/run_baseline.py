@@ -79,7 +79,7 @@ if __name__ == '__main__':
     parser.add_argument('--seed', type=int,
                         default=11, help="random seed")
     parser.add_argument('--ns3_seed', type=int,
-                        default=11, help='random seed for ns-3')
+                        default=150, help='random seed for ns-3')
     parser.add_argument('--n_episodes', type=int,
                         default=1, help='number of episodes')
     parser.add_argument('--config_panlink', type=str,
@@ -113,7 +113,7 @@ if __name__ == '__main__':
 
     ns3_settings = {
         'timestamp': timestamp,
-        'seed': args.ns3_seed,
+        'streamNumber': args.ns3_seed,
         'configPanlink': os.path.join(config_dir, args.config_panlink),
         'configIntf': os.path.join(config_dir, args.config_intf),
         'simulationTime': args.simulation_time,

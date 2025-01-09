@@ -32,7 +32,7 @@ int
 main(int argc, char* argv[])
 {
     std::string timestamp = "0";
-    uint32_t seed = 10; // random seed
+    uint64_t streamNumber = 150; // random seed
     Time simulationTime = Seconds(3);
     bool enableIntf{false};
     bool useExtendedBlockAck{true};
@@ -60,7 +60,7 @@ main(int argc, char* argv[])
 
     CommandLine cmd(__FILE__);
     cmd.AddValue("timestamp", "The timestamp for this example to run", timestamp);
-    cmd.AddValue("seed", "The random seed for this example to run", seed);
+    cmd.AddValue("streamNumber", "The random seed for this example to run", streamNumber);
     cmd.AddValue("configPanlink", "The config file of panlink network", configPanlink);
     cmd.AddValue("configIntf", "The config file of interference", configIntf);
     cmd.AddValue("simulationTime", "Total simulation time", simulationTime);
@@ -381,7 +381,6 @@ main(int argc, char* argv[])
     std::cout << "Installing applications..." << std::endl;
     g_appInstaller.InstallApplications(g_nodes, g_interfaces, g_srcAppMap);
 
-    int64_t streamNumber = 150;
     streamNumber += g_wifiHelper.AssignStreams(g_devices, streamNumber);
     streamNumber += g_inetHelper.AssignStreams(g_nodes, streamNumber);
     streamNumber += g_mobilityHelper.AssignStreams(g_nodes, streamNumber);
