@@ -104,32 +104,37 @@ class ChannelAccessRlAgent(RlAgent):
                       f"\t\t txok_stats: interval=[{', '.join(f'{v:.2f}' for v in n_tis)}]ms")
 
         self_features = [self.sim_time, self.delta_time] + [a_cw, a_da, a_nw] + [self.min_neighbor_backoff]
-        next_transition = (self_features, neighbor_features)
+        next_obs = (self_features, neighbor_features)
         next_state = self_features
         if self.state:
             reward = a_na if a_na else -a_ns
             self.reward_log.append(reward)
 
             if self.debug_mode:
-                self.write_to_csv(self.transition + (self.action, self.backoff, reward))
+                self.write_to_csv(self.obs + (self.action, self.backoff, reward))
 
         # choose action
-        # if a_da == 0:
-        #     self.last_n_waited_slot = -1
-        # self.next_Ek = (a_cw + 1 + a_nw) / 2
-        # p_k = (a_nw - self.last_n_waited_slot) / (a_cw + 1 - a_nw) if a_nw < a_cw + 1 else 1
-        # self.action = 0 if random.random() <= p_k else 1
+        if a_da == 0:
+            self.last_n_waited_slot = -1
+        self.next_Ek = (a_cw + 1 + a_nw) / 2
+        p_k = (a_nw - self.last_n_waited_slot) / (a_cw + 1 - a_nw) if a_nw < a_cw + 1 else 1
+        if self.min_neighbor_backoff == 0:
+            self.action = 1
+        elif self.min_neighbor_backoff == int(self.next_Ek):
+            self.action = 0
+        else:
+            self.action = 0 if random.random() <= p_k else 1
         # self.action = random.randint(0, 1)
-        self.action = 0 if self.min_neighbor_backoff else 1
+        # self.action = 0 if self.min_neighbor_backoff else 1
         self.action_log.append(self.action)
         
-        self.backoff = self.action * (a_cw+1) #int(self.next_Ek)
+        self.backoff = self.action * int(self.next_Ek)
         self.backoff_log.append(self.backoff)
         if self.show_log:
             print("New Backoff={}".format(self.backoff))
         self.state = next_state
         self.last_n_waited_slot = a_nw
-        self.transition = next_transition
+        self.obs = next_obs
 
     def reset(self):
         super().reset()
