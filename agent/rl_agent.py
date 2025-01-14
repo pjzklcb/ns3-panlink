@@ -6,8 +6,9 @@
 
 import os
 import csv
-from agent_utils import AgentType
+import numpy as np
 import matplotlib.pyplot as plt
+from agent_utils import AgentType
 
 class RlAgent():
     def __init__(self, node_id, memory_id, enable_learning=True):
@@ -55,8 +56,8 @@ class RlAgent():
         self.step_time = []
         if len(self.reward_log):
             self.episode += 1
-            self.episode_log.append(sum(self.reward_log))
-            self.reward_log = []
+            self.episode_log.append(np.array(self.reward_log).sum(axis=0))
+        self.reward_log = []
 
     def get_obs(self, msg_interface):
         pass
@@ -85,9 +86,15 @@ class RlAgent():
             writer = csv.writer(f)
             writer.writerow(self.episode_log)
             
-        y = self.episode_log
+        y = np.array(self.episode_log)
         plt.figure()
-        plt.plot(range(len(y)), y, 'b-', linewidth=1)
+        if y.ndim == 1:
+            plt.plot(y, 'b-', linewidth=1)
+        elif y.ndim == 2:
+            for i in range(y.shape[1]):
+                plt.plot(y[:,i], linewidth=1)
+        else:
+            raise ValueError("Unsupported y.ndim: {}".format(y.ndim))
         plt.xlabel('Episode')
         plt.ylabel('Reward')
         plt.savefig('{}/node_{}_{}.png'.format(save_dir, self.node_id, self.agent_type.name))
