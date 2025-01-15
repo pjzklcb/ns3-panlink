@@ -163,20 +163,6 @@ SensingMac::NotifyPhyTxEnd(std::string context, Ptr<const Packet> p)
         it->second.phyTxTime.back().second = now;
         m_linkMap[linkId].channelUtil.push_back({p->GetUid(), now});
     }
-
-    // Remove staled and invalid tx packets.
-    while (!m_linkMap[linkId].channelUtil.empty())
-    {
-        auto [_, txEndTime] = m_linkMap[linkId].channelUtil.front();
-        if (now - txEndTime > m_duration)
-        {
-            m_linkMap[linkId].channelUtil.pop_front();
-        }
-        else
-        {
-            break;
-        }
-    }
 }
 
 void
@@ -265,6 +251,23 @@ SensingMac::WipeAllStaledPackets()
         }
     }
 
+    // Remove staled and invalid tx packets.
+    for (auto& [_, linkInfo] : m_linkMap)
+    {
+        while (!linkInfo.channelUtil.empty())
+        {
+            auto [uid, _] = linkInfo.channelUtil.front();
+            if (auto packetIt = m_packetMap.find(uid); packetIt == m_packetMap.end())
+            {
+                linkInfo.channelUtil.pop_front();
+            }
+            else
+            {
+                break;
+            }
+        }
+    }
+
     // wipe neighbor packets
     for (auto it = m_neighborPacketMap.begin(); it != m_neighborPacketMap.end();)
     {
@@ -275,6 +278,23 @@ SensingMac::WipeAllStaledPackets()
         else
         {
             ++it;
+        }
+    }
+
+    // Remove staled and invalid rx packets.
+    for (auto& [sta, staInfo] : m_neighborStaMap)
+    {
+        while (!staInfo.channelUtil.empty())
+        {
+            auto [uid, _] = staInfo.channelUtil.front();
+            if (auto packetIt = m_neighborPacketMap.find(uid); packetIt == m_neighborPacketMap.end())
+            {
+                staInfo.channelUtil.pop_front();
+            }
+            else
+            {
+                break;
+            }
         }
     }
 
@@ -447,20 +467,6 @@ SensingMac::NotifyFrameInfo(Ptr<const WifiMpdu> mpdu,
         // if the packet is from AP to this MAC, assume it will be acked
         packetIt->second.ackedTime = now + MicroSeconds(50);
     }
-
-    // Remove staled and invalid rx packets.
-    while (!it->second.channelUtil.empty())
-    {
-        auto [_, rxEndTime] = it->second.channelUtil.front();
-        if (now - rxEndTime > m_duration)
-        {
-            it->second.channelUtil.pop_front();
-        }
-        else
-        {
-            break;
-        }
-    }
 }
 
 void
@@ -600,10 +606,6 @@ SensingMac::GetMinNeighborBackoff(uint8_t linkId)
                 staBackoff = std::min(staBackoff, mac->GetQosTxop(aci)->GetBackoffSlots(linkId));
             }
         }
-        // if (staBackoff != 1024)
-        // {
-        //     std::cout << "STA: " << mac->GetAddress() << ", backoff=" << staBackoff << std::endl;
-        // }
         backoff = std::min(backoff, staBackoff);
     }
 
@@ -694,7 +696,7 @@ SensingMac::GetNeighborStaRole(Mac48Address sta) const
     return it->second.role;
 }
 
-uint32_t 
+uint32_t
 SensingMac::GetNeighborStaId(Mac48Address sta) const
 {
     NS_LOG_FUNCTION(this << sta);
@@ -975,14 +977,13 @@ SensingMac::GetNeighborMeanRssi(Mac48Address sta, Time period) const
     Time prevEnd = Simulator::Now() - period;
     for (const auto& [uid, rxEndTime] : it->second.channelUtil)
     {
-        auto packetIt = m_neighborPacketMap.find(uid);
-        NS_ASSERT(packetIt != m_neighborPacketMap.end());
-
         // skip those not in the period
         if (rxEndTime <= prevEnd)
         {
             continue;
         }
+        auto packetIt = m_neighborPacketMap.find(uid);
+        NS_ASSERT(packetIt != m_neighborPacketMap.end());
 
         nTx++;
         NS_ASSERT(packetIt->second.rssi <= -10);
