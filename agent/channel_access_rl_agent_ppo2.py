@@ -19,7 +19,7 @@ from models.ppo_binary import PPO
 
 
 # hyperparameters
-HIDDEN_DIM = 64
+HIDDEN_DIM = 32
 ACTOR_LR = 1e-3
 CRITIC_LR = 1e-2
 GAMMA = 0.98
@@ -117,7 +117,7 @@ class ChannelAccessRlAgent(RlAgent):
                   f"min_neighbor_backoff={self.min_neighbor_backoff}")
 
         self_features = [math.log2(a_cw), a_da, a_nw, l_cd, l_ci]
-        self_log = [self.sim_time, self.delta_time, a_cw, a_da, a_nw, l_cd, l_ci, self.min_neighbor_backoff]
+        self_log = [self.sim_time, self.delta_time, a_cw, a_da, a_nw, self.min_neighbor_backoff, 1, l_ad, l_cd, l_ci]
         
         neighbor_features = []
         neighbor_log = []
@@ -147,23 +147,26 @@ class ChannelAccessRlAgent(RlAgent):
                 backoff_ratio = self.last_waited_slots / self.last_cw
                 self.mean_backoff = 0.9*self.mean_backoff + 0.1*backoff_ratio
                 if self.mean_backoff >= 0.5:
-                    r_backoff = 0.5
+                    r_backoff = 1 / (self.mean_backoff + 0.5) - 0.5
+                    r_tx = 1 if a_na else -1
                 else:
                     r_backoff = -1 / (self.mean_backoff + 1)
+                    r_tx = 2*self.mean_backoff if a_na else -1
 
-                if a_na:
-                    self.txok_log.append(1)
-                    r_tx = sum([v > 0 for v in self.txok_log]) / len(self.txok_log)
-                else:
-                    self.txok_log.append(-1)
-                    r_tx = -sum([v < 0 for v in self.txok_log]) / len(self.txok_log)
+                # if a_na:
+                #     self.txok_log.append(1)
+                #     r_tx = sum([v > 0 for v in self.txok_log]) / len(self.txok_log)
+                # else:
+                #     self.txok_log.append(-1)
+                #     r_tx = -sum([v < 0 for v in self.txok_log]) / len(self.txok_log)
             else:
                 r_tx = 0
                 r_backoff = 0
             
             reward = r_tx + r_backoff
             self.reward_log.append([reward, r_tx, r_backoff])
-            self.model.store_transition(self.state, self.action, reward, next_state)
+            if len(self.state[1]) > 0 and len(neighbor_features) > 0:
+                self.model.store_transition(self.state, self.action, reward, next_state)
 
             if self.debug_mode:
                 self.write_to_csv(self.transition + (self.pk_log[-1], self.Ek_log[-1], self.action, self.backoff, reward))
@@ -195,7 +198,6 @@ class ChannelAccessRlAgent(RlAgent):
     def reset(self):
         super().reset()
         self.backoff_log = []
-        self.debug_log = []
         self.pk_log = []
         self.Ek_log = []
         if self.enable_learning:
@@ -219,20 +221,17 @@ class ChannelAccessRlAgent(RlAgent):
             with open(debug_file, 'w') as f:
                 writer = csv.writer(f)
                 writer.writerow(['sim_time', 'delta_time', 
-                                 'cw', 'n_deferred', 'n_waited_slots', 'chan_fail_delay', 'chan_fail_idle_time', 
+                                 'cw', 'n_deferred', 'n_waited_slots',
                                  'min_neighbor_backoff',
                                  'node_id', 'backoff', 'txok_delay', 'txok_idle_time',
                                  'pk', 'Ek', 'action', 'new_backoff', 'reward'])
 
-        s_feature, n_features, pk, Ek, action, backoff, reward = transition
+        self_log, neighbor_log, pk, Ek, action, backoff, reward = transition
         with open(debug_file, 'a') as f:
             writer = csv.writer(f)
-            if len(n_features) == 0:
-                writer.writerow(s_feature + ['', '', pk, Ek, action, backoff, reward])
-            else:
-                writer.writerow(s_feature + n_features[0] + [pk, Ek, action, backoff, reward])
-                for i in range(1, len(n_features)):
-                    writer.writerow(['']*len(s_feature) + n_features[i])
+            writer.writerow(self_log + [pk, Ek, action, backoff, reward])
+            for sta in neighbor_log:
+                writer.writerow(['']*(len(self_log) - len(sta)) + sta)
 
     def plot_results(self, save_dir=None):
         save_dir = save_dir if save_dir is not None else self.save_dir
