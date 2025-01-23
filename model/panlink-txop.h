@@ -69,7 +69,7 @@ class PanlinkTxop : public QosTxop
 
     /**
      * Reset access related parameters when channel released.
-     * 
+     *
      * @param linkId the link ID
      */
     void ResetBackoff(uint8_t linkId);
@@ -84,8 +84,9 @@ class PanlinkTxop : public QosTxop
         /// Destructor (a virtual method is needed to make this struct polymorphic)
         ~PanLinkEntity() override = default;
 
+        int nDeferredAccess{0};      //!< deferred access times
         uint32_t waitedSlots{0};     //!< total waited slots
-        uint32_t nDeferredAccess{0}; //!< deferred access times
+        uint32_t lastWaitedSlots{0}; //!< waited slots of last deferred access
     };
 
     /**

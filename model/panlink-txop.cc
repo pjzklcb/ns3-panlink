@@ -159,6 +159,9 @@ PanlinkTxop::GenerateBackoff(uint8_t linkId)
 
     auto& link = GetLink(linkId);
     NS_LOG_FUNCTION(this << linkId << link.nDeferredAccess << link.waitedSlots);
+    link.nDeferredAccess = 0;
+    link.waitedSlots = 0;
+    link.lastWaitedSlots = 0;
 
     auto obs = ChannelAccessEnvAgent::ChannelAccessObs();
     obs.linkId = linkId;
@@ -196,24 +199,29 @@ PanlinkTxop::GenerateNewBackoff(uint8_t linkId)
     {
         auto& link = GetLink(linkId);
 
-        link.nDeferredAccess += 1;
-        // link.backoffSlots = m_rng->GetInteger(0, link.cw - link.waitedSlots);
+        if (link.nDeferredAccess == -1 || link.lastWaitedSlots < link.waitedSlots)
+        {
+            link.nDeferredAccess += 1;
+            // link.backoffSlots = m_rng->GetInteger(0, link.cw - link.waitedSlots);
 
-        auto obs = ChannelAccessEnvAgent::ChannelAccessObs();
-        obs.linkId = linkId;
-        obs.period = MilliSeconds(500);
-        obs.ac = GetAccessCategory();
-        obs.cw = link.cw;
-        obs.nDeferredAccess = link.nDeferredAccess;
-        obs.waitedSlots = link.waitedSlots;
+            auto obs = ChannelAccessEnvAgent::ChannelAccessObs();
+            obs.linkId = linkId;
+            obs.period = MilliSeconds(500);
+            obs.ac = GetAccessCategory();
+            obs.cw = link.cw;
+            obs.nDeferredAccess = link.nDeferredAccess;
+            obs.waitedSlots = link.waitedSlots;
 
-        uint32_t nodeId = m_mac->GetDevice()->GetNode()->GetId();
-        EnvAgentManager::Get()->EnvInfoExchange(nodeId, RL_CHANNEL_ACCESS, obs);
+            uint32_t nodeId = m_mac->GetDevice()->GetNode()->GetId();
+            EnvAgentManager::Get()->EnvInfoExchange(nodeId, RL_CHANNEL_ACCESS, obs);
 
-        NS_LOG_DEBUG("this access has deferred "
-                     << link.nDeferredAccess << " times, waited " << link.waitedSlots
-                     << " slots, and new backoff=" << link.backoffSlots);
-        m_waitedSlotsTrace(link.nDeferredAccess, link.waitedSlots, link.backoffSlots, linkId);
+            NS_LOG_DEBUG("this access has deferred "
+                        << link.nDeferredAccess << " times, waited " << link.waitedSlots
+                        << " slots, and new backoff=" << link.backoffSlots);
+            m_waitedSlotsTrace(link.nDeferredAccess, link.waitedSlots, link.backoffSlots, linkId);
+        }
+
+        link.lastWaitedSlots = link.waitedSlots;
     }
 }
 
@@ -228,8 +236,9 @@ PanlinkTxop::ResetBackoff(uint8_t linkId)
 
     // reset access-related values
     link.backoffStart = Simulator::Now();
-    link.nDeferredAccess = 0;
+    link.nDeferredAccess = -1;
     link.waitedSlots = 0;
+    link.lastWaitedSlots = 0;
     // link.backoffSlots = m_rng->GetInteger(0, GetCw(linkId));
 }
 
