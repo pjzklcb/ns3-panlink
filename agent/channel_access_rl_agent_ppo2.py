@@ -41,11 +41,10 @@ class ChannelAccessRlAgent(RlAgent):
                          lmbda=LMBDA, n_epochs=N_EPOCHS, eps=EPS)
         
         self.neighbor_info = []
-        self.mean_backoff = 1/2
-        self.last_waited_slots = 0
-        self.last_cw = 15
+        self.mean_backoff = 1
+        self.alpha = 1
+        self.mean_backoff_log = []
         self.backoff_log = []
-        self.txok_log = deque([0]*20, maxlen=20)
         self.debug_mode = True
         self.pk_log = []
         self.Ek_log = []
@@ -117,7 +116,7 @@ class ChannelAccessRlAgent(RlAgent):
                   f"min_neighbor_backoff={self.min_neighbor_backoff}")
 
         self_features = [math.log2(a_cw), a_da, a_nw, l_cd, l_ci]
-        self_log = [self.sim_time, self.delta_time, a_cw, a_da, a_nw, self.min_neighbor_backoff, 1, l_ad, l_cd, l_ci]
+        self_log = [self.sim_time, a_ns, a_na, a_cw, a_da, a_nw, self.n_contention, 1, l_ad, l_cd, l_ci]
         
         neighbor_features = []
         neighbor_log = []
@@ -147,24 +146,17 @@ class ChannelAccessRlAgent(RlAgent):
                 backoff_ratio = self.last_waited_slots / self.last_cw
                 self.mean_backoff = 0.9*self.mean_backoff + 0.1*backoff_ratio
                 if self.mean_backoff >= 0.5:
-                    r_backoff = 1 / (self.mean_backoff + 0.5) - 0.5
+                    # r_backoff = 1 / (self.mean_backoff + 0.5) - 0.5
                     r_tx = 1 if a_na else -1
                 else:
-                    r_backoff = -1 / (self.mean_backoff + 1)
-                    r_tx = 2*self.mean_backoff if a_na else -1
-
-                # if a_na:
-                #     self.txok_log.append(1)
-                #     r_tx = sum([v > 0 for v in self.txok_log]) / len(self.txok_log)
-                # else:
-                #     self.txok_log.append(-1)
-                #     r_tx = -sum([v < 0 for v in self.txok_log]) / len(self.txok_log)
+                    # r_backoff = -1 / (self.mean_backoff + 1)
+                    r_tx = (2*self.mean_backoff)**self.alpha if a_na else -1
             else:
                 r_tx = 0
-                r_backoff = 0
+                # r_backoff = 0
             
-            reward = r_tx + r_backoff
-            self.reward_log.append([reward, r_tx, r_backoff])
+            reward = r_tx# + r_backoff
+            self.reward_log.append(reward)#[reward, r_tx, r_backoff])
             if len(self.state[1]) > 0 and len(neighbor_features) > 0:
                 self.model.store_transition(self.state, self.action, reward, next_state)
 
@@ -174,19 +166,21 @@ class ChannelAccessRlAgent(RlAgent):
         # choose action
         if a_da == 0:
             self.last_n_waited_slot = -1
-        self.next_Ek = (a_cw + 1 + a_nw) / 2
+            self.next_Ek = a_cw / 2
         if len(neighbor_features) == 0:
             p_k = 1
         else:
             # p_k = (a_nw - self.last_n_waited_slot) / (a_cw + 1 - a_nw) if a_nw < a_cw + 1 else 1
             p_k = 1 - self.model.choose_action(self_features, neighbor_features)
+        self.next_Ek = (self.next_Ek - p_k * a_nw) / (1 - p_k) if p_k < 1 else a_nw
+        next_bk = self.next_Ek - a_nw
         self.pk_log.append(p_k)
         self.Ek_log.append(self.next_Ek)
         self.action = 0 if random.random() <= p_k else 1
         # self.action = random.randint(0, 1)
         self.action_log.append(self.action)
         
-        self.backoff = self.action * int(self.next_Ek)
+        self.backoff = self.action * int(next_bk)
         self.backoff_log.append(self.backoff)
         if self.show_log:
             print("New Backoff={}".format(self.backoff))
@@ -197,6 +191,13 @@ class ChannelAccessRlAgent(RlAgent):
 
     def reset(self):
         super().reset()
+        if self.episode > 0:
+            if self.mean_backoff < 0.5:
+                self.alpha *= 1.05
+            elif self.mean_backoff > 0.55:
+                self.alpha /= 1.05
+        self.mean_backoff_log.append([self.mean_backoff, self.alpha])
+        self.mean_backoff = 1
         self.backoff_log = []
         self.pk_log = []
         self.Ek_log = []
@@ -220,9 +221,9 @@ class ChannelAccessRlAgent(RlAgent):
         if not os.path.exists(debug_file):
             with open(debug_file, 'w') as f:
                 writer = csv.writer(f)
-                writer.writerow(['sim_time', 'delta_time', 
+                writer.writerow(['sim_time', 'n_sending', 'n_acked', 
                                  'cw', 'n_deferred', 'n_waited_slots',
-                                 'min_neighbor_backoff',
+                                 'n_contention',
                                  'node_id', 'backoff', 'txok_delay', 'txok_idle_time',
                                  'pk', 'Ek', 'action', 'new_backoff', 'reward'])
 
@@ -236,11 +237,12 @@ class ChannelAccessRlAgent(RlAgent):
     def plot_results(self, save_dir=None):
         save_dir = save_dir if save_dir is not None else self.save_dir
 
-        y, y_tx, y_backoff = zip(*self.reward_log)
+        # y, y_tx, y_backoff = zip(*self.reward_log)
+        y = self.reward_log
         fig, ax1 = plt.subplots(figsize=(10,6))
         ax1.plot(self.step_time[:len(y)], y, 'g-', linewidth=1, alpha=0.5)
-        ax1.plot(self.step_time[:len(y_tx)], y_tx, 'b-', linewidth=1, alpha=0.5)
-        ax1.plot(self.step_time[:len(y_backoff)], y_backoff, 'r-', linewidth=1, alpha=0.5)
+        # ax1.plot(self.step_time[:len(y_tx)], y_tx, 'b-', linewidth=1, alpha=0.5)
+        # ax1.plot(self.step_time[:len(y_backoff)], y_backoff, 'r-', linewidth=1, alpha=0.5)
         ax1.scatter(self.step_time[::100], ax1.get_ylim()[1]*np.ones(len(self.step_time[::100])), c='k', marker='|')
         ax1.set_xlabel('Time (s)')
         ax1.set_ylabel('Reward')
@@ -267,4 +269,22 @@ class ChannelAccessRlAgent(RlAgent):
         plt.xlabel('Epoch')
         plt.ylabel('Loss')
         plt.savefig('{}/node_{}_{}_loss.png'.format(self.save_dir, self.node_id, self.agent_type.name))
+        plt.close()
+
+    def plot_episodes(self, save_dir=None):
+        super().plot_episodes(save_dir)
+
+        fig, ax1 = plt.subplots()
+        mean_backoff, alpha = zip(*self.mean_backoff_log)
+        ax1.plot(mean_backoff, 'b-', linewidth=1)
+        ax1.set_xlabel('Episode')
+        ax1.set_ylabel('Mean Backoff', color='b')
+        ax1.tick_params('y', colors='b')
+
+        ax2 = ax1.twinx()
+        ax2.plot(alpha, 'r-', linewidth=1)
+        ax2.set_ylabel('Alpha', color='r')
+        ax2.tick_params('y', colors='r')
+
+        plt.savefig('{}/node_{}_{}_mean_backoff.png'.format(save_dir, self.node_id, self.agent_type.name))
         plt.close()

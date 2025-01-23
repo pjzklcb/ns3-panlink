@@ -116,19 +116,21 @@ class ChannelAccessRlAgent(RlAgent):
         # choose action
         if a_da == 0:
             self.last_n_waited_slot = -1
-        self.next_Ek = (a_cw + 1 + a_nw) / 2
+            self.next_Ek = (a_cw+1) / 2
         p_k = (a_nw - self.last_n_waited_slot) / (a_cw + 1 - a_nw) if a_nw < a_cw + 1 else 1
-        if self.min_neighbor_backoff == 0:
-            self.action = 1
-        elif self.min_neighbor_backoff == int(self.next_Ek):
-            self.action = 0
-        else:
-            self.action = 0 if random.random() <= p_k else 1
+        self.next_Ek = (self.next_Ek - p_k * a_nw) / (1 - p_k) if p_k < 1 else a_nw
+        next_bk = self.next_Ek - a_nw
+        # if self.min_neighbor_backoff == 0:
+        #     self.action = 1
+        # elif self.min_neighbor_backoff == int(next_bk):
+        #     self.action = 0
+        # else:
+        self.action = 0 if random.random() <= p_k else 1
         # self.action = random.randint(0, 1)
         # self.action = 0 if self.min_neighbor_backoff else 1
         self.action_log.append(self.action)
         
-        self.backoff = self.action * int(self.next_Ek)
+        self.backoff = self.action * int(next_bk)
         self.backoff_log.append(self.backoff)
         if self.show_log:
             print("New Backoff={}".format(self.backoff))
