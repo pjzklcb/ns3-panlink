@@ -26,7 +26,7 @@ from plot_results import PlotResults
 import cpp_py_interface as py_binding
 
 config_dir = os.path.join(panlink_dir, 'configs')
-STATS_RECORD_STEP = 10
+STATS_RECORD_STEP = 2
 
 
 def run_new_episode(exp, ns3_settings, agent_manager, episode=0):

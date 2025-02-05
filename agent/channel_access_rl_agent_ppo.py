@@ -12,13 +12,14 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from agent_utils import AgentType, AcIndex, Normalizer
+from collections import deque
+from agent_utils import *
 from rl_agent import RlAgent
-from models.ppo import PPO
+from models.ppo_gru_binary import PPO
 
 
 # hyperparameters
-HIDDEN_SIZE = 64
+HIDDEN_DIM = 64
 ACTOR_LR = 1e-3
 CRITIC_LR = 1e-2
 GAMMA = 0.98
@@ -32,19 +33,21 @@ class ChannelAccessRlAgent(RlAgent):
     def __init__(self, node_id, memory_id, enable_learning=True, pretrained_model=None):
         super().__init__(node_id, memory_id, enable_learning)
         self.agent_type = AgentType.RL_CHANNEL_ACCESS
-        
-        state_size = 20
-        action_size = 2
-        self.model = PPO(state_size, action_size, hidden_size=HIDDEN_SIZE, 
+
+        self_dim = 5
+        neighbor_dim = 2
+        self.model = PPO(self_dim, neighbor_dim, hidden_dim=HIDDEN_DIM, 
                          actor_lr=ACTOR_LR, critic_lr=CRITIC_LR, gamma=GAMMA, 
                          lmbda=LMBDA, n_epochs=N_EPOCHS, eps=EPS)
-        self.state_norm = Normalizer(state_size)
-        self.backoff = 0
+        
+        self.neighbor_info = {}
+        self.mean_backoff = 1/2
+        self.last_waited_slots = 0
+        self.last_cw = 15
         self.backoff_log = []
-        self.last_waited_slots = 8
-        self.last_n_defer_access = 0
         self.debug_mode = True
-        self.obs_log = []
+        self.pk_log = []
+        self.Ek_log = []
 
         # load pretrained model
         try:
@@ -57,110 +60,150 @@ class ChannelAccessRlAgent(RlAgent):
 
     def get_obs(self, msg_interface):
         env = msg_interface.GetCpp2PyVector()[self.memory_id]
-        cw = env.cw
-        n_deferred_access = env.nDeferredAccess
-        n_waited_slot = env.waitedSlots
-        ac = AcIndex(env.ac)
-        n_in_queue = env.nInQueuePackets
-        n_expired = env.nExpiredPackets
-        n_dropped = env.nDroppedPackets
-        n_sending = env.nSendingPackets
-        n_acked = env.nAckedPackets
-        n_low_delay = env.nLowDelayPackets
-        n_high_delay = env.nHighDelayPackets
-        n_bss_stas = env.nBssStas
-        n_obss_stas = env.nObssStas
-        n_10, n_20, n_30, n_40, n_50, n_100 = env.nTxOkDelay
-        ni_10, ni_20, ni_30, ni_40, ni_50, ni_100 = env.nTxDataInterval
-        nn = env.nStasWithPackets
-        min_neighbor_backoff = env.minNeighborBackoff
-
-        # get last equivalent backoff
-        if n_deferred_access == 0:
-            self.equal_backoff = self.backoff + self.last_waited_slots
-
-        if self.show_log:
-            print("At {:6f}s, delta_time={:.3f}ms, last_equal_backoff={}, cw={}, n_deferred_access={}, n_waited_slot={}, \n \
-                  ac={}, in_queue/expired/dropped/sending/acked={}/{}/{}/{}/{}, low/high={}/{}, \n \
-                  n_bss_stas={}, n_obss_stas={}, delay<10/20/30/40/50/100ms={}/{}/{}/{}/{}/{}, \n \
-                  interval<10/20/30/40/50/100ms={:.2f}/{:.2f}/{:.2f}/{:.2f}/{:.2f}/{:.2f}, \n \
-                  n_stas_with_packet={}, min_neighbor_backoff={}".format(
-                      self.sim_time, self.delta_time, self.equal_backoff, cw, n_deferred_access, n_waited_slot,
-                      ac.name, n_in_queue, n_expired, n_dropped, n_sending, n_acked, n_low_delay, n_high_delay, 
-                      n_bss_stas, n_obss_stas, n_10, n_20, n_30, n_40, n_50, n_100,
-                      ni_10, ni_20, ni_30, ni_40, ni_50, ni_100, nn, min_neighbor_backoff
-                      ))
-        
-        self.choose_action(env)
+        if not self.more_data:
+            self.n_contention = env.nStasWithPackets
+            self.min_neighbor_backoff = env.minNeighborBackoff
+            self.access_info = AccessInfo(AcIndex(env.ac), env.cw, env.nDeferredAccess, 
+                                          env.waitedSlots, env.lastAccessObs)
+            self.link_info = SelfLinkInfo(env.selfLinkObs)
+            
+        self.n_neighbor = env.nNeighborStas
+        if self.n_neighbor > 0:
+            neighbor_info = NeighborLinkInfo(env.neighborStaObs)
+            self.neighbor_info[neighbor_info.node_id] = neighbor_info
+            # print("python get {}/{}".format(len(self.neighbor_info), self.n_neighbor))
+            self.more_data = env.moreData
 
     def set_action(self, msg_interface):
+        self.choose_action()
         msg_interface.GetPy2CppVector()[self.memory_id].backoff = self.backoff
+        self.neighbor_info = {}
+    
+    def choose_action(self):
+        a_dt = self.delta_time
+        a_cw = self.access_info.cw
+        a_da = self.access_info.n_deferred_access
+        a_nw = self.access_info.n_waited_slot
+        a_nq = self.access_info.n_in_queue
+        # a_ne = self.access_info.n_expired
+        # a_nd = self.access_info.n_dropped
+        a_ns = self.access_info.n_sending
+        a_na = self.access_info.n_acked
+        # a_nl = self.access_info.n_low_delay
+        # a_nh = self.access_info.n_high_delay
 
-    def choose_action(self, obs):
-        # process the obs
-        t_ = self.delta_time
-        cw_ = math.log(obs.cw+1, 2) / 10
-        da_ = obs.nDeferredAccess
-        b_ = obs.waitedSlots
-        ni_ = obs.nInQueuePackets
-        # ne_ = obs.nExpiredPackets
-        # nd_ = obs.nDroppedPackets
-        ns_ = obs.nSendingPackets
-        na_ = obs.nAckedPackets
-        # nl_, nh_ = obs.nLowDelayPackets, obs.nHighDelayPackets
-        total_stas = max(1, obs.nBssStas + obs.nObssStas)
-        n10_, n20_, n30_, n40_, n50_, n100_ = [v/total_stas for v in obs.nTxOkDelay]
-        ni10_, ni20_, ni30_, ni40_, ni50_, ni100_ = obs.nTxDataInterval
-        nn_ = obs.nStasWithPackets / total_stas
-        nb_ = obs.minNeighborBackoff
+        # l_p = self.link_info.period
+        l_ns = self.link_info.n_tx_data
+        l_na = self.link_info.n_acked_data
+        l_ad = self.link_info.txok_delay
+        l_cd = self.link_info.chan_fail_delay
+        l_ci = self.link_info.chan_fail_idle_time
+        l_cf = self.link_info.n_chan_fail
+        l_ir = self.link_info.idle_ratio
+        l_ais = self.link_info.app_interval_stats
+        l_tis = self.link_info.tx_interval_stats
+        
+        if self.show_log:
+            print(f"At {self.sim_time:6f}s, delta_time={a_dt:.3f}ms, " 
+                  f"cw={a_cw}, n_defer={a_da}, n_waited_slot={a_nw}, "
+                  f"in_queue/sending/acked={a_nq}/{a_ns}/{a_na}, \n"
+                  f"\t txok_delay={l_ad:.2f}ms, tx/ack={l_ns}/{l_na}, \n"
+                  f"\t app_stats: interval=[{', '.join(f'{v:.2f}' for v in l_ais)}]ms, "
+                  f"tx_stats: interval=[{', '.join(f'{v:.2f}' for v in l_tis)}]ms, \n"
+                  f"\t chan_fail_delay/idle_time={l_cd:.2f}/{l_ci:.2f}ms, "
+                  f"n_chan_fail={l_cf}, idle_ratio={l_ir*100:.2f}%, \n"
+                  f"\t n_neighbor/contention={self.n_neighbor}/{self.n_contention}, "
+                  f"min_neighbor_backoff={self.min_neighbor_backoff}")
 
-        if self.debug_mode:
-            self.obs_log.append(
-                [t_, self.equal_backoff, cw_, da_, b_,
-                 ni_, ns_, na_, #nl_, nh_, ne_, nd_,
-                 total_stas, 
-                 n10_, n20_, n30_, n40_, n50_, n100_, 
-                 ni10_, ni20_, ni30_, ni40_, ni50_, ni100_,
-                 nn_, nb_])
+        self_features = [math.log2(a_cw), a_da, a_nw, l_cd, l_ci]
+        self_log = [self.sim_time, self.delta_time, a_cw, a_da, a_nw, self.min_neighbor_backoff, 1, l_ad, l_cd, l_ci]
+        
+        neighbor_features = {}
+        neighbor_log = []
+        for n_id, info in self.neighbor_info.items():
+            n_role = info.role
+            # n_p = info.period
+            n_na = info.n_acks
+            n_ad = info.txok_delay
+            n_it = info.txok_idle_time
+            n_rssi = info.rssi
+            n_b = info.backoff
+            n_cw = info.cw[0]  # cw of AC_BE
+            n_tis = info.txok_interval_stats
+            neighbor_features[n_id] = [n_ad, n_it]
+            neighbor_log.append([n_id, n_b, n_ad, n_it])
+            if self.show_log and n_id == 0:
+                print(f"\t Neighbor {n_id}: role={n_role}, txok_delay/idle_time={n_ad:.2f}/{n_it:.2f}ms, "
+                      f"acks={n_na}, rssi={n_rssi:.2f}dBm, cw={n_cw}, backoff={n_b} \n"
+                      f"\t\t txok_stats: interval=[{', '.join(f'{v:.2f}' for v in n_tis)}]ms")
 
-        o = [cw_, da_, b_, ni_, ns_, na_, #nl_, nh_, ne_, nd_, 
-             total_stas, 
-             n10_, n20_, n30_, n40_, n50_, n100_, 
-             ni10_, ni20_, ni30_, ni40_, ni50_, ni100_,
-             nn_]
-        o = self.state_norm.normalize([o])[0]
-        next_state = o.tolist()
+        if a_da == 0:
+            self.self_deque = deque([], maxlen=20)
+            self.neighbor_deque = {}
+            for n_id in neighbor_features.keys():
+                self.neighbor_deque[n_id] = deque([], maxlen=20)
+        self.self_deque.append(self_features)
+        for n_id in neighbor_features.keys():
+            self.neighbor_deque[n_id].append(neighbor_features[n_id])
+        next_state = (list(self.self_deque), [list(v) for v in self.neighbor_deque.values()])
+        next_transition = (self_log, neighbor_log)
         if self.state:
             # caculate reward
-            # r_packet = nl_ + 0.5*(na_-nl_-nh_) + 0.1*nh_ - ne_ #- 0.1*nd_
-            # r_tx_fail = 0 if na_ else -ns_
-            r_wait = 1 if self.action and (da_>self.last_n_defer_access and b_==self.last_waited_slots) else 0
-            r_tx = na_ if na_ else -ns_
-            reward = r_tx + r_wait
-            self.reward_log.append(reward)
-            self.model.store_transition(self.state, self.action, reward, next_state)
+            if a_ns:
+                backoff_ratio = self.last_waited_slots / self.last_cw
+                self.mean_backoff = 0.9*self.mean_backoff + 0.1*backoff_ratio
+                if self.mean_backoff >= 0.5:
+                    r_backoff = 1 / (self.mean_backoff + 0.5) - 0.5
+                    r_tx = 1 if a_na else -1
+                else:
+                    r_backoff = -1 / (self.mean_backoff + 1)
+                    r_tx = 2*self.mean_backoff if a_na else -1
+            else:
+                r_tx = 0
+                r_backoff = 0
+            
+            reward = r_tx + r_backoff
+            self.reward_log.append([reward, r_tx, r_backoff])
+            if len(self.state[1]) > 0 and len(neighbor_features) > 0:
+                self.model.store_transition(self.state, self.action, reward, next_state)
+
+            if self.debug_mode:
+                self.write_to_csv(self.transition + (self.pk_log[-1], self.Ek_log[-1], self.action, self.backoff, reward))
 
         # choose action
-        self.action = self.model.choose_action(next_state, enable_learning=self.enable_learning)
-        # self.action = random.randint(0, obs.cw-obs.waitedSlots)
+        if a_da == 0:
+            self.last_n_waited_slot = -1
+        self.next_Ek = (a_cw + 1 + a_nw) / 2
+        if len(neighbor_features) == 0:
+            p_k = 1
+        else:
+            # p_k = (a_nw - self.last_n_waited_slot) / (a_cw + 1 - a_nw) if a_nw < a_cw + 1 else 1
+            p_k = 1 - self.model.choose_action(next_state)
+        self.pk_log.append(p_k)
+        self.Ek_log.append(self.next_Ek)
+        self.action = 0 if random.random() <= p_k else 1
+        # self.action = random.randint(0, 1)
         self.action_log.append(self.action)
         
-        self.backoff = self.action * 16
+        self.backoff = self.action * int(self.next_Ek)
         self.backoff_log.append(self.backoff)
         if self.show_log:
             print("New Backoff={}".format(self.backoff))
-        self.last_waited_slots = obs.waitedSlots
         self.state = next_state
+        self.transition = next_transition
+        self.last_waited_slots = self.access_info.n_waited_slot
+        self.last_cw = self.access_info.cw
+        self.last_min_backoff = self.min_neighbor_backoff
 
     def reset(self):
         super().reset()
         self.backoff_log = []
-        self.obs_log = []
+        self.pk_log = []
+        self.Ek_log = []
         if self.enable_learning:
             self.model.learn()
             self.plot_loss()
             self.model.reset()
-            self.debug_mode = True if self.episode%50 == 0 else False
             # update learning rate
             actor_lr = ACTOR_LR * (1-self.episode/N_EPISODES)
             critic_lr = CRITIC_LR * (1-self.episode/N_EPISODES)
@@ -171,29 +214,33 @@ class ChannelAccessRlAgent(RlAgent):
         prefix = '{}/node_{}_{}_'.format(save_dir, self.node_id, self.agent_type.name)
         self.model.save_model(prefix+'actor.pt', prefix+'critic.pt')
 
-    def write_to_csv(self, save_dir=None):
+    def write_to_csv(self, transition, save_dir=None):
         save_dir = save_dir if save_dir is not None else self.save_dir
-        with open(os.path.join(save_dir, 'debug.csv'), 'w') as f:
+        debug_file = os.path.join(save_dir, 'debug.csv')
+        if not os.path.exists(debug_file):
+            with open(debug_file, 'w') as f:
+                writer = csv.writer(f)
+                writer.writerow(['sim_time', 'delta_time', 
+                                 'cw', 'n_deferred', 'n_waited_slots',
+                                 'min_neighbor_backoff',
+                                 'node_id', 'backoff', 'txok_delay', 'txok_idle_time',
+                                 'pk', 'Ek', 'action', 'new_backoff', 'reward'])
+
+        self_log, neighbor_log, pk, Ek, action, backoff, reward = transition
+        with open(debug_file, 'a') as f:
             writer = csv.writer(f)
-            writer.writerow(['delta_time', 'equal_backoff', 
-                             'cw', 'n_deferred', 'n_waited_slots', 
-                             'n_in_queue', 'n_sending', 'n_acked', #'n_low_delay', 'n_high_delay', 'n_expired', 'n_dropped', 
-                             'n_sta',
-                             'n10', 'n20', 'n30', 'n40', 'n50', 'n100', 
-                             'ni10', 'ni20', 'ni30', 'ni40', 'ni50', 'ni100', 
-                             'nn', 'min_neighbor_backoff',
-                             'action', 'new_backoff', 'reward'])
-            for i in range(len(self.obs_log) - 1):
-                writer.writerow(self.obs_log[i] + [self.action_log[i]] + [self.backoff_log[i]] + [self.reward_log[i]])
+            writer.writerow(self_log + [pk, Ek, action, backoff, reward])
+            for sta in neighbor_log:
+                writer.writerow(['']*(len(self_log) - len(sta)) + sta)
 
     def plot_results(self, save_dir=None):
         save_dir = save_dir if save_dir is not None else self.save_dir
-        if self.debug_mode:
-            self.write_to_csv(save_dir)
 
-        y = self.reward_log
+        y, y_tx, y_backoff = zip(*self.reward_log)
         fig, ax1 = plt.subplots(figsize=(10,6))
-        ax1.plot(self.step_time[:len(y)], y, 'g-', linewidth=1)
+        ax1.plot(self.step_time[:len(y)], y, 'g-', linewidth=1, alpha=0.5)
+        ax1.plot(self.step_time[:len(y_tx)], y_tx, 'b-', linewidth=1, alpha=0.5)
+        ax1.plot(self.step_time[:len(y_backoff)], y_backoff, 'r-', linewidth=1, alpha=0.5)
         ax1.scatter(self.step_time[::100], ax1.get_ylim()[1]*np.ones(len(self.step_time[::100])), c='k', marker='|')
         ax1.set_xlabel('Time (s)')
         ax1.set_ylabel('Reward')
@@ -203,7 +250,7 @@ class ChannelAccessRlAgent(RlAgent):
         y = self.action_log
         fig, ax1 = plt.subplots(figsize=(10,6))
         ax1.scatter(self.step_time[:len(y)], y, c='r', marker='.', s=8, alpha=0.5)
-        ax1.scatter(self.step_time[::100], ax1.get_ylim()[1]*np.ones(len(self.step_time[::100])), c='k', marker='|')
+        ax1.scatter(self.step_time[:len(self.pk_log)], self.pk_log, c='b', marker='.', s=8, alpha=0.5)
         ax1.set_xlabel('Time (s)')
         ax1.set_ylabel('Action')
         fig.savefig('{}/node_{}_{}_action.png'.format(save_dir, self.node_id, self.agent_type.name), dpi=250)

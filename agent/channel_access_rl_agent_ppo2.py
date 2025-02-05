@@ -20,8 +20,8 @@ from models.ppo_binary import PPO
 
 # hyperparameters
 HIDDEN_DIM = 32
-ACTOR_LR = 1e-3
-CRITIC_LR = 1e-2
+ACTOR_LR = 1e-4
+CRITIC_LR = 1e-3
 GAMMA = 0.98
 LMBDA = 0.95
 N_EPOCHS = 50
@@ -41,8 +41,8 @@ class ChannelAccessRlAgent(RlAgent):
                          lmbda=LMBDA, n_epochs=N_EPOCHS, eps=EPS)
         
         self.neighbor_info = []
-        self.mean_backoff = 1
-        self.alpha = 1
+        self.mean_backoff = 0.5
+        self.backoff_ratio_log = []
         self.mean_backoff_log = []
         self.backoff_log = []
         self.debug_mode = True
@@ -144,13 +144,14 @@ class ChannelAccessRlAgent(RlAgent):
             # caculate reward
             if a_ns:
                 backoff_ratio = self.last_waited_slots / self.last_cw
+                self.backoff_ratio_log.append(backoff_ratio)
                 self.mean_backoff = 0.9*self.mean_backoff + 0.1*backoff_ratio
                 if self.mean_backoff >= 0.5:
                     # r_backoff = 1 / (self.mean_backoff + 0.5) - 0.5
                     r_tx = 1 if a_na else -1
                 else:
                     # r_backoff = -1 / (self.mean_backoff + 1)
-                    r_tx = (2*self.mean_backoff)**self.alpha if a_na else -1
+                    r_tx = self.mean_backoff-0.5 if a_na else -1
             else:
                 r_tx = 0
                 # r_backoff = 0
@@ -180,7 +181,7 @@ class ChannelAccessRlAgent(RlAgent):
         # self.action = random.randint(0, 1)
         self.action_log.append(self.action)
         
-        self.backoff = self.action * int(next_bk)
+        self.backoff = self.action * a_cw#int(next_bk)
         self.backoff_log.append(self.backoff)
         if self.show_log:
             print("New Backoff={}".format(self.backoff))
@@ -191,13 +192,9 @@ class ChannelAccessRlAgent(RlAgent):
 
     def reset(self):
         super().reset()
-        if self.episode > 0:
-            if self.mean_backoff < 0.5:
-                self.alpha *= 1.05
-            elif self.mean_backoff > 0.55:
-                self.alpha /= 1.05
-        self.mean_backoff_log.append([self.mean_backoff, self.alpha])
-        self.mean_backoff = 1
+        self.mean_backoff_log.append([np.mean(np.array(self.backoff_ratio_log)), len(self.backoff_ratio_log)])
+        self.mean_backoff = 0.5
+        self.backoff_ratio_log = []
         self.backoff_log = []
         self.pk_log = []
         self.Ek_log = []
@@ -275,15 +272,15 @@ class ChannelAccessRlAgent(RlAgent):
         super().plot_episodes(save_dir)
 
         fig, ax1 = plt.subplots()
-        mean_backoff, alpha = zip(*self.mean_backoff_log)
+        mean_backoff, tx_counts = zip(*self.mean_backoff_log)
         ax1.plot(mean_backoff, 'b-', linewidth=1)
         ax1.set_xlabel('Episode')
         ax1.set_ylabel('Mean Backoff', color='b')
         ax1.tick_params('y', colors='b')
 
         ax2 = ax1.twinx()
-        ax2.plot(alpha, 'r-', linewidth=1)
-        ax2.set_ylabel('Alpha', color='r')
+        ax2.plot(tx_counts, 'r-', linewidth=1)
+        ax2.set_ylabel('TX counts', color='r')
         ax2.tick_params('y', colors='r')
 
         plt.savefig('{}/node_{}_{}_mean_backoff.png'.format(save_dir, self.node_id, self.agent_type.name))
