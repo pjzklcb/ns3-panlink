@@ -379,10 +379,12 @@ class ChannelAccessManager : public Object
      * exists, it is not changed; otherwise, it is set to the current time.
      */
     void ResizeLastBusyStructs();
+  public:
     /**
      * Update backoff slots for all Txops.
      */
     void UpdateBackoff();
+  protected:
 
     /**
      * This overload is provided to enable caching the value returned by GetAccessGrantStart(),

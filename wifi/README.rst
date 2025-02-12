@@ -36,11 +36,13 @@ File Details
 ### txop.h
 
 * :ref:`txop.h <src/wifi/model/txop.h>` 
-   - Make Txop::UpdateBackoffSlotsNow virtual.
+   - Make UpdateBackoffSlotsNow virtual.
+   - Make GetBackoffSlots public.
 
 ### channel-access-manager.h
 
 * :ref:`channel-access-manager.h <src/wifi/model/channel-access-manager.h>`
    - Make all of the private members and methods protected.
+   - Make UpdateBackoff public.
    - Make methods related to access defer virtual, so that restore access can be scheduled.
    - Make NeedBackoffUponAccess virtual to change the backoff generation logic.

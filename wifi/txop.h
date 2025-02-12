@@ -493,7 +493,7 @@ class Txop : public Object
      * @param linkId the ID of the given link
      */
     void RequestAccess(uint8_t linkId);
-
+  public:
     /**
      * Return the current number of backoff slots on the given link.
      *
@@ -501,6 +501,7 @@ class Txop : public Object
      * @return the current number of backoff slots
      */
     uint32_t GetBackoffSlots(uint8_t linkId) const;
+  protected:
     /**
      * Return the time when the backoff procedure started on the given link.
      *
