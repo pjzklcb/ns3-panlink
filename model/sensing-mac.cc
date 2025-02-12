@@ -8,6 +8,7 @@
 
 #include "sensing-mac.h"
 
+#include "ns3/channel-access-manager.h"
 #include "ns3/env-utils.h"
 #include "ns3/node-list.h"
 #include "ns3/node.h"
@@ -287,7 +288,8 @@ SensingMac::WipeAllStaledPackets()
         while (!staInfo.channelUtil.empty())
         {
             auto [uid, _] = staInfo.channelUtil.front();
-            if (auto packetIt = m_neighborPacketMap.find(uid); packetIt == m_neighborPacketMap.end())
+            if (auto packetIt = m_neighborPacketMap.find(uid);
+                packetIt == m_neighborPacketMap.end())
             {
                 staInfo.channelUtil.pop_front();
             }
@@ -615,6 +617,9 @@ SensingMac::GetMinNeighborBackoff(uint8_t linkId)
 uint32_t
 SensingMac::GetNeighborBackoff(Mac48Address sta, uint8_t linkId)
 {
+    /**
+     * @todo: the linkId here should be the one for the neighbor
+     */
     NS_LOG_FUNCTION(this << sta << linkId);
 
     uint32_t backoff = 1024;
@@ -625,6 +630,7 @@ SensingMac::GetNeighborBackoff(Mac48Address sta, uint8_t linkId)
         Ptr<WifiMac> mac = device->GetMac();
         if (mac->GetAddress() == sta)
         {
+            mac->GetChannelAccessManager(linkId)->UpdateBackoff();
             if (auto queue = mac->GetTxopQueue(AC_BE_NQOS);
                 queue != nullptr && queue->GetNPackets() > 0)
             {
