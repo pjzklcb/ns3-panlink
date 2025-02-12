@@ -169,6 +169,21 @@ class PlotResults(object):
                 self.backoff_map[node_id][ac].append([time, backoff])
     
     def plot_cw_backoff(self):
+        # calculate average backoff ratio
+        for node_id in self.target_nodes:
+            backoff_map = self.backoff_map[node_id]['AC BE']
+            cw_map = self.cw_map[node_id]['AC BE']
+            backoff_cw_pair = []
+            k = 0
+            for time, backoff in backoff_map:
+                while k < len(cw_map) and time >= cw_map[k][0]:
+                    k += 1
+                backoff_cw_pair.append([int(backoff), cw_map[k-1][1]])
+            backoff_ratio = [b/cw for b, cw in backoff_cw_pair]
+            # write to txt
+            with open(self.result_dir + "figures/channel_load.txt", 'a') as f:
+                f.write('Node-{}: AC BE, average backoff ratio={:.4f}\n'.format(node_id, sum(backoff_ratio)/len(backoff_ratio)))
+
         # plot cw and backoff of target nodes
         node_set = self.target_nodes if self.target_nodes else [k for k in self.cw_map.keys()]
         for node_id in node_set:
