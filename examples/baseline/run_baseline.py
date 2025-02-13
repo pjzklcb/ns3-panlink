@@ -26,7 +26,7 @@ from plot_results import PlotResults
 import cpp_py_interface as py_binding
 
 config_dir = os.path.join(panlink_dir, 'configs')
-STATS_RECORD_STEP = 2
+STATS_RECORD_STEP = 10
 
 
 def run_new_episode(exp, ns3_settings, agent_manager, episode=0):
@@ -154,10 +154,14 @@ if __name__ == '__main__':
                 with open(os.path.join(episode_dir, 'ns3_settings.json'), 'w') as f:
                     json.dump(ns3_settings, f, indent=4)
             else:
+                agent_manager.set_save_dir(None)
                 ns3_settings['stats'] = False
         
         # run ns-3 simulation
-        ns3_time_cost += run_new_episode(exp, ns3_settings, agent_manager, episode=i_episode)
+        try:
+            ns3_time_cost += run_new_episode(exp, ns3_settings, agent_manager, episode=i_episode)
+        except Exception as e:
+            print("Episode {} failed with exception {}".format(i_episode, e))
 
         if args.stats:
             if i_episode % STATS_RECORD_STEP == 0 or i_episode == args.n_episodes - 1:
@@ -176,4 +180,4 @@ if __name__ == '__main__':
         time_cost//60, time_cost%60, int(ns3_time_cost)//60, ns3_time_cost%60))
     
     if args.stats:
-        PlotResults(timestamp, args.n_episodes-1, target_nodes=[0, 1, 2, 3, 4]).do_plot()
+        PlotResults(timestamp, args.n_episodes-1, target_nodes=[0,1,2,3,4]).do_plot()
