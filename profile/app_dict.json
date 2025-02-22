@@ -19,7 +19,13 @@
             "fragment_size": 1500
         },
         {
-            "name": "saturated",
+            "name": "saturated2",
+            "payload_interval": 0.0003,
+            "payload_size": 1200,
+            "fragment_size": 1500
+        },
+        {
+            "name": "saturated4",
             "payload_interval": 0.0005,
             "payload_size": 1200,
             "fragment_size": 1500
