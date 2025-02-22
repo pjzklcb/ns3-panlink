@@ -158,10 +158,7 @@ if __name__ == '__main__':
                 ns3_settings['stats'] = False
         
         # run ns-3 simulation
-        try:
-            ns3_time_cost += run_new_episode(exp, ns3_settings, agent_manager, episode=i_episode)
-        except Exception as e:
-            print("Episode {} failed with exception {}".format(i_episode, e))
+        ns3_time_cost += run_new_episode(exp, ns3_settings, agent_manager, episode=i_episode)
 
         if args.stats:
             if i_episode % STATS_RECORD_STEP == 0 or i_episode == args.n_episodes - 1:
