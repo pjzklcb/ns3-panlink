@@ -27,7 +27,7 @@ N_EPOCHS = 50
 N_EPISODES = 400
 EPS = 0.2
 LAMBDA_ = 0.2
-ETA_LAMBDA = 1e-2
+ETA_LAMBDA = 1e-3
         
 
 class ChannelAccessRlAgent(RlAgent):

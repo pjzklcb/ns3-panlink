@@ -319,22 +319,11 @@ class SensingMac : public Object
     AccessInfo GetLastAccessInfo(uint8_t linkId);
 
     /**
-     * The info of data packet that utilizes channel
-     */
-    // struct ChannelUtilInfo
-    // {
-    //     Time duration;
-    //     Time txEndTime;
-    //     Time ackedTime{Seconds(0)};
-    //     double rssi{0};
-    // };
-
-    /**
      * @param period the period
      * @param linkId the link ID
      * @returns the time of data packets sent on the given link in the past period
      */
-    std::vector<Time> GetSeltLinkTxDataTime(Time period, uint8_t linkId) const;
+    std::vector<Time> GetSelfLinkTxDataTime(Time period, uint8_t linkId) const;
     /**
      * @param period the period
      * @param linkId the link ID

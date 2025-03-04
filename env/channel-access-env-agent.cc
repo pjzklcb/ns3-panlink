@@ -78,7 +78,7 @@ ChannelAccessEnvAgent::GetEnvObs(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, 
         env.lastAccessObs = lastAccessObs;
 
         // self link info
-        auto selfTxData = sensingMac->GetSeltLinkTxDataTime(obs.period, obs.linkId);
+        auto selfTxData = sensingMac->GetSelfLinkTxDataTime(obs.period, obs.linkId);
         auto selfAcks = sensingMac->GetSelfLinkAckedTime(obs.period, obs.linkId);
         auto traffics = sensingMac->GetSelfAppTraffic(obs.period);
         auto channelFails = sensingMac->GetChannelFailTime(obs.period, obs.linkId);
@@ -163,45 +163,6 @@ ChannelAccessEnvAgent::GetLastDelay(const std::vector<Time>& vec) const
     }
     return Simulator::Now().ToDouble(Time::MS);
 }
-
-// double
-// ChannelAccessEnvAgent::GetChannelUtil(const std::vector<Time>& util) const
-// {
-//     NS_LOG_FUNCTION(this);
-
-//     if (util.size() == 0)
-//     {
-//         return 0;
-//     }
-
-//     // Get the segements in the period
-//     std::vector<std::pair<Time, Time>> segments;
-//     for (const auto& packet : util)
-//     {
-//         auto begin = packet.txEndTime - packet.duration;
-//         segments.emplace_back(std::make_pair(begin, packet.txEndTime));
-//     }
-
-//     // Sort the segments by txTime
-//     std::sort(segments.begin(), segments.end(), [](const auto& a, const auto& b) {
-//         return a.first < b.first;
-//     });
-
-//     // Calculate channel utilization
-//     double channelUtil = 0;
-//     Time prevEnd = segments.front().first;
-//     for (const auto& [begin, end] : segments)
-//     {
-//         if (end <= prevEnd)
-//         {
-//             continue;
-//         }
-//         channelUtil += (end - std::max(begin, prevEnd)).ToDouble(Time::MS);
-//         prevEnd = end;
-//     }
-
-//     return channelUtil;
-// }
 
 std::array<double, 4>
 ChannelAccessEnvAgent::GetIntervalStats(const std::vector<Time>& vec) const

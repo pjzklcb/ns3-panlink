@@ -43,8 +43,6 @@ class ChannelAccessEnvAgent : public EnvAgent
     void SetEnvAct(Ns3AiMsgInterfaceImpl<Obs, Act>* msgInterface, ModuleObs& obs) override;
 
   private:
-    // typedef std::vector<SensingMac::ChannelUtilInfo> ChannelUtilList;
-
     /**
      * @param vec a vector of time in ascending order
      * @returns the delay from now to the latest event time

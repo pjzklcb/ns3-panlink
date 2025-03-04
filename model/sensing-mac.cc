@@ -722,7 +722,7 @@ SensingMac::GetNeighborStaId(Mac48Address sta) const
 }
 
 std::vector<Time>
-SensingMac::GetSeltLinkTxDataTime(Time period, uint8_t linkId) const
+SensingMac::GetSelfLinkTxDataTime(Time period, uint8_t linkId) const
 {
     NS_LOG_FUNCTION(this << period << linkId);
 
