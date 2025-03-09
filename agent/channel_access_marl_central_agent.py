@@ -14,7 +14,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from agent_utils import *
 from rl_agent import RlAgent
-from models.mappo_binary_lagrange import MAPPO
+from models.mappo_lagrange import MAPPO
 
 
 # hyperparameters
@@ -37,10 +37,11 @@ class ChannelAccessMarlCentralAgent(RlAgent):
 
         agent_feature_dim = 6
         neighbor_feauture_dim = 2
-        self.model = MAPPO(agent_feature_dim, neighbor_feauture_dim, hidden_dim=HIDDEN_DIM, 
-                           actor_lr=ACTOR_LR, critic_lr=CRITIC_LR, gamma=GAMMA, 
-                           lmbda=LMBDA, n_epochs=N_EPOCHS, eps=EPS, lambda_=LAMBDA_,
-                           eta_lambda=ETA_LAMBDA)
+        action_dim = 6
+        self.model = MAPPO(agent_feature_dim, neighbor_feauture_dim, action_dim, 
+                           hidden_dim=HIDDEN_DIM, actor_lr=ACTOR_LR, critic_lr=CRITIC_LR, 
+                           gamma=GAMMA, lmbda=LMBDA, n_epochs=N_EPOCHS, eps=EPS, 
+                           lambda_=LAMBDA_, eta_lambda=ETA_LAMBDA)
         
         self.local_agents = {}
         self.transition = {}

@@ -14,7 +14,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from agent_utils import *
 from rl_agent import RlAgent
-from models.mappo_binary_lagrange import MAPPO
+from models.mappo_lagrange import MAPPO
 
 
 # hyperparameters
@@ -37,17 +37,17 @@ class ChannelAccessMarlLocalAgent(RlAgent):
 
         agent_feature_dim = 6
         neighbor_feauture_dim = 2
-        self.model = MAPPO(agent_feature_dim, neighbor_feauture_dim, hidden_dim=HIDDEN_DIM, 
-                           actor_lr=ACTOR_LR, critic_lr=CRITIC_LR, gamma=GAMMA, 
-                           lmbda=LMBDA, n_epochs=N_EPOCHS, eps=EPS, lambda_=LAMBDA_,
-                           eta_lambda=ETA_LAMBDA)
+        action_dim = 6
+        self.model = MAPPO(agent_feature_dim, neighbor_feauture_dim, action_dim, 
+                           hidden_dim=HIDDEN_DIM, actor_lr=ACTOR_LR, critic_lr=CRITIC_LR, 
+                           gamma=GAMMA, lmbda=LMBDA, n_epochs=N_EPOCHS, eps=EPS, 
+                           lambda_=LAMBDA_, eta_lambda=ETA_LAMBDA)
         
         self.neighbor_info = []
         self.weighted_backoff_ratio = 0.5
         self.backoff_ratio_log = []
         self.mean_backoff_ratio_log = []
         self.debug_mode = True
-        self.pk_log = []
         self.lambda_log = []
         self.central_agent = None
 
@@ -153,19 +153,16 @@ class ChannelAccessMarlLocalAgent(RlAgent):
                 reward = 1 if a_na else -2
             
             if self.debug_mode:
-                self.write_to_csv(self.transition + (self.pk_log[-1], self.action, self.backoff, reward))
+                self.write_to_csv(self.transition + (self.action, self.backoff, reward))
 
         # choose action
         if len(neighbor_features) == 0:
-            p_k = 1
+            self.action = 0
         else:
-            p_k = 1 - self.model.choose_action(self_features, list(neighbor_features.values()))
-        self.pk_log.append(p_k)
-        self.action = 0 if random.random() <= p_k else 1
-        # self.action = random.randint(0, 1)
+            self.action = self.model.choose_action(self_features, list(neighbor_features.values()))
         self.action_log.append(self.action)
         
-        self.backoff = self.action * a_cw
+        self.backoff = a_cw if self.action == 5 else self.action
         if self.show_log:
             print("New Backoff={}".format(self.backoff))
 
@@ -182,7 +179,6 @@ class ChannelAccessMarlLocalAgent(RlAgent):
         self.mean_backoff_ratio_log.append([np.mean(np.array(self.backoff_ratio_log)), len(self.backoff_ratio_log)])
         self.weighted_backoff_ratio = 0.5
         self.backoff_ratio_log = []
-        self.pk_log = []
     
     def save_model(self, save_dir=None):
         pass
@@ -200,12 +196,12 @@ class ChannelAccessMarlLocalAgent(RlAgent):
                                  'cw', 'n_deferred', 'n_waited_slots',
                                  'n_contention', 'weighted_backoff_ratio',
                                  'node_id', 'backoff', 'txok_delay', 'txok_idle_time',
-                                 'pk', 'action', 'new_backoff', 'reward'])
+                                 'action', 'new_backoff', 'reward'])
 
-        self_log, neighbor_log, pk, action, backoff, reward = transition
+        self_log, neighbor_log, action, backoff, reward = transition
         with open(debug_file, 'a') as f:
             writer = csv.writer(f)
-            writer.writerow(self_log + [pk, action, backoff, reward])
+            writer.writerow(self_log + [action, backoff, reward])
             for sta in neighbor_log:
                 writer.writerow(['']*(len(self_log) - len(sta)) + sta)
 
@@ -214,14 +210,10 @@ class ChannelAccessMarlLocalAgent(RlAgent):
         if save_dir is None:
             return
 
-        y = self.action_log
-        fig, ax1 = plt.subplots(figsize=(10,6))
-        ax1.scatter(self.step_time[:len(y)], y, c='r', marker='.', s=8, alpha=0.5)
-        ax1.scatter(self.step_time[:len(self.pk_log)], self.pk_log, c='b', marker='.', s=8, alpha=0.5)
-        ax1.set_xlabel('Time (s)')
-        ax1.set_ylabel('Action')
-        fig.savefig('{}/node_{}_{}_action.png'.format(save_dir, self.node_id, self.agent_type.name), dpi=250)
-        plt.close(fig)
+        plt.figure()
+        plt.hist(self.action_log, bins=6)
+        plt.savefig('{}/node_{}_{}_action.png'.format(save_dir, self.node_id, self.agent_type.name), dpi=250)
+        plt.close()
 
     def plot_episodes(self, save_dir=None):
         fig, ax1 = plt.subplots()
