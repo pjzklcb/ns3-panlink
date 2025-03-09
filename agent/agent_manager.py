@@ -9,10 +9,12 @@ from rl_agent import RlAgent
 from cca_rl_agent import CcaRlAgent
 # from channel_access_rl_agent_manual import ChannelAccessRlAgent
 from channel_access_rl_agent_ppo_lagrange import ChannelAccessRlAgent
-# from channel_access_data_agent import ChannelAccessRlAgent
+from channel_access_marl_central_agent import ChannelAccessMarlCentralAgent
+from channel_access_marl_local_agent import ChannelAccessMarlLocalAgent
 
 class AgentManager:
-    def __init__(self):
+    def __init__(self, marl=False):
+        self.marl = marl
         self.agent_dict = {}
         self.memory_id = {}
         self.active_agent = None
@@ -22,6 +24,30 @@ class AgentManager:
         agent_type = agent_info["type"]
         enable_learning = agent_info["enable_learning"] if "enable_learning" in agent_info else True
         pretrained_model = agent_info["pretrained_model"] if "pretrained_model" in agent_info else None
+        
+        if self.marl:
+            print("Node-{} installing {}_local_agent".format(node_id, agent_type))
+            if agent_type in {"channel_access"}:
+                local_agent = ChannelAccessMarlLocalAgent(node_id, memory_id, enable_learning, pretrained_model)
+                tmp_agent = ChannelAccessMarlCentralAgent(pretrained_model)
+            
+            if enable_learning:
+                if 'central' not in self.agent_dict:
+                    self.agent_dict['central'] = []
+
+                central_agent = None
+                for agent in self.agent_dict['central']:
+                    if agent.agent_type == local_agent.agent_type:
+                        central_agent = agent
+                        break
+                if central_agent is None:
+                    central_agent = tmp_agent
+                    self.agent_dict['central'].append(central_agent)
+                
+                local_agent.central_agent = central_agent
+                central_agent.local_agents[node_id] = local_agent
+            
+            return local_agent
         
         print("Node-{} installing {}_rl_agent".format(node_id, agent_type))
         if agent_type == "dummy":
@@ -35,8 +61,7 @@ class AgentManager:
         elif agent_type in {"aggregation", "Aggregation"}:
             pass
         else:
-            print("Agent type error.")
-            exit(1)
+            ValueError("Agent type error.")
     
     def register_agents(self, filename):
         with open(filename, 'r') as file:
@@ -48,7 +73,7 @@ class AgentManager:
                 node_type = node_info["type"]
                 agents_info = node_info["agents"]
 
-                if node_type in {"AP", "STA"}:
+                if node_type in {"ap", "sta"}:
                     print("Node-{} is not an AI node.".format(node_id))
                     continue
                 if len(agents_info) == 0:
@@ -56,7 +81,7 @@ class AgentManager:
                     continue
                 
                 if node_id not in self.memory_id:
-                    self.memory_id[node_id] = len(self.agent_dict)
+                    self.memory_id[node_id] = len(self.memory_id)
                 
                 self.agent_dict[node_id] = []
                 for agent_info in agents_info:
@@ -72,6 +97,8 @@ class AgentManager:
     
     def get_active_agent(self, msg_interface):
         for node, agents in self.agent_dict.items():
+            if node == 'central':
+                continue
             for agent in agents:
                 if agent.is_active(msg_interface):
                     self.active_agent = agent

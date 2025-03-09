@@ -42,6 +42,10 @@ class RlAgent():
             print("At {:6f}s, Node-{}: Agent-{} triggered with counter={}".format(
                 self.sim_time, self.node_id, self.agent_type.name, self.counter))
             self.step_time.append(self.sim_time)
+
+            # check new slot if is marl
+            if hasattr(self, 'central_agent') and self.central_agent is not None:
+                self.central_agent.check_if_new_slot(self.sim_time)
             return True
         return False
 
@@ -56,7 +60,7 @@ class RlAgent():
         self.step_time = []
         if len(self.reward_log):
             self.episode += 1
-            self.episode_log.append(np.array(self.reward_log).sum(axis=0))
+            self.episode_log.append(np.sum(self.reward_log))
         self.reward_log = []
 
     def get_obs(self, msg_interface):
@@ -86,15 +90,8 @@ class RlAgent():
             writer = csv.writer(f)
             writer.writerow(self.episode_log)
             
-        y = np.array(self.episode_log)
         plt.figure()
-        if y.ndim == 1:
-            plt.plot(y, 'b-', linewidth=1)
-        elif y.ndim == 2:
-            for i in range(y.shape[1]):
-                plt.plot(y[:,i], linewidth=1)
-        else:
-            raise ValueError("Unsupported y.ndim: {}".format(y.ndim))
+        plt.plot(self.episode_log, 'b-', linewidth=1)
         plt.xlabel('Episode')
         plt.ylabel('Reward')
         plt.savefig('{}/node_{}_{}.png'.format(save_dir, self.node_id, self.agent_type.name))

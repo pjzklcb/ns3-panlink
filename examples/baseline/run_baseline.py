@@ -82,6 +82,8 @@ if __name__ == '__main__':
                         default=150, help='random seed for ns-3')
     parser.add_argument('--n_episodes', type=int,
                         default=1, help='number of episodes')
+    parser.add_argument('--marl', action='store_true',
+                        help='whether to use MARL')
     parser.add_argument('--config_panlink', type=str,
                         default='panlink_no_agent.json', help='config file for panlink network')
     parser.add_argument('--config_intf', type=str,
@@ -105,7 +107,7 @@ if __name__ == '__main__':
     torch.manual_seed(args.seed)
 
     # register agents
-    agent_manager = AgentManager()
+    agent_manager = AgentManager(args.marl)
     n_vec_size = agent_manager.register_agents(os.path.join(config_dir, args.config_panlink))
     
     # create and save ns3 settings
