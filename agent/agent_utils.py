@@ -5,7 +5,6 @@
 # Author: Pan Jinzhe <pjzklcb@gmail.com>
 
 from enum import Enum
-import numpy as np
 
 class AgentType(Enum):
     NO_RL = 0

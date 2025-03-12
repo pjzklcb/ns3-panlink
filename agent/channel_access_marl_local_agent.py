@@ -176,7 +176,9 @@ class ChannelAccessMarlLocalAgent(RlAgent):
 
     def reset(self):
         super().reset()
-        self.mean_backoff_ratio_log.append([np.mean(np.array(self.backoff_ratio_log)), len(self.backoff_ratio_log)])
+        if len(self.backoff_ratio_log) > 0:
+            self.mean_backoff_ratio_log.append([np.mean(np.array(self.backoff_ratio_log)), 
+                                                len(self.backoff_ratio_log)])
         self.weighted_backoff_ratio = 0.5
         self.backoff_ratio_log = []
     
@@ -210,14 +212,19 @@ class ChannelAccessMarlLocalAgent(RlAgent):
         if save_dir is None:
             return
 
+        if len(self.action_log) == 0:
+            return 
+        
         plt.figure()
         plt.hist(self.action_log, bins=6)
         plt.savefig('{}/node_{}_{}_action.png'.format(save_dir, self.node_id, self.agent_type.name), dpi=250)
         plt.close()
 
     def plot_episodes(self, save_dir=None):
-        fig, ax1 = plt.subplots()
+        if len(self.mean_backoff_ratio_log) == 0:
+            return
         mean_backoff_ratio, tx_counts = zip(*self.mean_backoff_ratio_log)
+        fig, ax1 = plt.subplots()
         ax1.plot(mean_backoff_ratio, 'b-', linewidth=1)
         ax1.set_xlabel('Episode')
         ax1.set_ylabel('Mean Backoff', color='b')
@@ -228,4 +235,4 @@ class ChannelAccessMarlLocalAgent(RlAgent):
         ax2.set_ylabel('TX counts', color='r')
         ax2.tick_params('y', colors='r')
         plt.savefig('{}/node_{}_{}_mean_backoff.png'.format(save_dir, self.node_id, self.agent_type.name))
-        plt.close()
+        plt.close(fig)

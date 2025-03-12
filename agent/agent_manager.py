@@ -7,7 +7,6 @@
 import json
 from rl_agent import RlAgent
 from cca_rl_agent import CcaRlAgent
-# from channel_access_rl_agent_manual import ChannelAccessRlAgent
 from channel_access_rl_agent_ppo_lagrange import ChannelAccessRlAgent
 from channel_access_marl_central_agent import ChannelAccessMarlCentralAgent
 from channel_access_marl_local_agent import ChannelAccessMarlLocalAgent
@@ -61,7 +60,7 @@ class AgentManager:
         elif agent_type in {"aggregation", "Aggregation"}:
             pass
         else:
-            ValueError("Agent type error.")
+            raise ValueError("Agent type error.")
     
     def register_agents(self, filename):
         with open(filename, 'r') as file:
@@ -93,7 +92,7 @@ class AgentManager:
             dummy_agent = self.create_agent(0, {"type": "dummy"})
             self.agent_dict[0] = [dummy_agent]
         
-        return len(self.agent_dict) # return the number of memory vectors used
+        return len(self.memory_id) # return the number of memory vectors used
     
     def get_active_agent(self, msg_interface):
         for node, agents in self.agent_dict.items():
