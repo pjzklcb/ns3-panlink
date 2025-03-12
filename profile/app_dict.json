@@ -31,6 +31,24 @@
             "fragment_size": 1500
         },
         {
+            "name": "saturated6",
+            "payload_interval": 0.0008,
+            "payload_size": 1200,
+            "fragment_size": 1500
+        },
+        {
+            "name": "saturated8",
+            "payload_interval": 0.001,
+            "payload_size": 1200,
+            "fragment_size": 1500
+        },
+        {
+            "name": "saturated10",
+            "payload_interval": 0.0015,
+            "payload_size": 1200,
+            "fragment_size": 1500
+        },
+        {
             "name": "test_weibull",
             "payload_interval": {"dist": "weibull", "scale": 0.7884, "shape": 798.9999, "bound": 506.8989},
             "payload_size": {"dist": "largest_extreme_value", "location": 210.0, "scale": 35.0},

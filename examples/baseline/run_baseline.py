@@ -23,6 +23,7 @@ sys.path.append(panlink_dir + '/utils')
 from ns3ai_utils import Experiment
 from agent_manager import AgentManager
 from plot_results import PlotResults
+from config_generator import ConfigGenerator
 import cpp_py_interface as py_binding
 
 config_dir = os.path.join(panlink_dir, 'configs')
@@ -105,36 +106,25 @@ if __name__ == '__main__':
     # set seed
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
-
-    # register agents
-    agent_manager = AgentManager(args.marl)
-    n_vec_size = agent_manager.register_agents(os.path.join(config_dir, args.config_panlink))
     
-    # create and save ns3 settings
-    timestamp = str(int(time.time()))
-
-    ns3_settings = {
-        'timestamp': timestamp,
-        'streamNumber': args.ns3_seed,
-        'configPanlink': os.path.join(config_dir, args.config_panlink),
-        'configIntf': os.path.join(config_dir, args.config_intf),
-        'simulationTime': args.simulation_time,
-        'enableIntf': args.enable_intf,
-        'maxMpdus': args.max_mpdus,
-        'pcap': args.pcap,
-        'stats': args.stats,
-        "verbose": args.ns3_log
-    }
-
     # create result directory
+    timestamp = str(int(time.time()))
     if args.stats:
         result_dir = os.path.join(panlink_dir, 'result-' + timestamp)
         if not os.path.exists(result_dir):
             os.makedirs(result_dir)
+    
+    # initialize config file
+    config_generator = ConfigGenerator(os.path.join(config_dir, args.config_panlink))
+    config_panlink = config_generator.generate(os.path.join(result_dir, "config_panlink.json"), init=True)
+    
+    # register agents
+    agent_manager = AgentManager(args.marl)
+    n_vec_size = agent_manager.register_agents(config_panlink)
 
     # create interprocess interface
     exp = Experiment("panlink_baseline", ns3_dir, py_binding, 
-                    handleFinish=True, useVector=True, vectorSize=n_vec_size,
+                    handleFinish=True, useVector=True, vectorSize=n_vec_size, shmSize=65536,
                     segName = timestamp + ' Seg',
                     cpp2pyMsgName = timestamp + ' Cpp to Python Msg',
                     py2cppMsgName = timestamp + ' Python to Cpp Msg',
@@ -143,6 +133,28 @@ if __name__ == '__main__':
     ns3_time_cost = 0
     for i_episode in range(args.n_episodes):
         print("Episode {} starts".format(i_episode))
+
+        # generate variable config file
+        if config_generator.variable:
+            generate_config_dir = os.path.join(result_dir, 'configs')
+            if not os.path.exists(generate_config_dir):
+                os.makedirs(generate_config_dir)
+            config_panlink = config_generator.generate(os.path.join(generate_config_dir, f"config_panlink_{i_episode}.json"))
+
+        # create and save ns3 settings
+        ns3_settings = {
+            'timestamp': timestamp,
+            'streamNumber': args.ns3_seed,
+            'configPanlink': config_panlink,
+            'configIntf': os.path.join(config_dir, args.config_intf),
+            'simulationTime': args.simulation_time,
+            'enableIntf': args.enable_intf,
+            'maxMpdus': args.max_mpdus,
+            'pcap': args.pcap,
+            'stats': args.stats,
+            "verbose": args.ns3_log
+        }
+
         if args.stats:
             if i_episode % STATS_RECORD_STEP == 0 or i_episode == args.n_episodes - 1:
                 episode_dir = os.path.join(result_dir, 'episode_' + str(i_episode))
@@ -179,4 +191,4 @@ if __name__ == '__main__':
         time_cost//60, time_cost%60, int(ns3_time_cost)//60, ns3_time_cost%60))
     
     if args.stats:
-        PlotResults(timestamp, args.n_episodes-1, target_nodes=[0,1,2,3,4]).do_plot()
+        PlotResults(timestamp, args.n_episodes-1, target_nodes=[0,1,2]).do_plot()
