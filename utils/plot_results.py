@@ -176,10 +176,15 @@ class PlotResults(object):
             backoff_cw_pair = []
             k = 0
             for time, backoff in backoff_map:
-                while k < len(cw_map) and time >= cw_map[k][0]:
+                while k < len(cw_map) and time > cw_map[k][0]:
                     k += 1
-                backoff_cw_pair.append([int(backoff), cw_map[k-1][1]])
+                if backoff_map[0][0] != 0: # panlink channel access
+                    backoff_cw_pair.append([int(backoff), cw_map[k-1][1]])
+                else:
+                    backoff_cw_pair.append([int(backoff), cw_map[k][1]])
             backoff_ratio = [b/cw for b, cw in backoff_cw_pair]
+            if np.any(np.array(backoff_ratio) > 1):
+                print(f"Check if node-{node_id} uses panlink channel access.")
             # write to txt
             with open(self.result_dir + "figures/channel_load.txt", 'a') as f:
                 f.write('Node-{}: AC BE, average backoff ratio={:.4f}\n'.format(node_id, sum(backoff_ratio)/len(backoff_ratio)))
