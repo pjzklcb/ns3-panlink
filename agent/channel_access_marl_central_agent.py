@@ -27,7 +27,7 @@ N_EPOCHS = 50
 N_EPISODES = 400
 EPS = 0.2
 LAMBDA_ = 0.2
-ETA_LAMBDA = 1e-3
+ETA_LAMBDA = 5e-3
         
 
 class ChannelAccessMarlCentralAgent(RlAgent):
@@ -130,7 +130,7 @@ class ChannelAccessMarlCentralAgent(RlAgent):
                 last_backoff = trans['CW'] if trans['action'] == self.action_dim - 1 else trans['action']
                 backoff_ratio = (trans['n_waited_slot'] + last_backoff) / trans['CW']
                 weighted_backoff_ratio = 0.98*trans['weighted_backoff_ratio'] + 0.02*backoff_ratio
-                c = 50*max(0, 0.5-weighted_backoff_ratio) if random.random()<0.95 else 0
+                c = 50*max(0, 0.5-weighted_backoff_ratio) if random.random()<0.8 else 0
                 constraint_violation = max(c, constraint_violation)
             
             self.reward_log.append(reward - self.model.lambda_*constraint_violation)
@@ -191,8 +191,7 @@ class ChannelAccessMarlCentralAgent(RlAgent):
             # update learning rate
             actor_lr = ACTOR_LR * (1-self.episode/N_EPISODES)
             critic_lr = CRITIC_LR * (1-self.episode/N_EPISODES)
-            eta_lambda = ETA_LAMBDA * (1-self.episode/N_EPISODES)
-            self.model.update_learning_rate(actor_lr, critic_lr, eta_lambda)
+            self.model.update_learning_rate(actor_lr, critic_lr)
             self.lambda_log.append(self.model.lambda_)
     
     def save_model(self, save_dir=None):

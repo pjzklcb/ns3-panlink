@@ -37,8 +37,8 @@ class ChannelAccessMarlLocalAgent(RlAgent):
 
         agent_feature_dim = 6
         neighbor_feauture_dim = 2
-        action_dim = 6
-        self.model = MAPPO(agent_feature_dim, neighbor_feauture_dim, action_dim, 
+        self.action_dim = 6
+        self.model = MAPPO(agent_feature_dim, neighbor_feauture_dim, self.action_dim, 
                            hidden_dim=HIDDEN_DIM, actor_lr=ACTOR_LR, critic_lr=CRITIC_LR, 
                            gamma=GAMMA, lmbda=LMBDA, n_epochs=N_EPOCHS, eps=EPS, 
                            lambda_=LAMBDA_, eta_lambda=ETA_LAMBDA)
@@ -102,7 +102,7 @@ class ChannelAccessMarlLocalAgent(RlAgent):
         l_ci = self.link_info.chan_fail_idle_time
         l_cf = self.link_info.n_chan_fail
         l_ir = self.link_info.idle_ratio
-        l_ais = self.link_info.app_interval_stats
+        # l_ais = self.link_info.app_interval_stats
         l_tis = self.link_info.tx_interval_stats
         
         if self.show_log:
@@ -115,6 +115,19 @@ class ChannelAccessMarlLocalAgent(RlAgent):
                   f"n_chan_fail={l_cf}, idle_ratio={l_ir*100:.2f}%, \n"
                   f"\t n_neighbor/contention={self.n_neighbor}/{self.n_contention}, "
                   f"min_neighbor_backoff={self.min_neighbor_backoff}")
+
+        # caculate last reward and constraint violation
+        reward = 0
+        if self.state:
+            if a_ns:
+                backoff_ratio = (self.last_n_waited_slot+self.backoff) / self.last_cw
+                self.backoff_ratio_log.append(backoff_ratio)
+                self.weighted_backoff_ratio = 0.98*self.weighted_backoff_ratio + 0.02*backoff_ratio
+
+                reward = 1 if a_na else -2
+            
+            if self.debug_mode:
+                self.write_to_csv(self.transition + (self.action, self.backoff, reward))
 
         self_features = [math.log2(a_cw+1), a_da, a_nw, l_cd, l_ci, self.weighted_backoff_ratio]
         self_log = [self.sim_time, a_ns, a_na, a_cw, a_da, a_nw, self.n_contention, self.weighted_backoff_ratio,
@@ -142,18 +155,6 @@ class ChannelAccessMarlLocalAgent(RlAgent):
 
         next_state = (self_features, neighbor_features)
         next_transition = (self_log, neighbor_log)
-        reward = 0
-        if self.state:
-            # caculate reward
-            if a_ns:
-                backoff_ratio = (self.last_n_waited_slot+self.backoff) / self.last_cw
-                self.backoff_ratio_log.append(backoff_ratio)
-                self.weighted_backoff_ratio = 0.98*self.weighted_backoff_ratio + 0.02*backoff_ratio
-
-                reward = 1 if a_na else -2
-            
-            if self.debug_mode:
-                self.write_to_csv(self.transition + (self.action, self.backoff, reward))
 
         # choose action
         if len(neighbor_features) == 0:
@@ -162,7 +163,7 @@ class ChannelAccessMarlLocalAgent(RlAgent):
             self.action = self.model.choose_action(self_features, list(neighbor_features.values()))
         self.action_log.append(self.action)
         
-        self.backoff = a_cw if self.action == 5 else self.action
+        self.backoff = a_cw if self.action == self.action_dim-1 else self.action
         if self.show_log:
             print("New Backoff={}".format(self.backoff))
 
