@@ -208,17 +208,16 @@ class MAPPO:
     def reset(self):
         self.loss_log = []
     
-    def update_learning_rate(self, actor_lr, critic_lr, eta_lambda):
+    def update_learning_rate(self, actor_lr, critic_lr):
         self.actor_optimizer.param_groups[0]['lr'] = actor_lr
         self.critic_optimizer.param_groups[0]['lr'] = critic_lr
-        self.eta_lambda = eta_lambda
     
     def save_model(self, actor_dir, critic_dir):
         torch.save(self.actor.state_dict(), actor_dir)
         torch.save(self.critic.state_dict(), critic_dir)
     
     def load_model(self, actor_dir, critic_dir):
-        self.actor.load_state_dict(torch.load(actor_dir))
-        self.critic.load_state_dict(torch.load(critic_dir))
+        self.actor.load_state_dict(torch.load(actor_dir, map_location=self.device))
+        self.critic.load_state_dict(torch.load(critic_dir, map_location=self.device))
         self.actor.to(self.device)
         self.critic.to(self.device)
