@@ -37,8 +37,8 @@ class ChannelAccessMarlCentralAgent(RlAgent):
 
         agent_feature_dim = 6
         neighbor_feauture_dim = 2
-        action_dim = 6
-        self.model = MAPPO(agent_feature_dim, neighbor_feauture_dim, action_dim, 
+        self.action_dim = 6
+        self.model = MAPPO(agent_feature_dim, neighbor_feauture_dim, self.action_dim, 
                            hidden_dim=HIDDEN_DIM, actor_lr=ACTOR_LR, critic_lr=CRITIC_LR, 
                            gamma=GAMMA, lmbda=LMBDA, n_epochs=N_EPOCHS, eps=EPS, 
                            lambda_=LAMBDA_, eta_lambda=ETA_LAMBDA)
@@ -83,26 +83,35 @@ class ChannelAccessMarlCentralAgent(RlAgent):
         if self.last_transition is not None:
             # calculate reward
             reward = 0
-            max_b = -1
+            max_n_waited_slot = -1
             priority_nodes = []
             tx_success_nodes = []
+            min_backoff = 1024
+            absent_nodes = []
             for node_id, trans in self.last_transition.items():
-                if max_b < trans['n_waited_slot']:
-                    max_b = trans['n_waited_slot']
+                if max_n_waited_slot < trans['n_waited_slot']:
+                    max_n_waited_slot = trans['n_waited_slot']
                     priority_nodes = [node_id]
-                elif max_b == trans['n_waited_slot']:
+                elif max_n_waited_slot == trans['n_waited_slot']:
                     priority_nodes.append(node_id)
 
                 if node_id in self.transition:
                     if self.transition[node_id]['reward'] == -2:
                         reward = -2
                         break
-                    if self.transition[node_id] == 1:
+                    if self.transition[node_id]['reward'] == 1:
                         tx_success_nodes.append(node_id)
                 else:
-                    if len(tx_success_nodes) == 0 and trans['action']*trans['CW'] < self.delta_time/9e-6:
-                        tx_success_nodes.append(node_id)    # assume the absent node tx success
+                    backoff = trans['action'] if trans['action'] < self.action_dim - 1 else trans['CW']
+                    # assume the absent node tx
+                    if backoff < self.delta_time/9e-6:
+                        if min_backoff > backoff:
+                            absent_nodes = [node_id]
+                        elif min_backoff == backoff:
+                            absent_nodes.append(node_id)
             
+            if len(tx_success_nodes) == 0 and len(absent_nodes) == 1:
+                tx_success_nodes = absent_nodes    
             assert len(tx_success_nodes) <= 1, "More than one tx success node."
 
             if reward == 0 and len(tx_success_nodes) > 0:
@@ -118,7 +127,8 @@ class ChannelAccessMarlCentralAgent(RlAgent):
                     continue
                 if node_id in self.transition and self.transition[node_id]['reward'] == 0:
                     continue
-                backoff_ratio = (trans['n_waited_slot'] + trans['action']*trans['CW']) / trans['CW']
+                last_backoff = trans['CW'] if trans['action'] == self.action_dim - 1 else trans['action']
+                backoff_ratio = (trans['n_waited_slot'] + last_backoff) / trans['CW']
                 weighted_backoff_ratio = 0.98*trans['weighted_backoff_ratio'] + 0.02*backoff_ratio
                 c = 50*max(0, 0.5-weighted_backoff_ratio) if random.random()<0.95 else 0
                 constraint_violation = max(c, constraint_violation)
