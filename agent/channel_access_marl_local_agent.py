@@ -14,7 +14,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from agent_utils import *
 from rl_agent import RlAgent
-from models.mappo_lagrange import MAPPO
+from models.mappo_attn import MAPPO
 
 
 # hyperparameters
