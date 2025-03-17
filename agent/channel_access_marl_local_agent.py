@@ -24,7 +24,6 @@ CRITIC_LR = 1e-3
 GAMMA = 0.98
 LMBDA = 0.95
 N_EPOCHS = 50
-N_EPISODES = 400
 EPS = 0.2
 LAMBDA_ = 0.2
 ETA_LAMBDA = 1e-3
@@ -37,7 +36,7 @@ class ChannelAccessMarlLocalAgent(RlAgent):
 
         agent_feature_dim = 6
         neighbor_feauture_dim = 2
-        self.action_dim = 6
+        self.action_dim = 4
         self.model = MAPPO(agent_feature_dim, neighbor_feauture_dim, self.action_dim, 
                            hidden_dim=HIDDEN_DIM, actor_lr=ACTOR_LR, critic_lr=CRITIC_LR, 
                            gamma=GAMMA, lmbda=LMBDA, n_epochs=N_EPOCHS, eps=EPS, 
@@ -48,7 +47,6 @@ class ChannelAccessMarlLocalAgent(RlAgent):
         self.backoff_ratio_log = []
         self.mean_backoff_ratio_log = []
         self.debug_mode = True
-        self.lambda_log = []
         self.central_agent = None
 
         # load pretrained model
@@ -217,7 +215,7 @@ class ChannelAccessMarlLocalAgent(RlAgent):
             return 
         
         plt.figure()
-        plt.hist(self.action_log, bins=6)
+        plt.hist(self.action_log, bins=self.action_dim)
         plt.savefig('{}/node_{}_{}_action.png'.format(save_dir, self.node_id, self.agent_type.name), dpi=250)
         plt.close()
 

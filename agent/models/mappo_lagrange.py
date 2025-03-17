@@ -93,6 +93,116 @@ class ValueNet(nn.Module):
         return self.fc3(x)
     
 
+# class PolicyNet(nn.Module):
+#     def __init__(self, agent_feature_dim, neighbor_feature_dim, action_dim, hidden_dim, 
+#                  n_head=2, n_layer=1, dropout=0.1):
+#         super(PolicyNet, self).__init__()
+#         self.fc1 = nn.Linear(agent_feature_dim, hidden_dim)
+#         self.fc2 = nn.Linear(neighbor_feature_dim, hidden_dim)
+#         self.dropout = nn.Dropout(p=dropout)
+
+#         self.encoder = nn.TransformerEncoder(
+#             nn.TransformerEncoderLayer(
+#                 d_model=hidden_dim, 
+#                 nhead=n_head, 
+#                 dim_feedforward=hidden_dim*4, 
+#                 dropout=dropout, 
+#                 batch_first=True
+#             ),
+#             num_layers=n_layer,
+#         )
+#         self.fc3 = nn.Linear(hidden_dim, action_dim)
+
+#     def forward(self, agent_features, neighbor_features, key_padding_mask=None):
+#         # agent_features: (batch_size, agent_feature_dim)
+#         # neighbor_features: (batch_size, n_neighbors, neighbor_feature_dim)
+
+#         batch_size, n_neighbors, _ = neighbor_features.shape
+#         if key_padding_mask is None:
+#             key_padding_mask = torch.zeros(batch_size, n_neighbors, 
+#                                            dtype=torch.bool,
+#                                            device=neighbor_features.device)
+            
+#         # get embeddings
+#         agent_embeds = self.dropout(self.fc1(agent_features).unsqueeze(1))  # (batch_size, 1, hidden_dim)
+#         neighbor_embeds = self.dropout(self.fc2(neighbor_features))  # (batch_size, n_neighbors, hidden_dim)
+#         embeds = torch.cat([agent_embeds, neighbor_embeds], dim=1) 
+#         combined_mask = torch.cat(
+#             [torch.zeros(batch_size, 1, dtype=torch.bool, device=key_padding_mask.device), key_padding_mask], 
+#             dim=1
+#         )
+
+#         # extract features using encoder
+#         encoded_output = self.encoder(embeds, src_key_padding_mask=combined_mask)  # (batch_size, n_neighbors+1, hidden_dim)
+
+#         return F.softmax(self.fc3(encoded_output[:, 0, :]), dim=-1)
+    
+
+# class ValueNet(nn.Module):
+#     def __init__(self, agent_feature_dim, neighbor_feature_dim, hidden_dim, 
+#                  n_head=2, n_layer=1, dropout=0.1, pooling="mean"):
+#         super(ValueNet, self).__init__()
+#         self.fc1 = nn.Linear(agent_feature_dim, hidden_dim)
+#         self.fc2 = nn.Linear(neighbor_feature_dim, hidden_dim)
+#         self.dropout = nn.Dropout(p=dropout)
+
+#         self.encoder = nn.TransformerEncoder(
+#             nn.TransformerEncoderLayer(
+#                 d_model=hidden_dim, 
+#                 nhead=n_head, 
+#                 dim_feedforward=hidden_dim*4, 
+#                 dropout=dropout, 
+#                 batch_first=True
+#             ),
+#             num_layers=n_layer,
+#         )
+#         self.fc3 = nn.Linear(2 * hidden_dim, 1)
+
+#         # Pooling method: mean or max
+#         if pooling not in ["mean", "max"]:
+#             raise ValueError(f"Unsupported pooling method: {pooling}. Choose 'mean' or 'max'.")
+#         self.pooling = pooling
+
+#     def forward(self, agent_features, neighbor_features, agent_key_padding_mask=None, neighbor_key_padding_mask=None):
+#         # agent_features: (batch_size, n_agents, agent_feature_dim)
+#         # neighbor_features: (batch_size, n_neighbors, neighbor_feature_dim)
+
+#         batch_size, n_agents, _ = agent_features.shape
+#         _, n_neighbors, _ = neighbor_features.shape
+#         if agent_key_padding_mask is None:
+#             agent_key_padding_mask = torch.zeros(batch_size, n_agents, 
+#                                                  dtype=torch.bool,
+#                                                  device=agent_features.device)
+#         if neighbor_key_padding_mask is None:
+#             neighbor_key_padding_mask = torch.zeros(batch_size, n_neighbors, 
+#                                                    dtype=torch.bool,
+#                                                    device=neighbor_features.device)
+            
+#         # get embeddings
+#         agent_embeds = self.dropout(self.fc1(agent_features))  # (batch_size, n_agents, hidden_dim)
+#         neighbor_embeds = self.dropout(self.fc2(neighbor_features))  # (batch_size, n_neighbors, hidden_dim)
+#         embeds = torch.cat([agent_embeds, neighbor_embeds], dim=1)
+#         combined_mask = torch.cat([agent_key_padding_mask, neighbor_key_padding_mask], dim=1)
+
+#         # extract features using encoder
+#         encoded_output = self.encoder(embeds, src_key_padding_mask=combined_mask)  # (batch_size, n_agents+n_neighbors, hidden_dim)
+#         agent_output = encoded_output[:, :n_agents, :]  # (batch_size, n_agents, hidden_dim)
+#         neighbor_output = encoded_output[:, n_agents:, :]   # (batch_size, n_neighbors, hidden_dim)
+        
+#         # Pooling embeddings
+#         if self.pooling == "mean":
+#             valid_agents = (~agent_key_padding_mask).sum(dim=1, keepdim=True).clamp(min=1)
+#             pooled_agent_output = agent_output.masked_fill(agent_key_padding_mask.unsqueeze(-1), 0).sum(dim=1) / valid_agents
+#             valid_neighbors = (~neighbor_key_padding_mask).sum(dim=1, keepdim=True).clamp(min=1)
+#             pooled_neighbor_output = neighbor_output.masked_fill(neighbor_key_padding_mask.unsqueeze(-1), 0).sum(dim=1) / valid_neighbors
+#         elif self.pooling == "max":
+#             pooled_agent_output = agent_output.masked_fill(agent_key_padding_mask.unsqueeze(-1), float("-inf")).max(dim=1)[0]
+#             pooled_neighbor_output = neighbor_output.masked_fill(neighbor_key_padding_mask.unsqueeze(-1), float("-inf")).max(dim=1)[0]
+
+#         x = torch.cat([pooled_agent_output, pooled_neighbor_output], dim=-1)  # (batch_size, 2 * hidden_dim)
+#         return self.fc3(x)
+    
+
 class MAPPO:
     def __init__(self, agent_feature_dim, neighbor_feature_dim, action_dim, hidden_dim, 
                  actor_lr, critic_lr, lmbda, n_epochs, eps, gamma, lambda_, eta_lambda):

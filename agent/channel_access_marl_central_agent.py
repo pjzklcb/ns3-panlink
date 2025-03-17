@@ -24,9 +24,9 @@ CRITIC_LR = 1e-3
 GAMMA = 0.98
 LMBDA = 0.95
 N_EPOCHS = 50
-N_EPISODES = 400
+N_EPISODES = 200
 EPS = 0.2
-LAMBDA_ = 0.2
+LAMBDA_ = 0.1
 ETA_LAMBDA = 5e-3
         
 
@@ -37,7 +37,7 @@ class ChannelAccessMarlCentralAgent(RlAgent):
 
         agent_feature_dim = 6
         neighbor_feauture_dim = 2
-        self.action_dim = 6
+        self.action_dim = 4
         self.model = MAPPO(agent_feature_dim, neighbor_feauture_dim, self.action_dim, 
                            hidden_dim=HIDDEN_DIM, actor_lr=ACTOR_LR, critic_lr=CRITIC_LR, 
                            gamma=GAMMA, lmbda=LMBDA, n_epochs=N_EPOCHS, eps=EPS, 
@@ -81,57 +81,42 @@ class ChannelAccessMarlCentralAgent(RlAgent):
         next_neighbor_features = list(next_neighbor_features.values())
 
         if self.last_transition is not None:
-            # calculate reward
+            # calculate reward and constraint violation
             reward = 0
-            max_n_waited_slot = -1
-            priority_nodes = []
-            tx_success_nodes = []
-            min_backoff = 1024
-            absent_nodes = []
-            for node_id, trans in self.last_transition.items():
-                if max_n_waited_slot < trans['n_waited_slot']:
-                    max_n_waited_slot = trans['n_waited_slot']
-                    priority_nodes = [node_id]
-                elif max_n_waited_slot == trans['n_waited_slot']:
-                    priority_nodes.append(node_id)
-
-                if node_id in self.transition:
-                    if self.transition[node_id]['reward'] == -2:
-                        reward = -2
-                        break
-                    if self.transition[node_id]['reward'] == 1:
-                        tx_success_nodes.append(node_id)
-                else:
-                    backoff = trans['action'] if trans['action'] < self.action_dim - 1 else trans['CW']
-                    # assume the absent node tx
-                    if backoff < self.delta_time/9e-6:
-                        if min_backoff > backoff:
-                            absent_nodes = [node_id]
-                        elif min_backoff == backoff:
-                            absent_nodes.append(node_id)
+            mu = 0.5
+            for node_id, trans in self.transition.items():
+                if trans['reward'] != 0:
+                    if node_id not in self.last_transition:
+                        continue # may sent mgt/action frames that not via queue
+                    assert ((trans['reward'] == 1 and reward == 0) or 
+                            (trans['reward'] == -2 and reward <= 0)), "Mutiple TX fail and success."
+                    reward = trans['reward']
+                    mu = min(mu, trans['weighted_backoff_ratio'])
             
-            if len(tx_success_nodes) == 0 and len(absent_nodes) == 1:
-                tx_success_nodes = absent_nodes    
-            assert len(tx_success_nodes) <= 1, "More than one tx success node."
+            # handle absent case
+            if reward == 0:
+                min_backoff = 1024
+                absent_node_mus = []
+                for node_id, trans in self.last_transition.items():
+                    if node_id in self.transition:
+                        continue
 
-            if reward == 0 and len(tx_success_nodes) > 0:
-                if tx_success_nodes[0] in priority_nodes:
+                    last_backoff = trans['action'] if trans['action'] < self.action_dim - 1 else trans['CW']
+                    backoff_ratio = (trans['n_waited_slot'] + last_backoff) / trans['CW']
+                    weighted_backoff_ratio = 0.98*trans['weighted_backoff_ratio'] + 0.02*backoff_ratio
+                    # assume the absent node tx
+                    if last_backoff < self.delta_time/9e-6:
+                        if min_backoff > last_backoff:
+                            absent_node_mus = [weighted_backoff_ratio]
+                        elif min_backoff == last_backoff:
+                            absent_node_mus.append(weighted_backoff_ratio)
+                    
+                if len(absent_node_mus) == 1:
                     reward = 1
-                else:
-                    reward = 0.5
+                    mu = min(mu, absent_node_mus[0])
 
             # calculate constraint violation
-            constraint_violation = 0
-            for node_id, trans in self.last_transition.items():
-                if node_id not in self.transition and node_id not in tx_success_nodes:
-                    continue
-                if node_id in self.transition and self.transition[node_id]['reward'] == 0:
-                    continue
-                last_backoff = trans['CW'] if trans['action'] == self.action_dim - 1 else trans['action']
-                backoff_ratio = (trans['n_waited_slot'] + last_backoff) / trans['CW']
-                weighted_backoff_ratio = 0.98*trans['weighted_backoff_ratio'] + 0.02*backoff_ratio
-                c = 50*max(0, 0.5-weighted_backoff_ratio) if random.random()<0.8 else 0
-                constraint_violation = max(c, constraint_violation)
+            constraint_violation = 50*max(0, 0.5-mu) #if random.random()<0.95 else 0
             
             self.reward_log.append(reward - self.model.lambda_*constraint_violation)
 
@@ -238,7 +223,7 @@ class ChannelAccessMarlCentralAgent(RlAgent):
             writer.writerow(self.episode_log)
         
         tot_reward, ave_reward = zip(*self.episode_log)
-        fig, ax1 = plt.subplots(figsize=(10,6))
+        fig, ax1 = plt.subplots()
         ax1.plot(tot_reward, 'b-', linewidth=1)
         ax1.set_xlabel('Episode')
         ax1.set_ylabel('Reward')
