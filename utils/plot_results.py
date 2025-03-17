@@ -185,6 +185,15 @@ class PlotResults(object):
             backoff_ratio = [b/cw for b, cw in backoff_cw_pair]
             if np.any(np.array(backoff_ratio) > 1):
                 print(f"Check if node-{node_id} uses panlink channel access.")
+                var = np.var(np.array(backoff_ratio))
+                plt.figure()
+                plt.hist([min(v,5) for v in backoff_ratio], bins=20, density=True, label=f"var={var:.4f}")
+                plt.xlabel("Backoff Ratio")
+                plt.ylabel("Density")
+                plt.legend()
+                plt.savefig(self.result_dir+"figures/node_" + str(node_id) + "_backoff_ratio.png")
+                plt.close()
+
             # write to txt
             with open(self.result_dir + "figures/channel_load.txt", 'a') as f:
                 f.write('Node-{}: AC BE, average backoff ratio={:.4f}\n'.format(node_id, sum(backoff_ratio)/len(backoff_ratio)))
