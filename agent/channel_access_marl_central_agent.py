@@ -27,7 +27,7 @@ N_EPOCHS = 50
 N_EPISODES = 200
 EPS = 0.2
 LAMBDA_ = 0.1
-ETA_LAMBDA = 5e-3
+ETA_LAMBDA = 1e-3
         
 
 class ChannelAccessMarlCentralAgent(RlAgent):
@@ -108,6 +108,7 @@ class ChannelAccessMarlCentralAgent(RlAgent):
                     if last_backoff < self.delta_time/9e-6:
                         if min_backoff > last_backoff:
                             absent_node_mus = [weighted_backoff_ratio]
+                            min_backoff = last_backoff
                         elif min_backoff == last_backoff:
                             absent_node_mus.append(weighted_backoff_ratio)
                     
