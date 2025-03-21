@@ -10,6 +10,9 @@ import torch.optim as optim
 import torch.nn.functional as F
 import torch.nn.utils.rnn as rnn_utils
 
+N_EPOCHS = 50
+EPS = 0.2
+ETA_LAMBDA = 1e-3
 
 class PolicyNet(nn.Module):
     def __init__(self, agent_feature_dim, neighbor_feature_dim, action_dim, hidden_dim, n_head=1):
@@ -101,7 +104,7 @@ class ValueNet(nn.Module):
 
 class MAPPO:
     def __init__(self, agent_feature_dim, neighbor_feature_dim, action_dim, hidden_dim, 
-                 actor_lr, critic_lr, lmbda, n_epochs, eps, gamma, lambda_, eta_lambda):
+                 actor_lr, critic_lr, lmbda, gamma, lambda_):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.actor = PolicyNet(agent_feature_dim, neighbor_feature_dim, action_dim, hidden_dim).to(self.device)
         self.critic = ValueNet(agent_feature_dim, neighbor_feature_dim, hidden_dim).to(self.device)
@@ -110,10 +113,7 @@ class MAPPO:
 
         self.gamma = gamma
         self.lmbda = lmbda
-        self.n_epochs = n_epochs
-        self.eps = eps
         self.lambda_ = lambda_
-        self.eta_lambda = eta_lambda
 
         self.transition_dict = []
         self.loss_log = []
@@ -184,13 +184,13 @@ class MAPPO:
         old_log_probs = torch.log(self.actor(agent_features_cat, 
                                              agent_neighbor_features_cat, 
                                              agent_neighbor_mask).gather(1, actions_cat)).detach()
-        for _ in range(self.n_epochs):
+        for _ in range(N_EPOCHS):
             log_probs = torch.log(self.actor(agent_features_cat, 
                                              agent_neighbor_features_cat, 
                                              agent_neighbor_mask).gather(1, actions_cat))
             ratio = torch.exp(log_probs - old_log_probs)
             surr1 = ratio * advantage_cat
-            surr2 = torch.clamp(ratio, 1 - self.eps, 1 + self.eps) * advantage_cat
+            surr2 = torch.clamp(ratio, 1 - EPS, 1 + EPS) * advantage_cat
             actor_loss = torch.mean(-torch.min(surr1, surr2))
             self.actor_optimizer.zero_grad()
             actor_loss.backward()
@@ -206,7 +206,7 @@ class MAPPO:
         
         # update lagrangian multiplier
         avg_constraint = torch.mean(constraint_violations)
-        self.lambda_ += self.eta_lambda * avg_constraint.item()
+        self.lambda_ += ETA_LAMBDA * avg_constraint.item()
         self.lambda_ = min(1, max(0, self.lambda_))
 
         self.transition_dict = []   # on policy

@@ -23,11 +23,8 @@ ACTOR_LR = 1e-4
 CRITIC_LR = 1e-3
 GAMMA = 0.98
 LMBDA = 0.95
-N_EPOCHS = 50
 N_EPISODES = 200
-EPS = 0.2
-LAMBDA_ = 0.1
-ETA_LAMBDA = 1e-3
+LAMBDA_ = 0.01
         
 
 class ChannelAccessMarlCentralAgent(RlAgent):
@@ -40,8 +37,7 @@ class ChannelAccessMarlCentralAgent(RlAgent):
         self.action_dim = 4
         self.model = MAPPO(agent_feature_dim, neighbor_feauture_dim, self.action_dim, 
                            hidden_dim=HIDDEN_DIM, actor_lr=ACTOR_LR, critic_lr=CRITIC_LR, 
-                           gamma=GAMMA, lmbda=LMBDA, n_epochs=N_EPOCHS, eps=EPS, 
-                           lambda_=LAMBDA_, eta_lambda=ETA_LAMBDA)
+                           gamma=GAMMA, lmbda=LMBDA, lambda_=LAMBDA_)
         
         self.local_agents = {}
         self.transition = {}
@@ -59,7 +55,7 @@ class ChannelAccessMarlCentralAgent(RlAgent):
 
     def check_if_new_slot(self, sim_time):
         self.delta_time = sim_time - self.sim_time
-        if self.sim_time != 0 and self.delta_time > 3e-6:
+        if self.sim_time != 0 and self.delta_time > 9e-6:
             self.archive_experience()
             self.step_time.append(sim_time)
         
@@ -83,7 +79,7 @@ class ChannelAccessMarlCentralAgent(RlAgent):
         if self.last_transition is not None:
             # calculate reward and constraint violation
             reward = 0
-            mu = 0.5
+            mu = []
             for node_id, trans in self.transition.items():
                 if trans['reward'] != 0:
                     if node_id not in self.last_transition:
@@ -91,7 +87,7 @@ class ChannelAccessMarlCentralAgent(RlAgent):
                     assert ((trans['reward'] == 1 and reward == 0) or 
                             (trans['reward'] == -2 and reward <= 0)), "Mutiple TX fail and success."
                     reward = trans['reward']
-                    mu = min(mu, trans['weighted_backoff_ratio'])
+                    mu.append(trans['weighted_backoff_ratio'])
             
             # handle absent case
             if reward == 0:
@@ -114,10 +110,10 @@ class ChannelAccessMarlCentralAgent(RlAgent):
                     
                 if len(absent_node_mus) == 1:
                     reward = 1
-                    mu = min(mu, absent_node_mus[0])
+                    mu.append(absent_node_mus[0])
 
             # calculate constraint violation
-            constraint_violation = 50*max(0, 0.5-mu) #if random.random()<0.95 else 0
+            constraint_violation = 50*(0.5-min(mu)) #if random.random()<0.95 else 0
             
             self.reward_log.append(reward - self.model.lambda_*constraint_violation)
 
@@ -192,9 +188,8 @@ class ChannelAccessMarlCentralAgent(RlAgent):
         if save_dir is None:
             return
 
-        y = self.reward_log
         fig, ax1 = plt.subplots(figsize=(10,6))
-        ax1.plot(self.step_time[:len(y)], y, 'g-', linewidth=1, alpha=0.5)
+        ax1.plot(self.step_time[:len(self.reward_log)], self.reward_log, 'g-', linewidth=1, alpha=0.5)
         ax1.scatter(self.step_time[::100], ax1.get_ylim()[1]*np.ones(len(self.step_time[::100])), c='k', marker='|')
         ax1.set_xlabel('Time (s)')
         ax1.set_ylabel('Reward')
@@ -227,11 +222,13 @@ class ChannelAccessMarlCentralAgent(RlAgent):
         fig, ax1 = plt.subplots()
         ax1.plot(tot_reward, 'b-', linewidth=1)
         ax1.set_xlabel('Episode')
-        ax1.set_ylabel('Reward')
+        ax1.set_ylabel('Reward', color='b')
+        ax1.tick_params('y', colors='b')
 
         ax2 = ax1.twinx()
         ax2.plot(ave_reward, 'r-', linewidth=1)
-        ax2.set_ylabel('Reward per TX')
+        ax2.set_ylabel('Reward per TX', color='r')
+        ax2.tick_params('y', colors='r')
         fig.savefig('{}/mappo_{}.png'.format(save_dir, self.agent_type.name))
         plt.close()
 

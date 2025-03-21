@@ -23,10 +23,7 @@ ACTOR_LR = 1e-4
 CRITIC_LR = 1e-3
 GAMMA = 0.98
 LMBDA = 0.95
-N_EPOCHS = 50
-EPS = 0.2
-LAMBDA_ = 0.2
-ETA_LAMBDA = 1e-3
+LAMBDA_ = 0.01
         
 
 class ChannelAccessMarlLocalAgent(RlAgent):
@@ -39,8 +36,7 @@ class ChannelAccessMarlLocalAgent(RlAgent):
         self.action_dim = 4
         self.model = MAPPO(agent_feature_dim, neighbor_feauture_dim, self.action_dim, 
                            hidden_dim=HIDDEN_DIM, actor_lr=ACTOR_LR, critic_lr=CRITIC_LR, 
-                           gamma=GAMMA, lmbda=LMBDA, n_epochs=N_EPOCHS, eps=EPS, 
-                           lambda_=LAMBDA_, eta_lambda=ETA_LAMBDA)
+                           gamma=GAMMA, lmbda=LMBDA, lambda_=LAMBDA_)
         
         self.neighbor_info = []
         self.weighted_backoff_ratio = 0.5
