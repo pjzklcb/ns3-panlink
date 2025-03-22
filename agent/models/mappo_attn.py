@@ -124,7 +124,7 @@ class MAPPO:
         probs = self.actor(agent_features, neighbor_features)
         action_dist = torch.distributions.Categorical(probs)
         action = action_dist.sample()
-        return action.item()
+        return action.item(), probs[0][0].item()
 
     def store_transition(self, agent_features, agent_neighbor_features, neighbor_features, 
                          action, reward, constraint_violation, next_agent_features, next_neighbor_features):

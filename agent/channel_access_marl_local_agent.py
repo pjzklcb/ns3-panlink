@@ -33,7 +33,7 @@ class ChannelAccessMarlLocalAgent(RlAgent):
 
         agent_feature_dim = 6
         neighbor_feauture_dim = 2
-        self.action_dim = 4
+        self.action_dim = 2
         self.model = MAPPO(agent_feature_dim, neighbor_feauture_dim, self.action_dim, 
                            hidden_dim=HIDDEN_DIM, actor_lr=ACTOR_LR, critic_lr=CRITIC_LR, 
                            gamma=GAMMA, lmbda=LMBDA, lambda_=LAMBDA_)
@@ -41,6 +41,7 @@ class ChannelAccessMarlLocalAgent(RlAgent):
         self.neighbor_info = []
         self.weighted_backoff_ratio = 0.5
         self.backoff_ratio_log = []
+        self.pk_log = []
         self.mean_backoff_ratio_log = []
         self.debug_mode = True
         self.central_agent = None
@@ -121,7 +122,7 @@ class ChannelAccessMarlLocalAgent(RlAgent):
                 reward = 1 if a_na else -2
             
             if self.debug_mode:
-                self.write_to_csv(self.transition + (self.action, self.backoff, reward))
+                self.write_to_csv(self.transition + (self.pk_log[-1], self.action, self.backoff, reward))
 
         self_features = [math.log2(a_cw+1), a_da, a_nw, l_cd, l_ci, self.weighted_backoff_ratio]
         self_log = [self.sim_time, a_ns, a_na, a_cw, a_da, a_nw, self.n_contention, self.weighted_backoff_ratio,
@@ -153,9 +154,11 @@ class ChannelAccessMarlLocalAgent(RlAgent):
         # choose action
         if len(neighbor_features) == 0:
             self.action = 0
+            p_k = 1
         else:
-            self.action = self.model.choose_action(self_features, list(neighbor_features.values()))
+            self.action, p_k = self.model.choose_action(self_features, list(neighbor_features.values()))
         self.action_log.append(self.action)
+        self.pk_log.append(p_k)
         
         self.backoff = a_cw if self.action == self.action_dim-1 else self.action
         if self.show_log:
@@ -172,10 +175,11 @@ class ChannelAccessMarlLocalAgent(RlAgent):
     def reset(self):
         super().reset()
         if len(self.backoff_ratio_log) > 0:
-            self.mean_backoff_ratio_log.append([np.mean(np.array(self.backoff_ratio_log)), 
+            self.mean_backoff_ratio_log.append([np.mean(self.backoff_ratio_log), 
                                                 len(self.backoff_ratio_log)])
         self.weighted_backoff_ratio = 0.5
         self.backoff_ratio_log = []
+        self.pk_log = []
     
     def save_model(self, save_dir=None):
         pass
@@ -193,12 +197,12 @@ class ChannelAccessMarlLocalAgent(RlAgent):
                                  'cw', 'n_deferred', 'n_waited_slots',
                                  'n_contention', 'weighted_backoff_ratio',
                                  'node_id', 'backoff', 'txok_delay', 'txok_idle_time',
-                                 'action', 'new_backoff', 'reward'])
+                                 'p_k', 'action', 'new_backoff', 'reward'])
 
-        self_log, neighbor_log, action, backoff, reward = transition
+        self_log, neighbor_log, p_k, action, backoff, reward = transition
         with open(debug_file, 'a') as f:
             writer = csv.writer(f)
-            writer.writerow(self_log + [action, backoff, reward])
+            writer.writerow(self_log + [p_k, action, backoff, reward])
             for sta in neighbor_log:
                 writer.writerow(['']*(len(self_log) - len(sta)) + sta)
 
@@ -210,10 +214,13 @@ class ChannelAccessMarlLocalAgent(RlAgent):
         if len(self.action_log) == 0:
             return 
         
-        plt.figure()
-        plt.hist(self.action_log, bins=self.action_dim)
-        plt.savefig('{}/node_{}_{}_action.png'.format(save_dir, self.node_id, self.agent_type.name), dpi=250)
-        plt.close()
+        fig, ax1 = plt.subplots(figsize=(10,6))
+        ax1.scatter(self.step_time[:len(self.action_log)], self.action_log, c='r', marker='.', s=8, alpha=0.5)
+        ax1.scatter(self.step_time[:len(self.pk_log)], self.pk_log, c='b', marker='.', s=8, alpha=0.5)
+        ax1.set_xlabel('Time (s)')
+        ax1.set_ylabel('Action')
+        fig.savefig('{}/node_{}_{}_action.png'.format(save_dir, self.node_id, self.agent_type.name), dpi=250)
+        plt.close(fig)
 
     def plot_episodes(self, save_dir=None):
         if len(self.mean_backoff_ratio_log) == 0:

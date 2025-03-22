@@ -34,7 +34,7 @@ class ChannelAccessMarlCentralAgent(RlAgent):
 
         agent_feature_dim = 6
         neighbor_feauture_dim = 2
-        self.action_dim = 4
+        self.action_dim = 2
         self.model = MAPPO(agent_feature_dim, neighbor_feauture_dim, self.action_dim, 
                            hidden_dim=HIDDEN_DIM, actor_lr=ACTOR_LR, critic_lr=CRITIC_LR, 
                            gamma=GAMMA, lmbda=LMBDA, lambda_=LAMBDA_)
