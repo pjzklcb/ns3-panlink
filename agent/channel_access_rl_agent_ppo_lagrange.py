@@ -14,7 +14,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from agent_utils import *
 from rl_agent import RlAgent
-from models.ppo_binary_lagrange import PPO
+from models.ppo_attn_lagrange import PPO
 
 
 # hyperparameters
@@ -23,11 +23,9 @@ ACTOR_LR = 1e-4
 CRITIC_LR = 1e-3
 GAMMA = 0.98
 LMBDA = 0.95
-N_EPOCHS = 50
 N_EPISODES = 400
-EPS = 0.2
-LAMBDA_ = 0.2
-ETA_LAMBDA = 1e-3
+LAMBDA_ = 0.01
+LAMBDA_LR = 1e-3
         
 
 class ChannelAccessRlAgent(RlAgent):
@@ -37,10 +35,10 @@ class ChannelAccessRlAgent(RlAgent):
 
         self_dim = 6
         neighbor_dim = 2
-        self.model = PPO(self_dim, neighbor_dim, hidden_dim=HIDDEN_DIM, 
+        self.action_dim = 2
+        self.model = PPO(self_dim, neighbor_dim, self.action_dim, hidden_dim=HIDDEN_DIM, 
                          actor_lr=ACTOR_LR, critic_lr=CRITIC_LR, gamma=GAMMA, 
-                         lmbda=LMBDA, n_epochs=N_EPOCHS, eps=EPS, lambda_=LAMBDA_,
-                         eta_lambda=ETA_LAMBDA)
+                         lmbda=LMBDA, lambda_=LAMBDA_,lambda_lr=LAMBDA_LR)
         
         self.neighbor_info = []
         self.weighted_backoff_ratio = 0.5
@@ -101,15 +99,14 @@ class ChannelAccessRlAgent(RlAgent):
         l_ci = self.link_info.chan_fail_idle_time
         l_cf = self.link_info.n_chan_fail
         l_ir = self.link_info.idle_ratio
-        l_ais = self.link_info.app_interval_stats
+        # l_ais = self.link_info.app_interval_stats
         l_tis = self.link_info.tx_interval_stats
         
         if self.show_log:
             print(f"At {self.sim_time:6f}s, delta_time={a_dt:.3f}ms, " 
                   f"cw={a_cw}, n_defer={a_da}, n_waited_slot={a_nw}, "
                   f"in_queue/sending/acked={a_nq}/{a_ns}/{a_na}, \n"
-                  f"\t txok_delay={l_ad:.2f}ms, tx/ack={l_ns}/{l_na}, \n"
-                  f"\t app_stats: interval=[{', '.join(f'{v:.2f}' for v in l_ais)}]ms, "
+                  f"\t txok_delay={l_ad:.2f}ms, tx/ack={l_ns}/{l_na}, "
                   f"tx_stats: interval=[{', '.join(f'{v:.2f}' for v in l_tis)}]ms, \n"
                   f"\t chan_fail_delay/idle_time={l_cd:.2f}/{l_ci:.2f}ms, "
                   f"n_chan_fail={l_cf}, idle_ratio={l_ir*100:.2f}%, \n"
@@ -117,7 +114,7 @@ class ChannelAccessRlAgent(RlAgent):
                   f"min_neighbor_backoff={self.min_neighbor_backoff}")
 
         self_features = [math.log2(a_cw), a_da, a_nw, l_cd, l_ci, self.weighted_backoff_ratio]
-        self_log = [self.sim_time, a_ns, a_na, a_cw, a_da, a_nw, self.n_contention, 1, l_ad, l_cd, l_ci]
+        self_log = [self.sim_time, a_ns, a_na, a_cw, a_da, a_nw, self.n_contention, self.node_id, l_ad, l_cd, l_ci]
         
         neighbor_features = []
         neighbor_log = []
@@ -143,21 +140,17 @@ class ChannelAccessRlAgent(RlAgent):
         next_transition = (self_log, neighbor_log)
         if self.state:
             # caculate reward
-            r_tx = 0
-            r_wait = 0
+            reward = 0
             if a_ns:
                 backoff_ratio = (self.last_n_waited_slot+self.backoff) / self.last_cw
                 self.backoff_ratio_log.append(backoff_ratio)
                 self.weighted_backoff_ratio = 0.98*self.weighted_backoff_ratio + 0.02*backoff_ratio
-                constraint_violation = 50*max(0, 0.5-self.weighted_backoff_ratio) if random.random()<0.95 else 0
+                constraint_violation = 50*max(0, 0.5-self.weighted_backoff_ratio) #if random.random()<0.95 else 0
 
-                r_tx = 1 if a_na else -2
+                reward = 1 if a_na else -2
             else:
-                if self.action == 1 and a_da > 0 and a_nw - self.last_n_waited_slot <= 2:
-                    r_wait = 0.1
                 constraint_violation = 0
             
-            reward = r_tx + r_wait
             self.reward_log.append(reward - self.model.lambda_*constraint_violation)
             if len(self.state[1]) > 0 and len(neighbor_features) > 0:
                 self.model.store_transition(self.state, self.action, reward, constraint_violation, next_state)
@@ -167,15 +160,14 @@ class ChannelAccessRlAgent(RlAgent):
 
         # choose action
         if len(neighbor_features) == 0:
+            self.action = 0
             p_k = 1
         else:
-            p_k = 1 - self.model.choose_action(self_features, neighbor_features)
+            self.action, p_k = self.model.choose_action(self_features, neighbor_features)
         self.pk_log.append(p_k)
-        self.action = 0 if random.random() <= p_k else 1
-        # self.action = random.randint(0, 1)
         self.action_log.append(self.action)
         
-        self.backoff = self.action * a_cw
+        self.backoff = a_cw if self.action==self.action_dim-1 else self.action
         if self.show_log:
             print("New Backoff={}".format(self.backoff))
         self.state = next_state
@@ -184,24 +176,35 @@ class ChannelAccessRlAgent(RlAgent):
         self.last_cw = self.access_info.cw
 
     def reset(self):
-        super().reset()
-        self.mean_backoff_ratio_log.append([np.mean(np.array(self.backoff_ratio_log)), len(self.backoff_ratio_log)])
-        self.weighted_backoff_ratio = 0.5
-        self.backoff_ratio_log = []
-        self.pk_log = []
+        self.counter = 0
+        self.more_data = False
+        self.sim_time = 0
+        self.delta_time = 0
+        self.state = None
+        self.action = None
+        self.action_log = []
+        self.step_time = []
+        if len(self.reward_log):
+            self.episode += 1
+            self.episode_log.append([np.sum(self.reward_log),
+                                     np.sum(self.reward_log) / len(self.backoff_ratio_log)])
+        self.reward_log = []
+
+        self.mean_backoff_ratio_log.append([np.mean(self.backoff_ratio_log), len(self.backoff_ratio_log)])
         if self.enable_learning:
-            self.model.learn()
+            self.model.learn(len(self.backoff_ratio_log))
             self.plot_loss()
             self.model.reset()
             # update learning rate
             actor_lr = ACTOR_LR * (1-self.episode/N_EPISODES)
             critic_lr = CRITIC_LR * (1-self.episode/N_EPISODES)
-            eta_lambda = ETA_LAMBDA * (1-self.episode/N_EPISODES)
+            eta_lambda = LAMBDA_LR * (1-self.episode/N_EPISODES)
             self.model.update_learning_rate(actor_lr, critic_lr, eta_lambda)
-            ratio, _ = zip(*self.mean_backoff_ratio_log)
-            if len(ratio) >= 10 and (np.array(ratio[-10:]) >= 0.5).all():
-                self.model.eta_lambda = 0
             self.lambda_log.append(self.model.lambda_)
+
+        self.weighted_backoff_ratio = 0.5
+        self.backoff_ratio_log = []
+        self.pk_log = []
     
     def save_model(self, save_dir=None):
         save_dir = save_dir if save_dir is not None else self.save_dir
@@ -237,21 +240,16 @@ class ChannelAccessRlAgent(RlAgent):
         if save_dir is None:
             return
 
-        # y, y_tx, y_backoff = zip(*self.reward_log)
-        y = self.reward_log
         fig, ax1 = plt.subplots(figsize=(10,6))
-        ax1.plot(self.step_time[:len(y)], y, 'g-', linewidth=1, alpha=0.5)
-        # ax1.plot(self.step_time[:len(y_tx)], y_tx, 'b-', linewidth=1, alpha=0.5)
-        # ax1.plot(self.step_time[:len(y_backoff)], y_backoff, 'r-', linewidth=1, alpha=0.5)
+        ax1.plot(self.step_time[:len(self.reward_log)], self.reward_log, 'g-', linewidth=1, alpha=0.5)
         ax1.scatter(self.step_time[::100], ax1.get_ylim()[1]*np.ones(len(self.step_time[::100])), c='k', marker='|')
         ax1.set_xlabel('Time (s)')
         ax1.set_ylabel('Reward')
         fig.savefig('{}/node_{}_{}_reward.png'.format(save_dir, self.node_id, self.agent_type.name))
         plt.close(fig)
 
-        y = self.action_log
         fig, ax1 = plt.subplots(figsize=(10,6))
-        ax1.scatter(self.step_time[:len(y)], y, c='r', marker='.', s=8, alpha=0.5)
+        ax1.scatter(self.step_time[:len(self.action_log)], self.action_log, c='r', marker='.', s=8, alpha=0.5)
         ax1.scatter(self.step_time[:len(self.pk_log)], self.pk_log, c='b', marker='.', s=8, alpha=0.5)
         ax1.set_xlabel('Time (s)')
         ax1.set_ylabel('Action')
@@ -274,10 +272,32 @@ class ChannelAccessRlAgent(RlAgent):
         plt.close()
 
     def plot_episodes(self, save_dir=None):
-        super().plot_episodes(save_dir)
-
+        save_dir = save_dir if save_dir is not None else self.save_dir
+        
+        tot_reward, ave_reward = zip(*self.episode_log)
         fig, ax1 = plt.subplots()
+        ax1.plot(tot_reward, 'b-', linewidth=1)
+        ax1.set_xlabel('Episode')
+        ax1.set_ylabel('Reward', color='b')
+        ax1.tick_params('y', colors='b')
+
+        ax2 = ax1.twinx()
+        ax2.plot(ave_reward, 'r-', linewidth=1)
+        ax2.set_ylabel('Reward per TX', color='r')
+        ax2.tick_params('y', colors='r')
+        fig.savefig('{}/node_{}_{}.png'.format(save_dir, self.node_id, self.agent_type.name))
+        plt.close()
+
+        plt.figure()
+        plt.plot(self.lambda_log, 'b-', linewidth=1)
+        plt.xlabel('Episode')
+        plt.ylabel('Lambda')
+        plt.savefig('{}/node_{}_{}_lambda.png'.format(save_dir, self.node_id, self.agent_type.name))
+        plt.close()
+
+        # plot mean backoff for each episode
         mean_backoff_ratio, tx_counts = zip(*self.mean_backoff_ratio_log)
+        fig, ax1 = plt.subplots()
         ax1.plot(mean_backoff_ratio, 'b-', linewidth=1)
         ax1.set_xlabel('Episode')
         ax1.set_ylabel('Mean Backoff', color='b')
@@ -287,13 +307,13 @@ class ChannelAccessRlAgent(RlAgent):
         ax2.plot(tx_counts, 'r-', linewidth=1)
         ax2.set_ylabel('TX counts', color='r')
         ax2.tick_params('y', colors='r')
-
         plt.savefig('{}/node_{}_{}_mean_backoff.png'.format(save_dir, self.node_id, self.agent_type.name))
-        plt.close()
+        plt.close(fig)
 
-        plt.figure()
-        plt.plot(self.lambda_log, 'b-', linewidth=1)
-        plt.xlabel('Episode')
-        plt.ylabel('Lambda')
-        plt.savefig('{}/node_{}_{}_lambda.png'.format(save_dir, self.node_id, self.agent_type.name))
-        plt.close()
+        with open(os.path.join(save_dir, 'episode.csv'), 'w') as f:
+            writer = csv.writer(f)
+            writer.writerow(tot_reward)
+            writer.writerow(ave_reward)
+            writer.writerow(self.lambda_log)
+            writer.writerow(mean_backoff_ratio)
+            writer.writerow(tx_counts)
