@@ -25,6 +25,7 @@ GAMMA = 0.98
 LMBDA = 0.95
 N_EPISODES = 200
 LAMBDA_ = 0.01
+LAMBDA_LR = 1e-3
         
 
 class ChannelAccessMarlCentralAgent(RlAgent):
@@ -37,7 +38,7 @@ class ChannelAccessMarlCentralAgent(RlAgent):
         self.action_dim = 2
         self.model = MAPPO(agent_feature_dim, neighbor_feauture_dim, self.action_dim, 
                            hidden_dim=HIDDEN_DIM, actor_lr=ACTOR_LR, critic_lr=CRITIC_LR, 
-                           gamma=GAMMA, lmbda=LMBDA, lambda_=LAMBDA_)
+                           gamma=GAMMA, lmbda=LMBDA, lambda_=LAMBDA_, lambda_lr=LAMBDA_LR)
         
         self.local_agents = {}
         self.transition = {}
@@ -55,7 +56,7 @@ class ChannelAccessMarlCentralAgent(RlAgent):
 
     def check_if_new_slot(self, sim_time):
         self.delta_time = sim_time - self.sim_time
-        if self.sim_time != 0 and self.delta_time > 9e-6:
+        if self.sim_time != 0 and self.delta_time > 4e-6:
             self.archive_experience()
             self.step_time.append(sim_time)
         
@@ -79,7 +80,7 @@ class ChannelAccessMarlCentralAgent(RlAgent):
         if self.last_transition is not None:
             # calculate reward and constraint violation
             reward = 0
-            mu = []
+            mu = 0.5
             for node_id, trans in self.transition.items():
                 if trans['reward'] != 0:
                     if node_id not in self.last_transition:
@@ -87,7 +88,7 @@ class ChannelAccessMarlCentralAgent(RlAgent):
                     assert ((trans['reward'] == 1 and reward == 0) or 
                             (trans['reward'] == -2 and reward <= 0)), "Mutiple TX fail and success."
                     reward = trans['reward']
-                    mu.append(trans['weighted_backoff_ratio'])
+                    mu = min(mu,trans['weighted_backoff_ratio'])
             
             # handle absent case
             if reward == 0:
@@ -110,12 +111,13 @@ class ChannelAccessMarlCentralAgent(RlAgent):
                     
                 if len(absent_node_mus) == 1:
                     reward = 1
-                    mu.append(absent_node_mus[0])
+                    mu = min(mu, absent_node_mus[0])
 
             # calculate constraint violation
-            constraint_violation = 50*(0.5-min(mu)) #if random.random()<0.95 else 0
+            constraint_violation = 50*max(0, 0.5-mu) #if random.random()<0.95 else 0
             
             self.reward_log.append(reward - self.model.lambda_*constraint_violation)
+            self.write_to_csv(reward, constraint_violation)
 
             # fill the transition
             agent_neighbor_features = []
@@ -140,6 +142,7 @@ class ChannelAccessMarlCentralAgent(RlAgent):
         assert node_id not in self.transition, "Duplicate local obs."
         reward, state, action = local_obs
         self.transition[node_id] = {
+            'sim_time': self.sim_time*1e6,
             'reward': reward,
             'agent_features': state[0],
             'agent_neighbor_features': state[1],
@@ -173,9 +176,33 @@ class ChannelAccessMarlCentralAgent(RlAgent):
             # update learning rate
             actor_lr = ACTOR_LR * (1-self.episode/N_EPISODES)
             critic_lr = CRITIC_LR * (1-self.episode/N_EPISODES)
-            self.model.update_learning_rate(actor_lr, critic_lr)
+            lambda_lr = LAMBDA_LR * (1-self.episode/N_EPISODES)
+            self.model.update_learning_rate(actor_lr, critic_lr, lambda_lr)
             self.lambda_log.append(self.model.lambda_)
     
+    def write_to_csv(self, reward, constraint, save_dir=None):
+        save_dir = save_dir if save_dir is not None else self.save_dir
+        if save_dir is None:
+            return
+        
+        debug_file = os.path.join(save_dir, 'debug_central.csv')
+        if not os.path.exists(debug_file):
+            with open(debug_file, 'w') as f:
+                writer = csv.writer(f)
+                writer.writerow(['step', 'sim_time', 'node_id', 'last_reward', 'action'
+                                 'predict reward', 'predict constraint'])
+
+        with open(debug_file, 'a') as f:
+            writer = csv.writer(f)
+            row = 0
+            for node_id, trans in self.transition.items():
+                if row == 0:
+                    writer.writerow([len(self.step_time), trans['sim_time'], node_id, 
+                                     trans['reward'], trans['action'], reward, constraint])
+                else:
+                    writer.writerow(['', trans['sim_time'], node_id, trans['reward'], trans['action']])
+                row += 1
+
     def save_model(self, save_dir=None):
         save_dir = save_dir if save_dir is not None else self.save_dir
         if save_dir is None:
@@ -213,10 +240,6 @@ class ChannelAccessMarlCentralAgent(RlAgent):
 
     def plot_episodes(self, save_dir=None):
         save_dir = save_dir if save_dir is not None else self.save_dir
-
-        with open(os.path.join(save_dir, 'episode.csv'), 'w') as f:
-            writer = csv.writer(f)
-            writer.writerow(self.episode_log)
         
         tot_reward, ave_reward = zip(*self.episode_log)
         fig, ax1 = plt.subplots()
@@ -238,3 +261,9 @@ class ChannelAccessMarlCentralAgent(RlAgent):
         plt.ylabel('Lambda')
         plt.savefig('{}/mappo_{}_lambda.png'.format(save_dir, self.agent_type.name))
         plt.close()
+
+        with open(os.path.join(save_dir, 'episode.csv'), 'w') as f:
+            writer = csv.writer(f)
+            writer.writerow(tot_reward)
+            writer.writerow(ave_reward)
+            writer.writerow(self.lambda_log)

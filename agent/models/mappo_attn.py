@@ -12,7 +12,6 @@ import torch.nn.utils.rnn as rnn_utils
 
 N_EPOCHS = 50
 EPS = 0.2
-ETA_LAMBDA = 1e-3
 
 class PolicyNet(nn.Module):
     def __init__(self, agent_feature_dim, neighbor_feature_dim, action_dim, hidden_dim, n_head=1):
@@ -104,7 +103,7 @@ class ValueNet(nn.Module):
 
 class MAPPO:
     def __init__(self, agent_feature_dim, neighbor_feature_dim, action_dim, hidden_dim, 
-                 actor_lr, critic_lr, lmbda, gamma, lambda_):
+                 actor_lr, critic_lr, lmbda, gamma, lambda_, lambda_lr):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.actor = PolicyNet(agent_feature_dim, neighbor_feature_dim, action_dim, hidden_dim).to(self.device)
         self.critic = ValueNet(agent_feature_dim, neighbor_feature_dim, hidden_dim).to(self.device)
@@ -114,6 +113,7 @@ class MAPPO:
         self.gamma = gamma
         self.lmbda = lmbda
         self.lambda_ = lambda_
+        self.lambda_lr = lambda_lr
 
         self.transition_dict = []
         self.loss_log = []
@@ -206,7 +206,7 @@ class MAPPO:
         
         # update lagrangian multiplier
         avg_constraint = torch.mean(constraint_violations)
-        self.lambda_ += ETA_LAMBDA * avg_constraint.item()
+        self.lambda_ += self.lambda_lr * avg_constraint.item()
         self.lambda_ = min(1, max(0, self.lambda_))
 
         self.transition_dict = []   # on policy
@@ -214,9 +214,10 @@ class MAPPO:
     def reset(self):
         self.loss_log = []
     
-    def update_learning_rate(self, actor_lr, critic_lr):
+    def update_learning_rate(self, actor_lr, critic_lr, lambda_lr):
         self.actor_optimizer.param_groups[0]['lr'] = actor_lr
         self.critic_optimizer.param_groups[0]['lr'] = critic_lr
+        self.lambda_lr = lambda_lr
     
     def save_model(self, actor_dir, critic_dir):
         torch.save(self.actor.state_dict(), actor_dir)
