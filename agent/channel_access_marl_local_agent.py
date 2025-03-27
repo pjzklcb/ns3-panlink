@@ -33,7 +33,7 @@ class ChannelAccessMarlLocalAgent(RlAgent):
         super().__init__(node_id, memory_id, enable_learning)
         self.agent_type = AgentType.RL_CHANNEL_ACCESS
 
-        agent_feature_dim = 6
+        agent_feature_dim = 5
         neighbor_feauture_dim = 2
         self.action_dim = 4
         self.model = MAPPO(agent_feature_dim, neighbor_feauture_dim, self.action_dim, 
@@ -145,7 +145,7 @@ class ChannelAccessMarlLocalAgent(RlAgent):
             if self.debug_mode:
                 self.write_to_csv(self.transition + (self.pk_log[-1], self.action, self.backoff, reward))
 
-        self_features = [math.log2(a_cw+1), a_da, a_nw, l_cd, l_ci, self.weighted_backoff_ratio]
+        self_features = [math.log2(a_cw+1), a_da, a_nw, l_cd, l_ci]
         self_log = [self.sim_time, a_ns, a_na, a_cw, a_da, a_nw, self.n_contention, self.weighted_backoff_ratio,
                     self.node_id, l_ad, l_cd, l_ci]
         

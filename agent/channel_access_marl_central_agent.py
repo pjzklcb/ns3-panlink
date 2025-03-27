@@ -33,7 +33,7 @@ class ChannelAccessMarlCentralAgent(RlAgent):
         super().__init__(-1, -1, True)
         self.agent_type = AgentType.RL_CHANNEL_ACCESS
 
-        agent_feature_dim = 6
+        agent_feature_dim = 5
         neighbor_feauture_dim = 2
         self.action_dim = 4
         self.model = MAPPO(agent_feature_dim, neighbor_feauture_dim, self.action_dim, 
