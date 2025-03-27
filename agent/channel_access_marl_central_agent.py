@@ -23,9 +23,9 @@ ACTOR_LR = 1e-4
 CRITIC_LR = 1e-3
 GAMMA = 0.98
 LMBDA = 0.95
-N_EPISODES = 200
+N_EPISODES = 300
 LAMBDA_ = 0.01
-LAMBDA_LR = 1e-3
+LAMBDA_LR = 1e-4
         
 
 class ChannelAccessMarlCentralAgent(RlAgent):
@@ -35,14 +35,16 @@ class ChannelAccessMarlCentralAgent(RlAgent):
 
         agent_feature_dim = 6
         neighbor_feauture_dim = 2
-        self.action_dim = 2
+        self.action_dim = 4
         self.model = MAPPO(agent_feature_dim, neighbor_feauture_dim, self.action_dim, 
                            hidden_dim=HIDDEN_DIM, actor_lr=ACTOR_LR, critic_lr=CRITIC_LR, 
                            gamma=GAMMA, lmbda=LMBDA, lambda_=LAMBDA_, lambda_lr=LAMBDA_LR)
         
         self.local_agents = {}
-        self.transition = {}
-        self.last_transition = None
+        self.transition_log = []
+        self.constraint_log = {}
+        self.trajectory = []
+        self.step_transition = {}
         self.lambda_log = []
 
         # load pretrained model
@@ -54,154 +56,130 @@ class ChannelAccessMarlCentralAgent(RlAgent):
         except:
             print("No pretrained model found.")
 
-    def check_if_new_slot(self, sim_time):
-        self.delta_time = sim_time - self.sim_time
-        if self.sim_time != 0 and self.delta_time > 4e-6:
-            self.archive_experience()
-            self.step_time.append(sim_time)
+    def archive_step_transition(self):
+        agent_features = []
+        agent_neighbor_features = []
+        neighbor_features = {}
+        actions = []
+        rewards = []
+        constraint_violations = []
+        for _, trans in self.step_transition.items():
+            u, vu = trans["state"]
+            agent_features.append(u)
+            agent_neighbor_features.append(list(vu.values()))
+            for neighbor_id, features in vu.items():
+                if neighbor_id in self.step_transition:
+                    continue
+                if neighbor_id not in neighbor_features:
+                    neighbor_features[neighbor_id] = features
+                else:
+                    # if agents' obs of the same neighbor are different, choose the minimum feature
+                    neighbor_features[neighbor_id] = [min(x,y) for x,y in zip(neighbor_features[neighbor_id], features)]
+            
+            actions.append(trans["action"])
+            if trans["reward"] != 0:
+                rewards.append(trans["reward"])
+                constraint_violations.append(max(0, trans["constraint_violation"]))
+
+        r = 0 if len(rewards) == 0 else np.mean(rewards)
+        c = 0 if len(constraint_violations) == 0 else np.mean(constraint_violations)
+        self.trajectory.append([
+            agent_features,
+            agent_neighbor_features,
+            list(neighbor_features.values()),
+            actions, r, c
+        ])
+        self.reward_log.append(r - self.model.lambda_ * c)
+
+        # save trajectory to csv
+        # self.write_to_csv()
+        self.step_transition = {}
+
+    def store_trajectory(self):
+        # build trajectory
+        current_time = self.transition_log[0]["sim_time"]
+        for trans in self.transition_log:
+            timestamp = trans["sim_time"]
+            if timestamp - current_time < 2e-6:
+                assert trans["node_id"] not in self.step_transition, "Duplicate node id."
+            elif timestamp - current_time > 7e-6:
+                self.archive_step_transition()
+                self.step_time.append(current_time)
+                current_time = timestamp
+            else:
+                if trans["node_id"] in self.step_transition:
+                    self.archive_step_transition()
+                    self.step_time.append(current_time)
+                    current_time = timestamp
+
+            self.step_transition[trans["node_id"]] = trans
+
+        # store transition
+        for i in range(len(self.trajectory)-1):
+            u, vu, v, a, r, c = self.trajectory[i]
+            u_, v_ = self.trajectory[i+1][0], self.trajectory[i+1][2]
+            self.model.store_transition(u, vu, v, a, r, c, u_, v_)
+
+    def learn(self):
+        if not self.enable_learning:
+            return
         
-        self.sim_time = sim_time
-    
-    def archive_experience(self):
-        # construct next global state
-        next_agent_features = []
-        next_neighbor_features = {}
-        for _, trans in self.transition.items():
-            next_agent_features.append(trans['agent_features'])
-            for neighbor_id, features in trans['agent_neighbor_features'].items():
-                if neighbor_id not in self.transition:
-                    if neighbor_id not in next_neighbor_features:
-                        next_neighbor_features[neighbor_id] = features
-                    else:
-                        next_neighbor_features[neighbor_id] = [
-                            min(x,y) for x, y in zip(next_neighbor_features[neighbor_id], features)]
-        next_neighbor_features = list(next_neighbor_features.values())
+        # learn
+        self.store_trajectory()
+        lambda_constraint = 0
+        for _, c in self.constraint_log.items():
+            lambda_constraint += np.mean(c)
 
-        if self.last_transition is not None:
-            # calculate reward and constraint violation
-            reward = 0
-            mu = 0.5
-            for node_id, trans in self.transition.items():
-                if trans['reward'] != 0:
-                    if node_id not in self.last_transition:
-                        continue # may sent mgt/action frames that not via queue
-                    assert ((trans['reward'] == 1 and reward == 0) or 
-                            (trans['reward'] == -2 and reward <= 0)), "Mutiple TX fail and success."
-                    reward = trans['reward']
-                    mu = min(mu,trans['weighted_backoff_ratio'])
-            
-            # handle absent case
-            if reward == 0:
-                min_backoff = 1024
-                absent_node_mus = []
-                for node_id, trans in self.last_transition.items():
-                    if node_id in self.transition:
-                        continue
+        self.model.learn(lambda_constraint)
+        self.plot_loss()
+        self.model.reset()
 
-                    last_backoff = trans['action'] if trans['action'] < self.action_dim - 1 else trans['CW']
-                    backoff_ratio = (trans['n_waited_slot'] + last_backoff) / trans['CW']
-                    weighted_backoff_ratio = 0.98*trans['weighted_backoff_ratio'] + 0.02*backoff_ratio
-                    # assume the absent node tx
-                    if last_backoff < self.delta_time/9e-6:
-                        if min_backoff > last_backoff:
-                            absent_node_mus = [weighted_backoff_ratio]
-                            min_backoff = last_backoff
-                        elif min_backoff == last_backoff:
-                            absent_node_mus.append(weighted_backoff_ratio)
-                    
-                if len(absent_node_mus) == 1:
-                    reward = 1
-                    mu = min(mu, absent_node_mus[0])
+        # update local models
+        for _, agent in self.local_agents.items():
+            agent.model.actor.load_state_dict(self.model.actor.state_dict())
 
-            # calculate constraint violation
-            constraint_violation = 50*max(0, 0.5-mu) #if random.random()<0.95 else 0
-            
-            self.reward_log.append(reward - self.model.lambda_*constraint_violation)
-            self.write_to_csv(reward, constraint_violation)
-
-            # fill the transition
-            agent_neighbor_features = []
-            actions = []
-            for _, trans in self.last_transition.items():
-                agent_neighbor_features.append(list(trans['agent_neighbor_features'].values()))
-                actions.append(trans['action'])
-
-            # store transition
-            self.model.store_transition(self.agent_features, agent_neighbor_features, self.neighbor_features, 
-                                        actions, reward, constraint_violation, 
-                                        next_agent_features, next_neighbor_features)
-
-        # update 
-        self.last_transition = self.transition.copy()
-        self.agent_features = next_agent_features
-        self.neighbor_features = next_neighbor_features
-        self.transition = {}
-
-    def collect_local_obs(self, node_id, local_obs):
-        assert node_id in self.local_agents, "Local agent not found."
-        assert node_id not in self.transition, "Duplicate local obs."
-        reward, state, action = local_obs
-        self.transition[node_id] = {
-            'sim_time': self.sim_time*1e6,
-            'reward': reward,
-            'agent_features': state[0],
-            'agent_neighbor_features': state[1],
-            'action': action,
-            'CW': 2**state[0][0]-1,
-            'n_waited_slot': state[0][2],
-            'weighted_backoff_ratio': state[0][5]
-        }
+        # update learning rate
+        actor_lr = ACTOR_LR * (1-self.episode/N_EPISODES)
+        critic_lr = CRITIC_LR * (1-self.episode/N_EPISODES)
+        lambda_lr = LAMBDA_LR * (1-self.episode/N_EPISODES)
+        self.model.update_learning_rate(actor_lr, critic_lr, lambda_lr)
+        self.lambda_log.append(self.model.lambda_)
 
     def reset(self):
         self.sim_time = 0
         self.step_time = []
-        self.transition = {}
-        self.last_transition = None
+
+        self.learn()
+
+        self.plot_results()
         if len(self.reward_log):
             self.episode += 1
             self.episode_log.append([np.sum(self.reward_log),
                                      np.sum(self.reward_log) / np.sum(np.array(self.reward_log) != 0)])
         self.reward_log = []
-
-        if self.enable_learning:
-            # learn
-            self.model.learn()
-            self.plot_loss()
-            self.model.reset()
-
-            # update local models
-            for _, agent in self.local_agents.items():
-                agent.model.actor.load_state_dict(self.model.actor.state_dict())
-
-            # update learning rate
-            actor_lr = ACTOR_LR * (1-self.episode/N_EPISODES)
-            critic_lr = CRITIC_LR * (1-self.episode/N_EPISODES)
-            lambda_lr = LAMBDA_LR * (1-self.episode/N_EPISODES)
-            self.model.update_learning_rate(actor_lr, critic_lr, lambda_lr)
-            self.lambda_log.append(self.model.lambda_)
+        self.transition_log = []
+        self.constraint_log = {}
+        self.trajectory = []
+        self.step_transition = {}
     
-    def write_to_csv(self, reward, constraint, save_dir=None):
-        save_dir = save_dir if save_dir is not None else self.save_dir
-        if save_dir is None:
-            return
+    # def write_to_csv(self, save_dir=None):
+    #     save_dir = save_dir if save_dir is not None else self.save_dir
+    #     if save_dir is None:
+    #         return
         
-        debug_file = os.path.join(save_dir, 'debug_central.csv')
-        if not os.path.exists(debug_file):
-            with open(debug_file, 'w') as f:
-                writer = csv.writer(f)
-                writer.writerow(['step', 'sim_time', 'node_id', 'last_reward', 'action'
-                                 'predict reward', 'predict constraint'])
+    #     debug_file = os.path.join(save_dir, 'debug_central.csv')
+    #     if not os.path.exists(debug_file):
+    #         with open(debug_file, 'w') as f:
+    #             writer = csv.writer(f)
+    #             writer.writerow(['step', 'sim_time', 'node_id', 'cw', 'n_deferred', 'n_waited_slots', 
+    #                              'fail_delay', 'fail_idle', 'weighted_backoff_ratio',
+    #                              'action', 'reward', 'constraint'])
 
-        with open(debug_file, 'a') as f:
-            writer = csv.writer(f)
-            row = 0
-            for node_id, trans in self.transition.items():
-                if row == 0:
-                    writer.writerow([len(self.step_time), trans['sim_time'], node_id, 
-                                     trans['reward'], trans['action'], reward, constraint])
-                else:
-                    writer.writerow(['', trans['sim_time'], node_id, trans['reward'], trans['action']])
-                row += 1
+    #     with open(debug_file, 'a') as f:
+    #         writer = csv.writer(f)
+    #         row = 0
+    #         for node_id, trans in self.step_transition.items():
+    #             u, _, v, a, r, c = trans
 
     def save_model(self, save_dir=None):
         save_dir = save_dir if save_dir is not None else self.save_dir

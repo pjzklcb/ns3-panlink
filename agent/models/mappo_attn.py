@@ -138,7 +138,7 @@ class MAPPO:
             advantage[t] = td_delta[t] + self.gamma * self.lmbda * advantage[t+1]
         return advantage
 
-    def learn(self):
+    def learn(self, lambda_constraint):
         u, vu, v, a, r, c, u_, v_ = zip(*self.transition_dict)
         agent_features = rnn_utils.pad_sequence(
             [torch.tensor(x, dtype=torch.float, device=self.device) for x in u], batch_first=True
@@ -205,8 +205,7 @@ class MAPPO:
             self.loss_log.append((actor_loss.item(), critic_loss.item()))
         
         # update lagrangian multiplier
-        avg_constraint = torch.mean(constraint_violations)
-        self.lambda_ += self.lambda_lr * avg_constraint.item()
+        self.lambda_ += self.lambda_lr * lambda_constraint
         self.lambda_ = min(1, max(0, self.lambda_))
 
         self.transition_dict = []   # on policy

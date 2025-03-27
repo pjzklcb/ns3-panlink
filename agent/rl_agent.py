@@ -43,9 +43,6 @@ class RlAgent():
                 self.sim_time, self.node_id, self.agent_type.name, self.counter))
             self.step_time.append(self.sim_time)
 
-            # check new slot if is marl
-            if hasattr(self, 'central_agent') and self.central_agent is not None:
-                self.central_agent.check_if_new_slot(self.sim_time)
             return True
         return False
 

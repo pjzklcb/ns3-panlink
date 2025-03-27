@@ -24,8 +24,9 @@ CRITIC_LR = 1e-3
 GAMMA = 0.98
 LMBDA = 0.95
 LAMBDA_ = 0.01
-LAMBDA_LR = 1e-3
-        
+LAMBDA_LR = 1e-4
+GAMMA_C = 0.98
+
 
 class ChannelAccessMarlLocalAgent(RlAgent):
     def __init__(self, node_id, memory_id, enable_learning=True, pretrained_model=None):
@@ -34,7 +35,7 @@ class ChannelAccessMarlLocalAgent(RlAgent):
 
         agent_feature_dim = 6
         neighbor_feauture_dim = 2
-        self.action_dim = 6
+        self.action_dim = 4
         self.model = MAPPO(agent_feature_dim, neighbor_feauture_dim, self.action_dim, 
                            hidden_dim=HIDDEN_DIM, actor_lr=ACTOR_LR, critic_lr=CRITIC_LR, 
                            gamma=GAMMA, lmbda=LMBDA, lambda_=LAMBDA_, lambda_lr=LAMBDA_LR)
@@ -113,15 +114,34 @@ class ChannelAccessMarlLocalAgent(RlAgent):
                   f"min_neighbor_backoff={self.min_neighbor_backoff}")
 
         # caculate last reward and constraint violation
-        reward = 0
         if self.state:
+            reward = 0
+            constraint_violation = 0
             if a_ns:
-                backoff_ratio = (self.last_n_waited_slot+self.backoff) / self.last_cw
+                last_cw, last_n_waited_slot = 2**self.state[0][0] - 1, self.state[0][2]
+                backoff_ratio = (last_n_waited_slot+self.backoff) / last_cw
                 self.backoff_ratio_log.append(backoff_ratio)
-                self.weighted_backoff_ratio = 0.98*self.weighted_backoff_ratio + 0.02*backoff_ratio
-
+                self.weighted_backoff_ratio = GAMMA_C*self.weighted_backoff_ratio + (1-GAMMA_C)*backoff_ratio
+                
+                constraint_violation = (0.5-self.weighted_backoff_ratio)/(1-GAMMA_C)
+                # constraint_violation = 0.5 - backoff_ratio
                 reward = 1 if a_na else -2
+
+                if self.central_agent is not None:
+                    if self.node_id not in self.central_agent.constraint_log:
+                        self.central_agent.constraint_log[self.node_id] = []
+                    self.central_agent.constraint_log[self.node_id].append(constraint_violation)
             
+            if self.central_agent is not None:
+                self.central_agent.transition_log.append({
+                    "sim_time": self.last_sim_time,
+                    "node_id": self.node_id,
+                    "state": self.state,
+                    "action": self.action,
+                    "reward": reward,
+                    "constraint_violation": constraint_violation
+                })
+
             if self.debug_mode:
                 self.write_to_csv(self.transition + (self.pk_log[-1], self.action, self.backoff, reward))
 
@@ -165,13 +185,9 @@ class ChannelAccessMarlLocalAgent(RlAgent):
         if self.show_log:
             print("New Backoff={}".format(self.backoff))
 
-        if self.central_agent is not None and len(neighbor_features) > 0:
-            self.central_agent.collect_local_obs(self.node_id, (reward, next_state, self.action))
-
         self.state = next_state
         self.transition = next_transition
-        self.last_n_waited_slot = self.access_info.n_waited_slot
-        self.last_cw = self.access_info.cw
+        self.last_sim_time = self.sim_time
 
     def reset(self):
         super().reset()
@@ -216,12 +232,19 @@ class ChannelAccessMarlLocalAgent(RlAgent):
             return 
         
         fig, ax1 = plt.subplots(figsize=(10,6))
-        ax1.scatter(self.step_time[:len(self.action_log)], self.action_log, c='r', marker='.', s=8, alpha=0.5)
         ax1.scatter(self.step_time[:len(self.pk_log)], self.pk_log, c='b', marker='.', s=8, alpha=0.5)
         ax1.set_xlabel('Time (s)')
         ax1.set_ylabel('Action')
-        fig.savefig('{}/node_{}_{}_action.png'.format(save_dir, self.node_id, self.agent_type.name), dpi=250)
+        ax1.set_ylim([0, 1])
+        fig.savefig('{}/node_{}_{}_pk.png'.format(save_dir, self.node_id, self.agent_type.name), dpi=250)
         plt.close(fig)
+
+        plt.figure()
+        plt.hist(self.action_log, bins=self.action_dim)
+        plt.xlabel('Action')
+        plt.ylabel('Count')
+        plt.savefig('{}/node_{}_{}_action.png'.format(save_dir, self.node_id, self.agent_type.name))
+        plt.close()
 
     def plot_episodes(self, save_dir=None):
         if len(self.mean_backoff_ratio_log) == 0:
