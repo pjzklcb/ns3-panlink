@@ -25,7 +25,7 @@ GAMMA = 0.98
 LMBDA = 0.95
 LAMBDA_ = 0.01
 LAMBDA_LR = 1e-4
-GAMMA_C = 0.98
+# GAMMA_C = 0.98
 
 
 class ChannelAccessMarlLocalAgent(RlAgent):
@@ -41,7 +41,7 @@ class ChannelAccessMarlLocalAgent(RlAgent):
                            gamma=GAMMA, lmbda=LMBDA, lambda_=LAMBDA_, lambda_lr=LAMBDA_LR)
         
         self.neighbor_info = []
-        self.weighted_backoff_ratio = 0.5
+        # self.weighted_backoff_ratio = 0.5
         self.backoff_ratio_log = []
         self.pk_log = []
         self.mean_backoff_ratio_log = []
@@ -121,10 +121,10 @@ class ChannelAccessMarlLocalAgent(RlAgent):
                 last_cw, last_n_waited_slot = 2**self.state[0][0] - 1, self.state[0][2]
                 backoff_ratio = (last_n_waited_slot+self.backoff) / last_cw
                 self.backoff_ratio_log.append(backoff_ratio)
-                self.weighted_backoff_ratio = GAMMA_C*self.weighted_backoff_ratio + (1-GAMMA_C)*backoff_ratio
+                # self.weighted_backoff_ratio = GAMMA_C*self.weighted_backoff_ratio + (1-GAMMA_C)*backoff_ratio
                 
-                constraint_violation = (0.5-self.weighted_backoff_ratio)/(1-GAMMA_C)
-                # constraint_violation = 0.5 - backoff_ratio
+                # constraint_violation = (0.5-self.weighted_backoff_ratio)/(1-GAMMA_C)
+                constraint_violation = 0.5 - backoff_ratio
                 reward = 1 if a_na else -2
 
                 if self.central_agent is not None:
@@ -139,14 +139,14 @@ class ChannelAccessMarlLocalAgent(RlAgent):
                     "state": self.state,
                     "action": self.action,
                     "reward": reward,
-                    "constraint_violation": constraint_violation
+                    "constraint_violation": max(0, constraint_violation)
                 })
 
             if self.debug_mode:
                 self.write_to_csv(self.transition + (self.pk_log[-1], self.action, self.backoff, reward))
 
         self_features = [math.log2(a_cw+1), a_da, a_nw, l_cd, l_ci]
-        self_log = [self.sim_time, a_ns, a_na, a_cw, a_da, a_nw, self.n_contention, self.weighted_backoff_ratio,
+        self_log = [self.sim_time, a_ns, a_na, a_cw, a_da, a_nw, self.n_contention, #self.weighted_backoff_ratio,
                     self.node_id, l_ad, l_cd, l_ci]
         
         neighbor_features = {}
@@ -194,7 +194,7 @@ class ChannelAccessMarlLocalAgent(RlAgent):
         if len(self.backoff_ratio_log) > 0:
             self.mean_backoff_ratio_log.append([np.mean(self.backoff_ratio_log), 
                                                 len(self.backoff_ratio_log)])
-        self.weighted_backoff_ratio = 0.5
+        # self.weighted_backoff_ratio = 0.5
         self.backoff_ratio_log = []
         self.pk_log = []
     
@@ -212,7 +212,7 @@ class ChannelAccessMarlLocalAgent(RlAgent):
                 writer = csv.writer(f)
                 writer.writerow(['sim_time', 'n_sending', 'n_acked', 
                                  'cw', 'n_deferred', 'n_waited_slots',
-                                 'n_contention', 'weighted_backoff_ratio',
+                                 'n_contention', #'weighted_backoff_ratio',
                                  'node_id', 'backoff', 'txok_delay', 'txok_idle_time',
                                  'p_k', 'action', 'new_backoff', 'reward'])
 

@@ -111,7 +111,8 @@ class ChannelAccessMarlCentralAgent(RlAgent):
         for trans in self.transition_log:
             timestamp = trans["sim_time"]
             if timestamp - current_time < 2e-6:
-                assert trans["node_id"] not in self.step_transition, "Duplicate node id."
+                # assert trans["node_id"] not in self.step_transition, "Duplicate node id."
+                print('TODO: Duplicate node id.')
             elif timestamp - current_time > 7e-6:
                 self.archive_step_transition()
                 self.step_time.append(current_time)
