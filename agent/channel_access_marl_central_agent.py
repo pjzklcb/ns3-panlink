@@ -63,9 +63,11 @@ class ChannelAccessMarlCentralAgent(RlAgent):
         actions = []
         rewards = []
         constraint_violations = []
+        max_n_waited_slots = 0
         for _, trans in self.step_transition.items():
             u, vu = trans["state"]
             agent_features.append(u)
+            max_n_waited_slots = max(max_n_waited_slots, u[2])
             agent_neighbor_features.append(list(vu.values()))
             for neighbor_id, features in vu.items():
                 if neighbor_id in self.step_transition:
@@ -78,24 +80,32 @@ class ChannelAccessMarlCentralAgent(RlAgent):
             
             actions.append(trans["action"])
             if trans["reward"] != 0:
-                rewards.append(trans["reward"])
-                constraint_violations.append(max(0, trans["constraint_violation"]))
+                rewards.append((u[2], trans["reward"]))
+                constraint_violations.append(trans["constraint_violation"])
 
-        r = 0 if len(rewards) == 0 else np.mean(rewards)
-        c = 0 if len(constraint_violations) == 0 else np.mean(constraint_violations)
+        # calculate reward
+        reward = 0
+        for n_waited_slots, r in rewards:
+            if r < 0:
+                reward = r
+                break
+            elif r > 0:
+                reward = max(reward, r * n_waited_slots/(max_n_waited_slots+1e-8))
+        c = 0 if len(constraint_violations) == 0 else np.sum(constraint_violations)
         self.trajectory.append([
             agent_features,
             agent_neighbor_features,
             list(neighbor_features.values()),
-            actions, r, c
+            actions, reward, c
         ])
-        self.reward_log.append(r - self.model.lambda_ * c)
+        self.reward_log.append(reward - self.model.lambda_ * c)
 
         # save trajectory to csv
         # self.write_to_csv()
         self.step_transition = {}
 
     def store_trajectory(self):
+        self.transition_log.sort(key=lambda x: x["sim_time"])
         # build trajectory
         current_time = self.transition_log[0]["sim_time"]
         for trans in self.transition_log:
