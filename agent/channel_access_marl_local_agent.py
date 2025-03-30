@@ -139,7 +139,7 @@ class ChannelAccessMarlLocalAgent(RlAgent):
                     "state": self.state,
                     "action": self.action,
                     "reward": reward,
-                    "constraint_violation": max(0, constraint_violation)
+                    "constraint_violation": max(-0.5, constraint_violation)
                 })
 
             if self.debug_mode:
