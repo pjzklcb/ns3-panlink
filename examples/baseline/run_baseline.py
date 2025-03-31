@@ -191,4 +191,4 @@ if __name__ == '__main__':
         time_cost//60, time_cost%60, int(ns3_time_cost)//60, ns3_time_cost%60))
     
     if args.stats:
-        PlotResults(timestamp, args.n_episodes-1, target_nodes=[0,1,2]).do_plot()
+        PlotResults(timestamp, args.n_episodes-1, target_nodes=[0,1,2,3,4]).do_plot()

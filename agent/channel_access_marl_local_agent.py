@@ -24,7 +24,7 @@ CRITIC_LR = 1e-3
 GAMMA = 0.98
 LMBDA = 0.95
 LAMBDA_ = 0.01
-LAMBDA_LR = 1e-4
+LAMBDA_LR = 1e-5
 # GAMMA_C = 0.98
 
 
@@ -139,7 +139,7 @@ class ChannelAccessMarlLocalAgent(RlAgent):
                     "state": self.state,
                     "action": self.action,
                     "reward": reward,
-                    "constraint_violation": max(-0.5, constraint_violation)
+                    "constraint_violation": constraint_violation
                 })
 
             if self.debug_mode:
@@ -173,7 +173,7 @@ class ChannelAccessMarlLocalAgent(RlAgent):
         next_transition = (self_log, neighbor_log)
 
         # choose action
-        if len(neighbor_features) == 0:
+        if len(neighbor_features) == 0 or a_nw > 5*a_cw:
             self.action = 0
             p_k = 1
         else:

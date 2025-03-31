@@ -25,7 +25,7 @@ GAMMA = 0.98
 LMBDA = 0.95
 N_EPISODES = 300
 LAMBDA_ = 0.01
-LAMBDA_LR = 1e-4
+LAMBDA_LR = 1e-5
         
 
 class ChannelAccessMarlCentralAgent(RlAgent):
