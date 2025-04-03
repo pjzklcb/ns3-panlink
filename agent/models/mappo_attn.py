@@ -112,8 +112,8 @@ class MAPPO:
 
         self.gamma = gamma
         self.lmbda = lmbda
-        self.lambda_ = lambda_
-        self.lambda_lr = lambda_lr
+        self.lambda_ = nn.Parameter(torch.tensor(lambda_), requires_grad=True)
+        self.lambda_optimizer = optim.Adam([self.lambda_], lr=lambda_lr, eps=1e-5)
 
         self.transition_dict = []
         self.loss_log = []
@@ -205,8 +205,12 @@ class MAPPO:
             self.loss_log.append((actor_loss.item(), critic_loss.item()))
         
         # update lagrangian multiplier
-        self.lambda_ += self.lambda_lr * lambda_constraint
-        self.lambda_ = min(1, max(0, self.lambda_))
+        lambda_loss = -self.lambda_ * lambda_constraint 
+        self.lambda_optimizer.zero_grad()
+        lambda_loss.backward()
+        self.lambda_optimizer.step()
+        with torch.no_grad():
+            self.lambda_.data.clamp_(0, 1)
 
         self.transition_dict = []   # on policy
     

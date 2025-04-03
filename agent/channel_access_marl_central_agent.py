@@ -98,7 +98,7 @@ class ChannelAccessMarlCentralAgent(RlAgent):
             list(neighbor_features.values()),
             actions, reward, c
         ])
-        self.reward_log.append(reward - self.model.lambda_ * c)
+        self.reward_log.append(reward - self.model.lambda_.item() * c)
 
         # save trajectory to csv
         # self.write_to_csv()
@@ -150,11 +150,11 @@ class ChannelAccessMarlCentralAgent(RlAgent):
             agent.model.actor.load_state_dict(self.model.actor.state_dict())
 
         # update learning rate
-        actor_lr = ACTOR_LR * (1-self.episode/N_EPISODES)
-        critic_lr = CRITIC_LR * (1-self.episode/N_EPISODES)
-        lambda_lr = LAMBDA_LR * (1-self.episode/N_EPISODES)
-        self.model.update_learning_rate(actor_lr, critic_lr, lambda_lr)
-        self.lambda_log.append(self.model.lambda_)
+        # actor_lr = ACTOR_LR * (1-self.episode/N_EPISODES)
+        # critic_lr = CRITIC_LR * (1-self.episode/N_EPISODES)
+        # lambda_lr = LAMBDA_LR * (1-self.episode/N_EPISODES)
+        # self.model.update_learning_rate(actor_lr, critic_lr, lambda_lr)
+        self.lambda_log.append(self.model.lambda_.item())
 
     def reset(self):
         self.sim_time = 0
