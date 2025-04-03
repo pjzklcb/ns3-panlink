@@ -28,7 +28,7 @@ class RlAgent():
         self.episode_log = []
 
         self.enable_learning = enable_learning
-        self.show_log = True
+        self.show_log = False
         self.save_dir = '.'
 
     def is_active(self, msg_interface):
@@ -39,8 +39,9 @@ class RlAgent():
         new_counter = env.counter
         if self.agent_type.value == agent_type and self.counter < new_counter:
             self.counter = new_counter
-            print("At {:6f}s, Node-{}: Agent-{} triggered with counter={}".format(
-                self.sim_time, self.node_id, self.agent_type.name, self.counter))
+            if self.show_log:
+                print("At {:6f}s, Node-{}: Agent-{} triggered with counter={}".format(
+                    self.sim_time, self.node_id, self.agent_type.name, self.counter))
             self.step_time.append(self.sim_time)
 
             return True

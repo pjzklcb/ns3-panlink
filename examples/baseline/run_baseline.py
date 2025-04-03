@@ -45,10 +45,11 @@ def run_new_episode(exp, ns3_settings, agent_manager, episode=0):
             msg_interface.PyRecvEnd()
             break
 
-        print("Episode {}, step {}".format(episode, step))
         step += 1
 
         agent_manager.get_active_agent(msg_interface)
+        if step % 100 == 0:
+            print(f"Episode {episode}, step {step}, sim time {agent_manager.active_agent.sim_time:.2f}")
         while True:
             agent_manager.get_obs(msg_interface)
             msg_interface.PyRecvEnd()
