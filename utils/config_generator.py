@@ -19,7 +19,7 @@ class ConfigGenerator:
             else:
                 self.variable = config["variable"]
     
-    def generate(self, output_file, init=False):
+    def generate(self, output_file, i_episode, n_episode, init=False):
         if self.variable is None:
             return self.config_file
         
@@ -30,10 +30,12 @@ class ConfigGenerator:
             distance = config["distance"]
 
         # generate number of stas
+        ratio = i_episode/n_episode
         if init or n_stas["dist"] == "constant":
             num_stas = n_stas["max"]
         elif n_stas["dist"] == "uniform":
-            num_stas = random.randint(n_stas["min"], n_stas["max"])
+            n_delta = n_stas["max"] - n_stas["min"]
+            num_stas = random.randint(n_stas["min"], n_stas["min"]+int(n_delta*ratio))
         else:
             raise ValueError(f"Unsupported distribution {n_stas['dist']} for n_stas")
 
@@ -41,8 +43,9 @@ class ConfigGenerator:
         if init or n_panlink_stas["dist"] == "constant":
             num_panlink_stas = min(num_stas, n_panlink_stas["max"])
         elif n_panlink_stas["dist"] == "uniform":
+            n_delta = n_panlink_stas["max"] - n_panlink_stas["min"]
             num_panlink_stas = random.randint(min(num_stas, n_panlink_stas["min"]), 
-                                              min(num_stas, n_panlink_stas["max"]))
+                                              min(num_stas, n_panlink_stas["min"]+int(n_delta*ratio)))
         else:
             raise ValueError(f"Unsupported distribution {n_panlink_stas['dist']} for n_panlink_stas")
         print(f"Generate total number of stas: {num_stas}, panlink stas: {num_panlink_stas}")
