@@ -14,7 +14,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from agent_utils import *
 from rl_agent import RlAgent
-from models.mappo_attn2 import MAPPO
+from models.mappo_attn import MAPPO
 
 
 # hyperparameters
@@ -23,8 +23,7 @@ ACTOR_LR = 1e-4
 CRITIC_LR = 1e-3
 GAMMA = 0.98
 LMBDA = 0.95
-N_EPISODES = 300
-LAMBDA_ = 0.08
+LAMBDA_ = 0.1
 LAMBDA_LR = 1e-5
         
 
@@ -63,11 +62,13 @@ class ChannelAccessMarlCentralAgent(RlAgent):
         actions = []
         rewards = []
         constraint_violations = []
-        max_n_waited_slots = 0
+        max_backoff_ratio = 0
         for _, trans in self.step_transition.items():
             u, vu = trans["state"]
+            cw, n_waited_slots = 2**u[0]-1, u[2]
+            backoff_ratio = n_waited_slots/cw
             agent_features.append(u)
-            max_n_waited_slots = max(max_n_waited_slots, u[2])
+            max_backoff_ratio = max(max_backoff_ratio, backoff_ratio)
             agent_neighbor_features.append(list(vu.values()))
             for neighbor_id, features in vu.items():
                 if neighbor_id in self.step_transition:
@@ -80,17 +81,17 @@ class ChannelAccessMarlCentralAgent(RlAgent):
             
             actions.append(trans["action"])
             if trans["reward"] != 0:
-                rewards.append((u[2], trans["reward"]))
+                rewards.append((backoff_ratio, trans["reward"]))
                 constraint_violations.append(trans["constraint_violation"])
 
         # calculate reward
         reward = 0
-        for n_waited_slots, r in rewards:
+        for backoff_ratio, r in rewards:
             if r < 0:
                 reward = r
                 break
             elif r > 0:
-                reward = max(reward, r * n_waited_slots/(max_n_waited_slots+1e-8))
+                reward = max(reward, r * backoff_ratio/(max_backoff_ratio+1e-8))
         c = 0 if len(constraint_violations) == 0 else np.sum(constraint_violations)
         self.trajectory.append([
             agent_features,
@@ -100,8 +101,6 @@ class ChannelAccessMarlCentralAgent(RlAgent):
         ])
         self.reward_log.append(reward - self.model.lambda_.item() * c)
 
-        # save trajectory to csv
-        # self.write_to_csv()
         self.step_transition = {}
 
     def store_trajectory(self):
@@ -149,11 +148,6 @@ class ChannelAccessMarlCentralAgent(RlAgent):
         for _, agent in self.local_agents.items():
             agent.model.actor.load_state_dict(self.model.actor.state_dict())
 
-        # update learning rate
-        # actor_lr = ACTOR_LR * (1-self.episode/N_EPISODES)
-        # critic_lr = CRITIC_LR * (1-self.episode/N_EPISODES)
-        # lambda_lr = LAMBDA_LR * (1-self.episode/N_EPISODES)
-        # self.model.update_learning_rate(actor_lr, critic_lr, lambda_lr)
         self.lambda_log.append(self.model.lambda_.item())
 
     def reset(self):
@@ -172,25 +166,6 @@ class ChannelAccessMarlCentralAgent(RlAgent):
         self.constraint_log = {}
         self.trajectory = []
         self.step_transition = {}
-    
-    # def write_to_csv(self, save_dir=None):
-    #     save_dir = save_dir if save_dir is not None else self.save_dir
-    #     if save_dir is None:
-    #         return
-        
-    #     debug_file = os.path.join(save_dir, 'debug_central.csv')
-    #     if not os.path.exists(debug_file):
-    #         with open(debug_file, 'w') as f:
-    #             writer = csv.writer(f)
-    #             writer.writerow(['step', 'sim_time', 'node_id', 'cw', 'n_deferred', 'n_waited_slots', 
-    #                              'fail_delay', 'fail_idle', 'weighted_backoff_ratio',
-    #                              'action', 'reward', 'constraint'])
-
-    #     with open(debug_file, 'a') as f:
-    #         writer = csv.writer(f)
-    #         row = 0
-    #         for node_id, trans in self.step_transition.items():
-    #             u, _, v, a, r, c = trans
 
     def save_model(self, save_dir=None):
         save_dir = save_dir if save_dir is not None else self.save_dir

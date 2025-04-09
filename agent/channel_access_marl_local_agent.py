@@ -14,7 +14,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from agent_utils import *
 from rl_agent import RlAgent
-from models.mappo_attn2 import MAPPO
+from models.mappo_attn import MAPPO
 
 
 # hyperparameters
@@ -23,9 +23,8 @@ ACTOR_LR = 1e-4
 CRITIC_LR = 1e-3
 GAMMA = 0.98
 LMBDA = 0.95
-LAMBDA_ = 0.08
+LAMBDA_ = 0.1
 LAMBDA_LR = 1e-5
-# GAMMA_C = 0.98
 
 
 class ChannelAccessMarlLocalAgent(RlAgent):
