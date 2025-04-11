@@ -118,7 +118,14 @@ class AgentManager:
                 agent.save_dir = save_dir
 
     def reset(self):
+        # reset central agents if marl
+        if self.marl and 'central' in self.agent_dict:
+            for agent in self.agent_dict['central']:
+                agent.reset()
+        # reset local agents
         for node, agents in self.agent_dict.items():
+            if node == 'central':
+                continue
             for agent in agents:
                 agent.reset()
 

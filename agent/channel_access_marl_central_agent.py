@@ -19,12 +19,12 @@ from models.mappo_attn import MAPPO
 
 # hyperparameters
 HIDDEN_DIM = 64
-ACTOR_LR = 1e-4
+ACTOR_LR = 3e-4
 CRITIC_LR = 1e-3
 GAMMA = 0.98
 LMBDA = 0.95
-LAMBDA_ = 0.1
-LAMBDA_LR = 1e-5
+LAMBDA_ = 0.07
+LAMBDA_LR = 1e-4
         
 
 class ChannelAccessMarlCentralAgent(RlAgent):
@@ -44,7 +44,11 @@ class ChannelAccessMarlCentralAgent(RlAgent):
         self.constraint_log = {}
         self.trajectory = []
         self.step_transition = {}
+
+        # episode logging
         self.lambda_log = []
+        self.n_agents_log = []
+        self.mean_backoff_ratio_log = []
 
         # load pretrained model
         try:
@@ -92,7 +96,7 @@ class ChannelAccessMarlCentralAgent(RlAgent):
                 break
             elif r > 0:
                 reward = max(reward, r * backoff_ratio/(max_backoff_ratio+1e-8))
-        c = 0 if len(constraint_violations) == 0 else np.sum(constraint_violations)
+        c = 0 if len(constraint_violations) == 0 else np.mean(constraint_violations)
         self.trajectory.append([
             agent_features,
             agent_neighbor_features,
@@ -161,6 +165,15 @@ class ChannelAccessMarlCentralAgent(RlAgent):
             self.episode += 1
             self.episode_log.append([np.sum(self.reward_log),
                                      np.sum(self.reward_log) / np.sum(np.array(self.reward_log) != 0)])
+        
+        mean_backoff_ratio = []
+        for _, agent in self.local_agents.items():
+            if len(agent.backoff_ratio_log) > 0:
+                mean_backoff_ratio.append(np.mean(agent.backoff_ratio_log))
+        self.mean_backoff_ratio_log.append(np.mean(mean_backoff_ratio))
+        self.n_agents_log.append(len(mean_backoff_ratio))
+        
+        # reset trajectory log
         self.reward_log = []
         self.transition_log = []
         self.constraint_log = {}
@@ -207,20 +220,31 @@ class ChannelAccessMarlCentralAgent(RlAgent):
         
         tot_reward, ave_reward = zip(*self.episode_log)
         fig, ax1 = plt.subplots()
-        ax1.plot(tot_reward, 'b-', linewidth=1)
+        # ax1.plot(tot_reward, 'b-', linewidth=1)
+        # ax1.set_xlabel('Episode')
+        # ax1.set_ylabel('Reward', color='b')
+        # ax1.tick_params('y', colors='b')
+        ax1.plot(ave_reward, 'b-', linewidth=1)
         ax1.set_xlabel('Episode')
-        ax1.set_ylabel('Reward', color='b')
+        ax1.set_ylabel('Reward per TX', color='b')
         ax1.tick_params('y', colors='b')
 
         ax2 = ax1.twinx()
-        ax2.plot(ave_reward, 'r-', linewidth=1)
-        ax2.set_ylabel('Reward per TX', color='r')
+        ax2.plot(self.n_agents_log, 'r:', linewidth=1, alpha=0.5)
+        ax2.set_ylabel('# of Agents', color='r')
         ax2.tick_params('y', colors='r')
         fig.savefig('{}/mappo_{}.png'.format(save_dir, self.agent_type.name))
         plt.close()
 
         plt.figure()
-        plt.plot(self.lambda_log, 'b-', linewidth=1)
+        plt.plot(self.mean_backoff_ratio_log, 'g-', linewidth=1)
+        plt.xlabel('Episode')
+        plt.ylabel('Average Backoff Ratio')
+        plt.savefig('{}/mappo_{}_ave_backoff.png'.format(save_dir, self.agent_type.name))
+        plt.close()
+
+        plt.figure()
+        plt.plot(self.lambda_log, 'r-', linewidth=1)
         plt.xlabel('Episode')
         plt.ylabel('Lambda')
         plt.savefig('{}/mappo_{}_lambda.png'.format(save_dir, self.agent_type.name))
@@ -228,6 +252,8 @@ class ChannelAccessMarlCentralAgent(RlAgent):
 
         with open(os.path.join(save_dir, 'episode.csv'), 'w') as f:
             writer = csv.writer(f)
+            writer.writerow(self.n_agents_log)
             writer.writerow(tot_reward)
             writer.writerow(ave_reward)
+            writer.writerow(self.mean_backoff_ratio_log)
             writer.writerow(self.lambda_log)

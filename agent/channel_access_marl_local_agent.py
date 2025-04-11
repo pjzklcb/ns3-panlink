@@ -19,12 +19,12 @@ from models.mappo_attn import MAPPO
 
 # hyperparameters
 HIDDEN_DIM = 64
-ACTOR_LR = 1e-4
+ACTOR_LR = 3e-4
 CRITIC_LR = 1e-3
 GAMMA = 0.98
 LMBDA = 0.95
-LAMBDA_ = 0.1
-LAMBDA_LR = 1e-5
+LAMBDA_ = 0.07
+LAMBDA_LR = 1e-4
 
 
 class ChannelAccessMarlLocalAgent(RlAgent):

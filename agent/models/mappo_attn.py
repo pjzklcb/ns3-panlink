@@ -10,7 +10,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 import torch.nn.utils.rnn as rnn_utils
 
-N_EPOCHS = 50
+N_EPOCHS = 10
 EPS = 0.2
 
 class PolicyNet(nn.Module):

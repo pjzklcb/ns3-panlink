@@ -117,8 +117,8 @@ if __name__ == '__main__':
     
     # initialize config file
     config_generator = ConfigGenerator(os.path.join(config_dir, args.config_panlink))
-    config_panlink = config_generator.generate(os.path.join(result_dir, "config_panlink.json"), 
-                                               0, args.n_episodes, init=True)
+    config_panlink = config_generator.generate(
+        os.path.join(result_dir, "config_panlink.json"), 0, args.n_episodes, init=True)
     
     # register agents
     agent_manager = AgentManager(args.marl)
@@ -141,8 +141,8 @@ if __name__ == '__main__':
             generate_config_dir = os.path.join(result_dir, 'configs')
             if not os.path.exists(generate_config_dir):
                 os.makedirs(generate_config_dir)
-            config_panlink = config_generator.generate(os.path.join(generate_config_dir, f"config_panlink_{i_episode}.json"), 
-                                                       i_episode, args.n_episodes)
+            config_panlink = config_generator.generate(
+                os.path.join(generate_config_dir, f"config_panlink_{i_episode}.json"), i_episode, args.n_episodes)
 
         # create and save ns3 settings
         ns3_settings = {
@@ -194,4 +194,4 @@ if __name__ == '__main__':
         time_cost//60, time_cost%60, int(ns3_time_cost)//60, ns3_time_cost%60))
     
     if args.stats:
-        PlotResults(timestamp, args.n_episodes-1, target_nodes=[0,1]).do_plot()
+        PlotResults(timestamp, args.n_episodes-1, target_nodes=[0,1,2,3,4]).do_plot()
