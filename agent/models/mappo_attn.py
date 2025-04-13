@@ -220,8 +220,8 @@ class MAPPO:
     def update_learning_rate(self, actor_lr, critic_lr, lambda_lr):
         self.actor_optimizer.param_groups[0]['lr'] = actor_lr
         self.critic_optimizer.param_groups[0]['lr'] = critic_lr
-        self.lambda_lr = lambda_lr
-    
+        self.lambda_optimizer.param_groups[0]['lr'] = lambda_lr
+ 
     def save_model(self, actor_dir, critic_dir):
         torch.save(self.actor.state_dict(), actor_dir)
         torch.save(self.critic.state_dict(), critic_dir)

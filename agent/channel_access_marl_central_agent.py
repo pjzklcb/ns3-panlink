@@ -23,8 +23,9 @@ ACTOR_LR = 3e-4
 CRITIC_LR = 1e-3
 GAMMA = 0.98
 LMBDA = 0.95
-LAMBDA_ = 0.07
+LAMBDA_ = 0.01
 LAMBDA_LR = 1e-4
+CONSTRAINT_VIOLATION_TH = 0.05
         
 
 class ChannelAccessMarlCentralAgent(RlAgent):
@@ -45,10 +46,10 @@ class ChannelAccessMarlCentralAgent(RlAgent):
         self.trajectory = []
         self.step_transition = {}
 
-        # episode logging
+        # log for plot
         self.lambda_log = []
         self.n_agents_log = []
-        self.mean_backoff_ratio_log = []
+        self.ave_backoff_ratio_log = []
 
         # load pretrained model
         try:
@@ -141,8 +142,9 @@ class ChannelAccessMarlCentralAgent(RlAgent):
         # learn
         self.store_trajectory()
         lambda_constraint = 0
-        for _, c in self.constraint_log.items():
-            lambda_constraint += np.mean(c)
+        for _, c_log in self.constraint_log.items():
+            c = np.mean(c_log)
+            lambda_constraint += c+CONSTRAINT_VIOLATION_TH if c < -2*CONSTRAINT_VIOLATION_TH or c > 0 else 0
 
         self.model.learn(lambda_constraint)
         self.plot_loss()
@@ -166,13 +168,13 @@ class ChannelAccessMarlCentralAgent(RlAgent):
             self.episode_log.append([np.sum(self.reward_log),
                                      np.sum(self.reward_log) / np.sum(np.array(self.reward_log) != 0)])
         
-        mean_backoff_ratio = []
+        ave_backoff_ratio = []
         for _, agent in self.local_agents.items():
             if len(agent.backoff_ratio_log) > 0:
-                mean_backoff_ratio.append(np.mean(agent.backoff_ratio_log))
-        self.mean_backoff_ratio_log.append(np.mean(mean_backoff_ratio))
-        self.n_agents_log.append(len(mean_backoff_ratio))
-        
+                ave_backoff_ratio.append(np.mean(agent.backoff_ratio_log))
+        self.ave_backoff_ratio_log.append(np.mean(ave_backoff_ratio))
+        self.n_agents_log.append(len(ave_backoff_ratio))
+
         # reset trajectory log
         self.reward_log = []
         self.transition_log = []
@@ -237,7 +239,7 @@ class ChannelAccessMarlCentralAgent(RlAgent):
         plt.close()
 
         plt.figure()
-        plt.plot(self.mean_backoff_ratio_log, 'g-', linewidth=1)
+        plt.plot(self.ave_backoff_ratio_log, 'g-', linewidth=1)
         plt.xlabel('Episode')
         plt.ylabel('Average Backoff Ratio')
         plt.savefig('{}/mappo_{}_ave_backoff.png'.format(save_dir, self.agent_type.name))
@@ -255,5 +257,5 @@ class ChannelAccessMarlCentralAgent(RlAgent):
             writer.writerow(self.n_agents_log)
             writer.writerow(tot_reward)
             writer.writerow(ave_reward)
-            writer.writerow(self.mean_backoff_ratio_log)
+            writer.writerow(self.ave_backoff_ratio_log)
             writer.writerow(self.lambda_log)
