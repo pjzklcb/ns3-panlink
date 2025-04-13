@@ -14,9 +14,53 @@ from plot_results import InFlightPacketInfo
 
 path = os.path.abspath(os.path.dirname(__file__))
 
+def plot_figure4(result_dir_list):
+    n_episodes = 200
+    r_tx_list = []
+    backoff_ratio_list = []
+    lambda_list = []
+    for result_dir in result_dir_list:
+        with open(os.path.join(result_dir, "episode.csv"), "r") as f:
+            reader = csv.reader(f)
+            next(reader)
+            next(reader)
+            r_tx = [float(x) for x in next(reader)]
+            backoff_ratio = [float(x) for x in next(reader)]
+            lambda_ = [float(x) for x in next(reader)]
+
+        r_tx_list.append(r_tx[:n_episodes])
+        backoff_ratio_list.append(backoff_ratio[:n_episodes])
+        lambda_list.append(lambda_[:n_episodes])
+    
+    plt.figure(figsize=(6, 4.8))
+    plt.plot(np.mean(r_tx_list, axis=0), 'b-', linewidth=1)
+    plt.xlabel('Episode')
+    plt.ylabel('Reward per TX')
+    plt.tight_layout()
+    plt.savefig(path + "/fig4a.png")
+    plt.close()
+
+    plt.figure(figsize=(6, 4.8))
+    plt.plot(np.mean(backoff_ratio_list, axis=0), 'g-', linewidth=1)
+    plt.hlines(0.5, xmin=0, xmax=n_episodes, colors='k', linestyles='dashed')
+    plt.xlabel('Episode')
+    plt.ylabel('Backoff Ratio')
+    plt.tight_layout()
+    plt.savefig(path + "/fig4b.png")
+    plt.close()
+
+    plt.figure(figsize=(6, 4.8))
+    plt.plot(np.mean(lambda_list, axis=0), 'r-', linewidth=1)
+    plt.xlabel('Episode')
+    plt.ylabel('Lambda')
+    plt.tight_layout()
+    plt.savefig(path + "/fig4c.png")
+    plt.close()
+
+
 def plot_figure5(result_dir1, result_dir2):
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 6), sharey=True)
+    fig, (ax1, ax2) = plt.subplots(1, 2, sharey=True)
     # plot left
     plot_subfigure(result_dir1, ax1)
     ax1.hlines(10, xmin=0, xmax=6, colors='k', linestyles='dashed')
@@ -29,8 +73,8 @@ def plot_figure5(result_dir1, result_dir2):
     # plot right
     plot_subfigure(result_dir2, ax2)
     ax2.hlines(10, xmin=0, xmax=6, colors='k', linestyles='dashed')
-    ax2.hlines(12, xmin=0, xmax=6, colors='k', linestyles='dashed')
-    ax2.hlines(45, xmin=0, xmax=6, colors='k', linestyles='dashed')
+    ax2.hlines(11, xmin=0, xmax=6, colors='k', linestyles='dashed')
+    ax2.hlines(42, xmin=0, xmax=6, colors='k', linestyles='dashed')
     ax2.set_ylim([0, 50])
     ax2.set_xlabel("Time (s)")
     ax2.legend()
@@ -133,14 +177,16 @@ def plot_bss_l2_thpt(bss_packet_map, ax):
         return 0
     
     for node_id, thpt in node_thpt.items():
-        ax.plot(timeline, thpt*8*1e-6 / (time_slot*window_size), linewidth=1, label="Node-{}".format(node_id))
+        if node_id == 0:
+            continue
+        ax.plot(timeline, thpt*8*1e-6 / (time_slot*window_size), linewidth=1, label=f"STA-{node_id}")
 
     ax.plot(timeline, tot_thpt*8*1e-6 / (time_slot*window_size), linewidth=1, label="Total")
     
 
 def plot_figure6():
     n_stas = list(range(2,11))
-    beb = [11.36, 18.63, 25.4925, 29.394, 33.1667, 35.7414, 37.30375, 39.8633, 39.912]
+    beb = [11.36, 18.63, 25.4925, 29.394, 33.1667, 35.7414, 37.30375, 39.3633, 39.912]
 
     plt.figure()
     plt.plot(n_stas, beb, 'g-', linewidth=1, label='BEB (all legacy)')
@@ -154,7 +200,11 @@ def plot_figure6():
 
 
 if __name__ == '__main__':
+    result_dir_list = [os.path.join(path, "../result-1744504679_lr1e-4"),]
+    plot_figure4(result_dir_list)
+
     result_dir1 = os.path.join(path, "../result-1735735302-equalBEB/episode_0/")
-    result_dir2 = os.path.join(path, "../result-1744376300-random4/episode_200/")
-    # plot_figure5(result_dir1, result_dir2)
+    result_dir2 = os.path.join(path, "../result-1744544888-fig5/episode_0/")
+    plot_figure5(result_dir1, result_dir2)
+
     plot_figure6()

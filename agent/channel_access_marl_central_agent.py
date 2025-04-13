@@ -25,12 +25,12 @@ GAMMA = 0.98
 LMBDA = 0.95
 LAMBDA_ = 0.01
 LAMBDA_LR = 1e-4
-CONSTRAINT_VIOLATION_TH = 0.05
+CONSTRAINT_VIOLATION_TH = 0.025
         
 
 class ChannelAccessMarlCentralAgent(RlAgent):
     def __init__(self, pretrained_model=None):
-        super().__init__(-1, -1, True)
+        super().__init__(-1, -1, False)
         self.agent_type = AgentType.RL_CHANNEL_ACCESS
 
         agent_feature_dim = 5
@@ -144,7 +144,7 @@ class ChannelAccessMarlCentralAgent(RlAgent):
         lambda_constraint = 0
         for _, c_log in self.constraint_log.items():
             c = np.mean(c_log)
-            lambda_constraint += c+CONSTRAINT_VIOLATION_TH if c < -2*CONSTRAINT_VIOLATION_TH or c > 0 else 0
+            lambda_constraint += c+CONSTRAINT_VIOLATION_TH if c < -CONSTRAINT_VIOLATION_TH or c > 0 else 0
 
         self.model.learn(lambda_constraint)
         self.plot_loss()
@@ -220,6 +220,8 @@ class ChannelAccessMarlCentralAgent(RlAgent):
     def plot_episodes(self, save_dir=None):
         save_dir = save_dir if save_dir is not None else self.save_dir
         
+        if len(self.episode_log) == 0:
+            return
         tot_reward, ave_reward = zip(*self.episode_log)
         fig, ax1 = plt.subplots()
         # ax1.plot(tot_reward, 'b-', linewidth=1)
