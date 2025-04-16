@@ -1,6 +1,6 @@
 {
     "variable": true,
     "n_stas": {"dist": "uniform", "min": 4, "max": 4},
-    "n_panlink_stas": {"dist": "uniform", "min": 1, "max": 4},
+    "n_panlink_stas": {"dist": "uniform", "min": 1, "max": 3},
     "distance": {"dist": "uniform", "min": 2.0, "max": 4.0}
 }

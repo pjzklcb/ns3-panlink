@@ -12,6 +12,7 @@ import traceback
 import time
 import torch
 import numpy as np
+import random
 
 ns3_dir = os.path.abspath(os.path.dirname(os.path.abspath(__file__)) + '/../../../..')
 panlink_dir = os.path.join(ns3_dir, 'contrib/panlink')
@@ -28,6 +29,18 @@ import cpp_py_interface as py_binding
 
 config_dir = os.path.join(panlink_dir, 'configs')
 STATS_RECORD_STEP = 10
+
+
+def set_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+        # torch.backends.cudnn.deterministic = True
+        # torch.backends.cudnn.benchmark = False
 
 
 def run_new_episode(exp, ns3_settings, agent_manager, episode=0):
@@ -80,8 +93,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--seed', type=int,
                         default=11, help="random seed")
-    parser.add_argument('--ns3_seed', type=int,
-                        default=150, help='random seed for ns-3')
     parser.add_argument('--n_episodes', type=int,
                         default=1, help='number of episodes')
     parser.add_argument('--marl', action='store_true',
@@ -105,8 +116,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     # set seed
-    np.random.seed(args.seed)
-    torch.manual_seed(args.seed)
+    set_seed(args.seed)
     
     # create result directory
     timestamp = str(int(time.time()))
@@ -147,7 +157,7 @@ if __name__ == '__main__':
         # create and save ns3 settings
         ns3_settings = {
             'timestamp': timestamp,
-            'streamNumber': args.ns3_seed,
+            'streamNumber': args.seed,
             'configPanlink': config_panlink,
             'configIntf': os.path.join(config_dir, args.config_intf),
             'simulationTime': args.simulation_time,
