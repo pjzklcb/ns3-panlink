@@ -25,12 +25,12 @@ GAMMA = 0.98
 LMBDA = 0.95
 LAMBDA_ = 0.01
 LAMBDA_LR = 1e-4
-CONSTRAINT_VIOLATION_TH = 0.025
+CONSTRAINT_VIOLATION_TH = 0
         
 
 class ChannelAccessMarlCentralAgent(RlAgent):
     def __init__(self, pretrained_model=None):
-        super().__init__(-1, -1, False)
+        super().__init__(-1, -1, True)
         self.agent_type = AgentType.RL_CHANNEL_ACCESS
 
         agent_feature_dim = 5
@@ -222,6 +222,7 @@ class ChannelAccessMarlCentralAgent(RlAgent):
         
         if len(self.episode_log) == 0:
             return
+        
         tot_reward, ave_reward = zip(*self.episode_log)
         fig, ax1 = plt.subplots()
         # ax1.plot(tot_reward, 'b-', linewidth=1)

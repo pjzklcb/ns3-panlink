@@ -12,6 +12,7 @@ import torch.nn.utils.rnn as rnn_utils
 
 N_EPOCHS = 10
 EPS = 0.2
+DROPOUT = 0.2
 
 class PolicyNet(nn.Module):
     def __init__(self, agent_feature_dim, neighbor_feature_dim, action_dim, hidden_dim, n_head=1):
@@ -19,10 +20,12 @@ class PolicyNet(nn.Module):
         self.query = nn.Linear(agent_feature_dim, hidden_dim)
         self.key = nn.Linear(agent_feature_dim, hidden_dim)
         self.value = nn.Linear(agent_feature_dim, hidden_dim)
+        self.dropout1 = nn.Dropout(DROPOUT)
 
         self.neighbor_key = nn.Linear(neighbor_feature_dim, hidden_dim)
         self.neighbor_value = nn.Linear(neighbor_feature_dim, hidden_dim)
         self.mha = nn.MultiheadAttention(embed_dim=hidden_dim, num_heads=n_head, batch_first=True)
+        self.dropout2 = nn.Dropout(0.1)
         self.layer_norm = nn.LayerNorm(hidden_dim)
 
         self.decoder = nn.Linear(hidden_dim, action_dim)
@@ -37,14 +40,16 @@ class PolicyNet(nn.Module):
                                            dtype=torch.bool,
                                            device=neighbor_features.device)
             
-        Q = self.query(agent_features).unsqueeze(1)  # (batch_size, 1, hidden_dim)
-        K = torch.cat([self.key(agent_features).unsqueeze(1), self.neighbor_key(neighbor_features)], dim=1)
-        V = torch.cat([self.value(agent_features).unsqueeze(1), self.neighbor_value(neighbor_features)], dim=1)
+        Q = self.dropout1(self.query(agent_features).unsqueeze(1))  # (batch_size, 1, hidden_dim)
+        K = torch.cat([self.dropout1(self.key(agent_features).unsqueeze(1)), 
+                       self.dropout1(self.neighbor_key(neighbor_features))], dim=1)
+        V = torch.cat([self.dropout1(self.value(agent_features).unsqueeze(1)), 
+                       self.dropout1(self.neighbor_value(neighbor_features))], dim=1)
         M = torch.cat([torch.zeros(batch_size, 1, dtype=torch.bool).to(key_padding_mask.device), 
                        key_padding_mask], dim=1)
         
         attn_output, _ = self.mha(Q, K, V, key_padding_mask=M)  # (batch_size, 1, hidden_dim)
-        attn_output = self.layer_norm(attn_output + Q)
+        attn_output = self.layer_norm(self.dropout2(attn_output + Q))
 
         return F.softmax(self.decoder(attn_output.squeeze(1)), dim=-1)  # (batch_size, action_dim)
     
@@ -55,10 +60,12 @@ class ValueNet(nn.Module):
         self.query = nn.Linear(agent_feature_dim, hidden_dim)
         self.key = nn.Linear(agent_feature_dim, hidden_dim)
         self.value = nn.Linear(agent_feature_dim, hidden_dim)
+        self.dropout1 = nn.Dropout(DROPOUT)
 
         self.neighbor_key = nn.Linear(neighbor_feature_dim, hidden_dim)
         self.neighbor_value = nn.Linear(neighbor_feature_dim, hidden_dim)
         self.mha = nn.MultiheadAttention(embed_dim=hidden_dim, num_heads=n_head, batch_first=True)
+        self.dropout2 = nn.Dropout(0.1)
         self.layer_norm = nn.LayerNorm(hidden_dim)
 
         self.decoder = nn.Linear(hidden_dim, 1)
@@ -83,13 +90,15 @@ class ValueNet(nn.Module):
                                                    dtype=torch.bool,
                                                    device=neighbor_features.device)
             
-        Q = self.query(agent_features)  # (batch_size, n_agent, hidden_dim)
-        K = torch.cat([self.key(agent_features), self.neighbor_key(neighbor_features)], dim=1)
-        V = torch.cat([self.value(agent_features), self.neighbor_value(neighbor_features)], dim=1)
+        Q = self.dropout1(self.query(agent_features))  # (batch_size, n_agent, hidden_dim)
+        K = torch.cat([self.dropout1(self.key(agent_features)), 
+                       self.dropout1(self.neighbor_key(neighbor_features))], dim=1)
+        V = torch.cat([self.dropout1(self.value(agent_features)), 
+                       self.dropout1(self.neighbor_value(neighbor_features))], dim=1)
         M = torch.cat([agent_key_padding_mask, neighbor_key_padding_mask], dim=1)
 
         attn_output, _ = self.mha(Q, K, V, key_padding_mask=M)  # (batch_size, n_agent, hidden_dim)
-        attn_output = self.layer_norm(attn_output + Q) 
+        attn_output = self.layer_norm(self.dropout2(attn_output + Q)) 
 
         # Pooling embeddings
         if self.pooling == "mean":
