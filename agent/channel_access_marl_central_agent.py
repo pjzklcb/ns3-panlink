@@ -144,7 +144,7 @@ class ChannelAccessMarlCentralAgent(RlAgent):
         lambda_constraint = 0
         for _, c_log in self.constraint_log.items():
             c = np.mean(c_log)
-            lambda_constraint += c+CONSTRAINT_VIOLATION_TH if c < -CONSTRAINT_VIOLATION_TH or c > 0 else 0
+            lambda_constraint += c#+CONSTRAINT_VIOLATION_TH if c < -CONSTRAINT_VIOLATION_TH or c > 0 else 0
 
         self.model.learn(lambda_constraint)
         self.plot_loss()
@@ -154,6 +154,9 @@ class ChannelAccessMarlCentralAgent(RlAgent):
         for _, agent in self.local_agents.items():
             agent.model.actor.load_state_dict(self.model.actor.state_dict())
 
+        # update lambda
+        if len(self.episode_log) < 50:
+            self.model.update_lambda(0)
         self.lambda_log.append(self.model.lambda_.item())
 
     def reset(self):

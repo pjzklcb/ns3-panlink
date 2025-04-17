@@ -309,6 +309,10 @@ class MAPPO:
         self.actor_optimizer.param_groups[0]['lr'] = actor_lr
         self.critic_optimizer.param_groups[0]['lr'] = critic_lr
         self.lambda_optimizer.param_groups[0]['lr'] = lambda_lr
+    
+    def update_lambda(self, new_lambda):
+        with torch.no_grad():
+            self.lambda_.data = torch.tensor(new_lambda, dtype=torch.float)
  
     def save_model(self, actor_dir, critic_dir):
         torch.save(self.actor.state_dict(), actor_dir)
