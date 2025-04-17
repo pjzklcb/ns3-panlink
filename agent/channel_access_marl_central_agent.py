@@ -211,14 +211,18 @@ class ChannelAccessMarlCentralAgent(RlAgent):
             return
         
         actor_loss, critic_loss = zip(*self.model.loss_log)
-        plt.figure()
-        plt.plot(range(len(actor_loss)), actor_loss, 'b-', linewidth=1, label='Actor loss')
-        plt.plot(range(len(critic_loss)), critic_loss, 'r-', linewidth=1, label='Critic loss')
-        plt.legend()
-        plt.xlabel('Epoch')
-        plt.ylabel('Loss')
-        plt.savefig('{}/mappo_{}_loss.png'.format(self.save_dir, self.agent_type.name))
-        plt.close()
+        fig, ax1 = plt.subplots()
+        ax1.plot(range(len(actor_loss)), actor_loss, 'b-', linewidth=1)
+        ax1.set_xlabel('Epoch')
+        ax1.set_ylabel('Actor Loss', color='b')
+        ax1.tick_params('y', colors='b')
+
+        ax2 = ax1.twinx()
+        ax2.plot(range(len(critic_loss)), critic_loss, 'r-', linewidth=1)
+        ax2.set_ylabel('Critic Loss', color='r')
+        ax2.tick_params('y', colors='r')
+        fig.savefig('{}/mappo_{}_loss.png'.format(self.save_dir, self.agent_type.name))
+        plt.close(fig)
 
     def plot_episodes(self, save_dir=None):
         save_dir = save_dir if save_dir is not None else self.save_dir
