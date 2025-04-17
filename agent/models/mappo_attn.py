@@ -9,10 +9,52 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 import torch.nn.utils.rnn as rnn_utils
+from torch.utils.data import TensorDataset, DataLoader
+import numpy as np
+import random
 
 N_EPOCHS = 10
+BATCH_SIZE = 4096
 EPS = 0.2
 DROPOUT = 0.2
+
+
+def seed_worker(worker_id):
+    worker_seed = torch.initial_seed() % 2**32
+    np.random.seed(worker_seed)
+    random.seed(worker_seed)
+
+# reshape concatenated features and padding
+def restore_cat(feature_cat, n_agents_per_sample):
+    # feature_cat: (batch_size*n_agents, feature_dim)
+
+    feature_split = torch.split(
+        feature_cat, n_agents_per_sample, dim=0
+    ) # a list of (n_agents_per_sample, feature_dim)
+    feature_pad = rnn_utils.pad_sequence(
+        feature_split, batch_first=True
+    ) # (batch_size, max_n_agents, feature_dim)
+
+    return feature_pad
+
+
+class DeviceAwareLoader:
+    def __init__(self, dataset, device, batch_size=BATCH_SIZE):
+        g = torch.Generator()
+        g.manual_seed(torch.initial_seed() % 2**32)
+        self.loader = DataLoader(dataset, 
+                                 batch_size=batch_size, 
+                                 num_workers=4,
+                                 shuffle=True, 
+                                 pin_memory=torch.cuda.is_available(), 
+                                 worker_init_fn=seed_worker,
+                                 generator=g)
+        self.device = device
+
+    def __iter__(self):
+        for batch in self.loader:
+            yield tuple(t.to(self.device, non_blocking=True) for t in batch)
+
 
 class PolicyNet(nn.Module):
     def __init__(self, agent_feature_dim, neighbor_feature_dim, action_dim, hidden_dim, n_head=1):
@@ -149,69 +191,106 @@ class MAPPO:
 
     def learn(self, lambda_constraint):
         u, vu, v, a, r, c, u_, v_ = zip(*self.transition_dict)
+        # transfer to cpu tensor
         agent_features = rnn_utils.pad_sequence(
-            [torch.tensor(x, dtype=torch.float, device=self.device) for x in u], batch_first=True
-        )   # (batch_size, max_n_agents, agent_feature_dim)
+            [torch.tensor(x, dtype=torch.float) for x in u], batch_first=True
+        )   # (n_steps, max_n_agents, agent_feature_dim)
         agent_features_cat = torch.tensor(
-            [y for x in u for y in x], dtype=torch.float, device=self.device
-        )   # (batch_size*n_agents, agent_feature_dim)
+            [y for x in u for y in x], dtype=torch.float
+        )   # (n_steps*n_agents, agent_feature_dim)
         agent_neighbor_features_cat = rnn_utils.pad_sequence(
-            [torch.tensor(y, dtype=torch.float, device=self.device) for x in vu for y in x], batch_first=True
-        )   # (batch_size*n_agents, max_n_neighbors, neighbor_feature_dim)
+            [torch.tensor(y, dtype=torch.float) for x in vu for y in x], batch_first=True
+        )   # (n_steps*n_agents, max_n_neighbors, neighbor_feature_dim)
         neighbor_features = rnn_utils.pad_sequence(
-            [torch.tensor(x, dtype=torch.float, device=self.device) for x in v], batch_first=True
-        )   # (batch_size, max_n_neighbors, neighbor_feature_dim)
-        actions_cat = torch.tensor([y for x in a for y in x], device=self.device).unsqueeze(1) # (batch_size*n_agents, 1)
-        rewards = torch.tensor(r, dtype=torch.float, device=self.device).unsqueeze(1)               # (batch_size, 1)
-        constraint_violations = torch.tensor(c, dtype=torch.float, device=self.device).unsqueeze(1) # (batch_size, 1)
+            [torch.tensor(x, dtype=torch.float) for x in v], batch_first=True
+        )   # (n_steps, max_n_neighbors, neighbor_feature_dim)
+        actions = rnn_utils.pad_sequence(
+            [torch.tensor(x) for x in a], batch_first=True
+        )   # (n_steps, max_n_agents, action_dim)
+        actions_cat = torch.tensor([y for x in a for y in x]).unsqueeze(1) # (n_steps*n_agents, 1)
+        rewards = torch.tensor(r, dtype=torch.float).unsqueeze(1)               # (n_steps, 1)
+        constraint_violations = torch.tensor(c, dtype=torch.float).unsqueeze(1) # (n_steps, 1)
         next_agent_features = rnn_utils.pad_sequence(
-            [torch.tensor(x, dtype=torch.float, device=self.device) for x in u_], batch_first=True
+            [torch.tensor(x, dtype=torch.float) for x in u_], batch_first=True
         )
         next_neighbor_features = rnn_utils.pad_sequence(
-            [torch.tensor(x, dtype=torch.float, device=self.device) for x in v_], batch_first=True
+            [torch.tensor(x, dtype=torch.float) for x in v_], batch_first=True
         )
 
         # generate padding mask
-        agent_mask = torch.all(torch.eq(agent_features, 0), dim=-1)         # (batch_size, max_n_agents)
+        agent_mask = torch.all(torch.eq(agent_features, 0), dim=-1) # (n_steps, max_n_agents)
+        agent_neighbor_cat_mask = torch.all(
+            torch.eq(agent_neighbor_features_cat, 0), dim=-1
+        ) # (n_steps*n_agents, max_n_neighbors)
+        neighbor_mask = torch.all(torch.eq(neighbor_features, 0), dim=-1) # (n_steps, max_n_neighbors)
         next_agent_mask = torch.all(torch.eq(next_agent_features, 0), dim=-1)
-        neighbor_mask = torch.all(torch.eq(neighbor_features, 0), dim=-1)   # (batch_size, max_n_neighbors)
         next_neighbor_mask = torch.all(torch.eq(next_neighbor_features, 0), dim=-1)
-        agent_neighbor_mask = torch.all(torch.eq(agent_neighbor_features_cat, 0), dim=-1) # (batch_size*n_agents, max_n_neighbors)
-        n_agents = (~agent_mask).sum(dim=1)                                    # (batch_size,)
+        n_agents_per_sample = (~agent_mask).sum(dim=1) # (n_steps,)
 
         # compensate for constraint violations
         rewards -= self.lambda_ * constraint_violations
 
+        # calculate advantage
+        try:
+            self.actor = self.actor.cpu()
+            self.critic = self.critic.cpu()
+            td_target = rewards + self.gamma * self.critic(next_agent_features, next_neighbor_features, 
+                                                           next_agent_mask, next_neighbor_mask)
+            td_delta = td_target - self.critic(agent_features, neighbor_features, agent_mask, neighbor_mask)
+            advantage = self.compute_advantage(td_delta.detach())
+            advantage = (advantage - advantage.mean()) / (advantage.std() + 1e-8)
+            advantage_cat = torch.repeat_interleave(advantage, n_agents_per_sample, dim=0) # (n_steps*n_agents,)
+            old_log_probs_cat = torch.log(self.actor(agent_features_cat, 
+                                                     agent_neighbor_features_cat, 
+                                                     agent_neighbor_cat_mask).gather(1, actions_cat)).detach()
+            
+        finally:
+            self.actor = self.actor.to(self.device)
+            self.critic = self.critic.to(self.device)
+        
+        # create dataloader
+        n_agents_per_sample = n_agents_per_sample.cpu().tolist()
+        agent_neighbor_features = restore_cat(agent_neighbor_features_cat, n_agents_per_sample)
+        agent_neighbor_mask = restore_cat(agent_neighbor_cat_mask, n_agents_per_sample)
+        advantage = restore_cat(advantage_cat, n_agents_per_sample)
+        old_log_probs = restore_cat(old_log_probs_cat, n_agents_per_sample)
+        dataset = TensorDataset(agent_features, agent_neighbor_features, neighbor_features, 
+                                actions, agent_mask, agent_neighbor_mask, neighbor_mask, 
+                                td_target.detach(), advantage, old_log_probs)
+        dataloader = DeviceAwareLoader(dataset, self.device)
+
         # update actor-critic
-        td_target = rewards + self.gamma * self.critic(next_agent_features, next_neighbor_features, 
-                                                       next_agent_mask, next_neighbor_mask)
-        td_delta = td_target - self.critic(agent_features, neighbor_features, agent_mask, neighbor_mask)
-        advantage = self.compute_advantage(td_delta.detach()).to(self.device)
-        advantage = (advantage - advantage.mean()) / (advantage.std() + 1e-8)
-        advantage_cat = torch.repeat_interleave(advantage, n_agents, dim=0) # (batch_size*n_agents,)
-
-        old_log_probs = torch.log(self.actor(agent_features_cat, 
-                                             agent_neighbor_features_cat, 
-                                             agent_neighbor_mask).gather(1, actions_cat)).detach()
         for _ in range(N_EPOCHS):
-            log_probs = torch.log(self.actor(agent_features_cat, 
-                                             agent_neighbor_features_cat, 
-                                             agent_neighbor_mask).gather(1, actions_cat))
-            ratio = torch.exp(log_probs - old_log_probs)
-            surr1 = ratio * advantage_cat
-            surr2 = torch.clamp(ratio, 1 - EPS, 1 + EPS) * advantage_cat
-            actor_loss = torch.mean(-torch.min(surr1, surr2))
-            self.actor_optimizer.zero_grad()
-            actor_loss.backward()
-            self.actor_optimizer.step()
+            for batch in dataloader:
+                batch_u, batch_vu, batch_v, batch_a, batch_u_mask, batch_vu_mask, batch_v_mask, \
+                    batch_td_target, batch_advantage, batch_old_log_probs = batch
+                batch_idx, agent_idx = torch.where(~batch_u_mask)
+                batch_u_cat = batch_u[batch_idx, agent_idx]
+                batch_vu_cat = batch_vu[batch_idx, agent_idx]
+                batch_a_cat = batch_a[batch_idx, agent_idx].unsqueeze(1)
+                batch_vu_mask_cat = batch_vu_mask[batch_idx, agent_idx]
+                batch_advantage_cat = batch_advantage[batch_idx, agent_idx]
+                batch_old_log_probs_cat = batch_old_log_probs[batch_idx, agent_idx]
 
-            critic_loss = torch.mean(F.mse_loss(self.critic(agent_features, neighbor_features, agent_mask, neighbor_mask), 
-                                                td_target.detach()))
-            self.critic_optimizer.zero_grad()
-            critic_loss.backward()
-            self.critic_optimizer.step()
+                log_probs = torch.log(self.actor(batch_u_cat, 
+                                                 batch_vu_cat, 
+                                                 batch_vu_mask_cat).gather(1, batch_a_cat))
+                ratio = torch.exp(log_probs - batch_old_log_probs_cat)
+                surr1 = ratio * batch_advantage_cat
+                surr2 = torch.clamp(ratio, 1 - EPS, 1 + EPS) * batch_advantage_cat
+                actor_loss = torch.mean(-torch.min(surr1, surr2))
+                critic_loss = torch.mean(F.mse_loss(self.critic(batch_u, batch_v, batch_u_mask, batch_v_mask), 
+                                                    batch_td_target))
+            
+                self.actor_optimizer.zero_grad()
+                actor_loss.backward()
+                self.actor_optimizer.step()
+                
+                self.critic_optimizer.zero_grad()
+                critic_loss.backward()
+                self.critic_optimizer.step()
 
-            self.loss_log.append((actor_loss.item(), critic_loss.item()))
+                self.loss_log.append((actor_loss.item(), critic_loss.item()))
         
         # update lagrangian multiplier
         lambda_loss = -self.lambda_ * lambda_constraint 
