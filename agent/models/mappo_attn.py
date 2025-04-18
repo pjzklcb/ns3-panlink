@@ -15,6 +15,7 @@ import random
 
 N_EPOCHS = 10
 BATCH_SIZE = 4096
+ENTROPY_COEF = 0.01
 EPS = 0.2
 DROPOUT = 0.2
 
@@ -278,7 +279,9 @@ class MAPPO:
                 ratio = torch.exp(log_probs - batch_old_log_probs_cat)
                 surr1 = ratio * batch_advantage_cat
                 surr2 = torch.clamp(ratio, 1 - EPS, 1 + EPS) * batch_advantage_cat
-                actor_loss = torch.mean(-torch.min(surr1, surr2))
+                # entropy
+                entropy = -torch.sum(log_probs * torch.exp(log_probs), dim=1).mean()
+                actor_loss = -torch.mean(torch.min(surr1, surr2)) - ENTROPY_COEF * entropy
                 critic_loss = torch.mean(F.mse_loss(self.critic(batch_u, batch_v, batch_u_mask, batch_v_mask), 
                                                     batch_td_target))
             
@@ -290,7 +293,7 @@ class MAPPO:
                 critic_loss.backward()
                 self.critic_optimizer.step()
 
-                self.loss_log.append((actor_loss.item(), critic_loss.item()))
+                self.loss_log.append((actor_loss.item(), critic_loss.item(), entropy.item()))
         
         # update lagrangian multiplier
         lambda_loss = -self.lambda_ * lambda_constraint 
