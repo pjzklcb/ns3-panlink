@@ -16,7 +16,7 @@ import random
 N_EPOCHS = 10
 BATCH_SIZE = 4096
 ENTROPY_COEF = 0.01
-EPS = 0.2
+EPS = 0.1
 DROPOUT = 0.2
 
 
@@ -166,9 +166,11 @@ class MAPPO:
         self.lmbda = lmbda
         self.lambda_ = nn.Parameter(torch.tensor(lambda_), requires_grad=True)
         self.lambda_optimizer = optim.Adam([self.lambda_], lr=lambda_lr, eps=1e-5)
+        self.entropy_coef = ENTROPY_COEF
 
         self.transition_dict = []
         self.loss_log = []
+        self.entropy_log = []
     
     def choose_action(self, agent_features, neighbor_features):
         agent_features = torch.tensor([agent_features], dtype=torch.float).to(self.device)
@@ -208,7 +210,6 @@ class MAPPO:
         actions = rnn_utils.pad_sequence(
             [torch.tensor(x) for x in a], batch_first=True
         )   # (n_steps, max_n_agents, action_dim)
-        actions_cat = torch.tensor([y for x in a for y in x]).unsqueeze(1) # (n_steps*n_agents, 1)
         rewards = torch.tensor(r, dtype=torch.float).unsqueeze(1)               # (n_steps, 1)
         constraint_violations = torch.tensor(c, dtype=torch.float).unsqueeze(1) # (n_steps, 1)
         next_agent_features = rnn_utils.pad_sequence(
@@ -243,7 +244,7 @@ class MAPPO:
             advantage_cat = torch.repeat_interleave(advantage, n_agents_per_sample, dim=0) # (n_steps*n_agents,)
             old_log_probs_cat = torch.log(self.actor(agent_features_cat, 
                                                      agent_neighbor_features_cat, 
-                                                     agent_neighbor_cat_mask).gather(1, actions_cat)).detach()
+                                                     agent_neighbor_cat_mask)).detach()
             
         finally:
             self.actor = self.actor.to(self.device)
@@ -271,17 +272,21 @@ class MAPPO:
                 batch_a_cat = batch_a[batch_idx, agent_idx].unsqueeze(1)
                 batch_vu_mask_cat = batch_vu_mask[batch_idx, agent_idx]
                 batch_advantage_cat = batch_advantage[batch_idx, agent_idx]
-                batch_old_log_probs_cat = batch_old_log_probs[batch_idx, agent_idx]
 
+                old_log_probs = batch_old_log_probs[batch_idx, agent_idx]
                 log_probs = torch.log(self.actor(batch_u_cat, 
                                                  batch_vu_cat, 
-                                                 batch_vu_mask_cat).gather(1, batch_a_cat))
-                ratio = torch.exp(log_probs - batch_old_log_probs_cat)
+                                                 batch_vu_mask_cat))
+                # calculate entropy and kl divergence
+                entropy = -torch.sum(log_probs * torch.exp(log_probs), dim=1).mean()
+                kl = torch.sum(torch.exp(old_log_probs) * (old_log_probs - log_probs), dim=1).mean()
+
+                old_log_probs_a = old_log_probs.gather(1, batch_a_cat)
+                log_probs_a = log_probs.gather(1, batch_a_cat)
+                ratio = torch.exp(log_probs_a - old_log_probs_a)
                 surr1 = ratio * batch_advantage_cat
                 surr2 = torch.clamp(ratio, 1 - EPS, 1 + EPS) * batch_advantage_cat
-                # entropy
-                entropy = -torch.sum(log_probs * torch.exp(log_probs), dim=1).mean()
-                actor_loss = -torch.mean(torch.min(surr1, surr2)) - ENTROPY_COEF * entropy
+                actor_loss = -torch.mean(torch.min(surr1, surr2)) - self.entropy_coef * entropy
                 critic_loss = torch.mean(F.mse_loss(self.critic(batch_u, batch_v, batch_u_mask, batch_v_mask), 
                                                     batch_td_target))
             
@@ -293,7 +298,8 @@ class MAPPO:
                 critic_loss.backward()
                 self.critic_optimizer.step()
 
-                self.loss_log.append((actor_loss.item(), critic_loss.item(), entropy.item()))
+                self.loss_log.append((actor_loss.item(), critic_loss.item()))
+                self.entropy_log.append((entropy.item(), kl.item()))
         
         # update lagrangian multiplier
         lambda_loss = -self.lambda_ * lambda_constraint 
@@ -303,10 +309,19 @@ class MAPPO:
         with torch.no_grad():
             self.lambda_.data.clamp_(0, 1)
 
+        # adjust entropy coefficient
+        ave_entropy = np.mean(self.entropy_log, axis=0)[0]
+        if ave_entropy < 0.5:
+            self.entropy_coef *= 1.1
+        elif ave_entropy > 1.5:
+            self.entropy_coef *= 0.9
+        self.entropy_coef = np.clip(self.entropy_coef, 0.01, 0.1)
+
         self.transition_dict = []   # on policy
     
     def reset(self):
         self.loss_log = []
+        self.entropy_log = []
     
     def update_learning_rate(self, actor_lr, critic_lr, lambda_lr):
         self.actor_optimizer.param_groups[0]['lr'] = actor_lr

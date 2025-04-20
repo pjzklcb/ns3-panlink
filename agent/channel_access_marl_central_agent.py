@@ -19,12 +19,12 @@ from models.mappo_attn import MAPPO
 
 # hyperparameters
 HIDDEN_DIM = 64
-ACTOR_LR = 3e-4
+ACTOR_LR = 1e-4
 CRITIC_LR = 1e-3
 GAMMA = 0.98
 LMBDA = 0.95
 LAMBDA_ = 0.01
-LAMBDA_LR = 1e-4
+LAMBDA_LR = 3e-4
 CONSTRAINT_VIOLATION_TH = 0
         
 
@@ -50,6 +50,8 @@ class ChannelAccessMarlCentralAgent(RlAgent):
         self.lambda_log = []
         self.n_agents_log = []
         self.ave_backoff_ratio_log = []
+        self.loss_log = []
+        self.entropy_log = []
 
         # load pretrained model
         try:
@@ -147,17 +149,23 @@ class ChannelAccessMarlCentralAgent(RlAgent):
             lambda_constraint += c#+CONSTRAINT_VIOLATION_TH if c < -CONSTRAINT_VIOLATION_TH or c > 0 else 0
 
         self.model.learn(lambda_constraint)
-        self.plot_loss()
-        self.model.reset()
 
         # update local models
         for _, agent in self.local_agents.items():
             agent.model.actor.load_state_dict(self.model.actor.state_dict())
 
         # update lambda
-        if len(self.episode_log) < 50:
+        if len(self.episode_log) < 100:
             self.model.update_lambda(0)
         self.lambda_log.append(self.model.lambda_.item())
+
+        # handle learning results
+        actor_loss, critic_loss = np.mean(self.model.loss_log, axis=0)
+        self.loss_log.append((actor_loss, critic_loss))
+        ave_entropy, ave_kl = np.mean(self.model.entropy_log, axis=0)
+        self.entropy_log.append((ave_entropy, ave_kl))
+        # self.plot_loss()
+        self.model.reset()
 
     def reset(self):
         self.sim_time = 0
@@ -210,7 +218,7 @@ class ChannelAccessMarlCentralAgent(RlAgent):
         if save_dir is None:
             return
         
-        actor_loss, critic_loss, entropy = zip(*self.model.loss_log)
+        actor_loss, critic_loss = zip(*self.model.loss_log)
         fig, ax1 = plt.subplots()
         ax1.plot(range(len(actor_loss)), actor_loss, 'b-', linewidth=1)
         ax1.set_xlabel('Epoch')
@@ -223,13 +231,6 @@ class ChannelAccessMarlCentralAgent(RlAgent):
         ax2.tick_params('y', colors='r')
         fig.savefig('{}/mappo_{}_loss.png'.format(self.save_dir, self.agent_type.name))
         plt.close(fig)
-
-        plt.figure()
-        plt.plot(range(len(entropy)), entropy, 'b-', linewidth=1)
-        plt.xlabel('Epoch')
-        plt.ylabel('Entropy')
-        plt.savefig('{}/mappo_{}_entropy.png'.format(save_dir, self.agent_type.name))
-        plt.close()
 
     def plot_episodes(self, save_dir=None):
         save_dir = save_dir if save_dir is not None else self.save_dir
@@ -252,7 +253,7 @@ class ChannelAccessMarlCentralAgent(RlAgent):
         ax2.plot(self.n_agents_log, 'r:', linewidth=1, alpha=0.5)
         ax2.set_ylabel('# of Agents', color='r')
         ax2.tick_params('y', colors='r')
-        fig.savefig('{}/mappo_{}.png'.format(save_dir, self.agent_type.name))
+        fig.savefig('{}/mappo_{}_reward.png'.format(save_dir, self.agent_type.name))
         plt.close()
 
         plt.figure()
@@ -267,6 +268,35 @@ class ChannelAccessMarlCentralAgent(RlAgent):
         plt.xlabel('Episode')
         plt.ylabel('Lambda')
         plt.savefig('{}/mappo_{}_lambda.png'.format(save_dir, self.agent_type.name))
+        plt.close()
+
+        actor_loss, critic_loss = zip(*self.loss_log)
+        fig, ax1 = plt.subplots()
+        ax1.plot(actor_loss, 'b-', linewidth=1)
+        ax1.set_xlabel('Episode')
+        ax1.set_ylabel('Actor Loss', color='b')
+        ax1.tick_params('y', colors='b')
+
+        ax2 = ax1.twinx()
+        ax2.plot(critic_loss, 'r-', linewidth=1)
+        ax2.set_ylabel('Critic Loss', color='r')
+        ax2.tick_params('y', colors='r')
+        fig.savefig('{}/mappo_{}_loss.png'.format(save_dir, self.agent_type.name))
+        plt.close()
+
+        ave_entropy, ave_kl = zip(*self.entropy_log)
+        fig, ax1 = plt.subplots()
+        ax1.plot(ave_entropy, 'b-', linewidth=1)
+        ax1.set_xlabel('Episode')
+        ax1.set_ylabel('Average Entropy', color='b')
+        ax1.tick_params('y', colors='b')
+
+        ax2 = ax1.twinx()
+        ax2.plot(ave_kl, 'r-', linewidth=1)
+        ax2.set_ylabel('Average KL Divergence', color='r')
+        ax2.tick_params('y', colors='r')
+        fig.tight_layout()
+        fig.savefig('{}/mappo_{}_entropy.png'.format(save_dir, self.agent_type.name))
         plt.close()
 
         with open(os.path.join(save_dir, 'episode.csv'), 'w') as f:
