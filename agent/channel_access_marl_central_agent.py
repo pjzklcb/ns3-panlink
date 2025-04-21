@@ -141,7 +141,7 @@ class ChannelAccessMarlCentralAgent(RlAgent):
         if not self.enable_learning:
             return
         
-        # learn
+        # organize trajectory
         self.store_trajectory()
         lambda_constraint = 0
         for _, c_log in self.constraint_log.items():
@@ -155,7 +155,7 @@ class ChannelAccessMarlCentralAgent(RlAgent):
             agent.model.actor.load_state_dict(self.model.actor.state_dict())
 
         # update lambda
-        if len(self.episode_log) < 100:
+        if len(self.episode_log) < 50:
             self.model.update_lambda(0)
         self.lambda_log.append(self.model.lambda_.item())
 
@@ -171,8 +171,10 @@ class ChannelAccessMarlCentralAgent(RlAgent):
         self.sim_time = 0
         self.step_time = []
 
+        # train model
         self.learn()
 
+        # record log for plot
         self.plot_results()
         if len(self.reward_log):
             self.episode += 1

@@ -9,21 +9,14 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 import torch.nn.utils.rnn as rnn_utils
-from torch.utils.data import TensorDataset, DataLoader
 import numpy as np
-import random
 
 N_EPOCHS = 10
 BATCH_SIZE = 4096
 ENTROPY_COEF = 0.01
-EPS = 0.1
+EPS = 0.2
 DROPOUT = 0.2
 
-
-def seed_worker(worker_id):
-    worker_seed = torch.initial_seed() % 2**32
-    np.random.seed(worker_seed)
-    random.seed(worker_seed)
 
 # reshape concatenated features and padding
 def restore_cat(feature_cat, n_agents_per_sample):
@@ -37,24 +30,6 @@ def restore_cat(feature_cat, n_agents_per_sample):
     ) # (batch_size, max_n_agents, feature_dim)
 
     return feature_pad
-
-
-class DeviceAwareLoader:
-    def __init__(self, dataset, device, batch_size=BATCH_SIZE):
-        g = torch.Generator()
-        g.manual_seed(torch.initial_seed() % 2**32)
-        self.loader = DataLoader(dataset, 
-                                 batch_size=batch_size, 
-                                 num_workers=4,
-                                 shuffle=True, 
-                                 pin_memory=torch.cuda.is_available(), 
-                                 worker_init_fn=seed_worker,
-                                 generator=g)
-        self.device = device
-
-    def __iter__(self):
-        for batch in self.loader:
-            yield tuple(t.to(self.device, non_blocking=True) for t in batch)
 
 
 class PolicyNet(nn.Module):
@@ -237,7 +212,7 @@ class MAPPO:
             self.actor = self.actor.cpu()
             self.critic = self.critic.cpu()
             td_target = rewards + self.gamma * self.critic(next_agent_features, next_neighbor_features, 
-                                                           next_agent_mask, next_neighbor_mask)
+                                                           next_agent_mask, next_neighbor_mask).detach()
             td_delta = td_target - self.critic(agent_features, neighbor_features, agent_mask, neighbor_mask)
             advantage = self.compute_advantage(td_delta.detach())
             advantage = (advantage - advantage.mean()) / (advantage.std() + 1e-8)
@@ -256,34 +231,43 @@ class MAPPO:
         agent_neighbor_mask = restore_cat(agent_neighbor_cat_mask, n_agents_per_sample)
         advantage = restore_cat(advantage_cat, n_agents_per_sample)
         old_log_probs = restore_cat(old_log_probs_cat, n_agents_per_sample)
-        dataset = TensorDataset(agent_features, agent_neighbor_features, neighbor_features, 
-                                actions, agent_mask, agent_neighbor_mask, neighbor_mask, 
-                                td_target.detach(), advantage, old_log_probs)
-        dataloader = DeviceAwareLoader(dataset, self.device)
 
         # update actor-critic
         for _ in range(N_EPOCHS):
-            for batch in dataloader:
-                batch_u, batch_vu, batch_v, batch_a, batch_u_mask, batch_vu_mask, batch_v_mask, \
-                    batch_td_target, batch_advantage, batch_old_log_probs = batch
-                batch_idx, agent_idx = torch.where(~batch_u_mask)
-                batch_u_cat = batch_u[batch_idx, agent_idx]
-                batch_vu_cat = batch_vu[batch_idx, agent_idx]
-                batch_a_cat = batch_a[batch_idx, agent_idx].unsqueeze(1)
-                batch_vu_mask_cat = batch_vu_mask[batch_idx, agent_idx]
-                batch_advantage_cat = batch_advantage[batch_idx, agent_idx]
+            indices = torch.randperm(len(u))
+            for i in range(0, len(u), BATCH_SIZE):
+                # create mini-batch
+                batch_idx = indices[i:i+BATCH_SIZE]
+                batch_u = agent_features[batch_idx].to(self.device)
+                batch_vu = agent_neighbor_features[batch_idx].to(self.device) 
+                batch_v = neighbor_features[batch_idx].to(self.device)
+                batch_a = actions[batch_idx].to(self.device) 
+                batch_u_mask = agent_mask[batch_idx].to(self.device)
+                batch_vu_mask = agent_neighbor_mask[batch_idx].to(self.device)
+                batch_v_mask = neighbor_mask[batch_idx].to(self.device)
+                batch_td_target = td_target[batch_idx].to(self.device)
+                batch_advantage = advantage[batch_idx].to(self.device)
+                batch_old_log_probs = old_log_probs[batch_idx].to(self.device)
 
-                old_log_probs = batch_old_log_probs[batch_idx, agent_idx]
-                log_probs = torch.log(self.actor(batch_u_cat, 
-                                                 batch_vu_cat, 
-                                                 batch_vu_mask_cat))
+                # remove padding
+                valid_batch_idx, valid_gent_idx = torch.where(~batch_u_mask)
+                batch_u_cat = batch_u[valid_batch_idx, valid_gent_idx]
+                batch_vu_cat = batch_vu[valid_batch_idx, valid_gent_idx]
+                batch_a_cat = batch_a[valid_batch_idx, valid_gent_idx].unsqueeze(1)
+                batch_vu_mask_cat = batch_vu_mask[valid_batch_idx, valid_gent_idx]
+                batch_advantage_cat = batch_advantage[valid_batch_idx, valid_gent_idx]
+
+                batch_old_log_probs_cat = batch_old_log_probs[valid_batch_idx, valid_gent_idx]
+                batch_log_probs_cat = torch.log(self.actor(batch_u_cat, 
+                                                           batch_vu_cat, 
+                                                           batch_vu_mask_cat))
                 # calculate entropy and kl divergence
-                entropy = -torch.sum(log_probs * torch.exp(log_probs), dim=1).mean()
-                kl = torch.sum(torch.exp(old_log_probs) * (old_log_probs - log_probs), dim=1).mean()
+                entropy = -torch.sum(batch_log_probs_cat * torch.exp(batch_log_probs_cat), dim=1).mean()
+                kl = torch.sum(torch.exp(batch_old_log_probs_cat) * (batch_old_log_probs_cat - batch_log_probs_cat), dim=1).mean()
 
-                old_log_probs_a = old_log_probs.gather(1, batch_a_cat)
-                log_probs_a = log_probs.gather(1, batch_a_cat)
-                ratio = torch.exp(log_probs_a - old_log_probs_a)
+                batch_old_log_probs_cat_select = batch_old_log_probs_cat.gather(1, batch_a_cat)
+                batch_log_probs_cat_select = batch_log_probs_cat.gather(1, batch_a_cat)
+                ratio = torch.exp(batch_log_probs_cat_select - batch_old_log_probs_cat_select)
                 surr1 = ratio * batch_advantage_cat
                 surr2 = torch.clamp(ratio, 1 - EPS, 1 + EPS) * batch_advantage_cat
                 actor_loss = -torch.mean(torch.min(surr1, surr2)) - self.entropy_coef * entropy
