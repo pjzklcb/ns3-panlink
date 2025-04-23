@@ -19,12 +19,12 @@ from models.mappo_attn import MAPPO
 
 # hyperparameters
 HIDDEN_DIM = 64
-ACTOR_LR = 1e-4
+ACTOR_LR = 3e-4
 CRITIC_LR = 1e-3
 GAMMA = 0.98
 LMBDA = 0.95
 LAMBDA_ = 0.01
-LAMBDA_LR = 3e-4
+LAMBDA_LR = 3e-3
 
 
 class ChannelAccessMarlLocalAgent(RlAgent):
@@ -44,7 +44,6 @@ class ChannelAccessMarlLocalAgent(RlAgent):
         self.backoff_ratio_log = []
         self.pk_log = []
         self.mean_backoff_ratio_log = []
-        self.debug_mode = True
         self.central_agent = None
 
         # load pretrained model

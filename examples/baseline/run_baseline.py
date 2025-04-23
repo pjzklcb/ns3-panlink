@@ -175,13 +175,14 @@ if __name__ == '__main__':
                 learn_dir = os.path.join(episode_dir, 'learn')
                 os.makedirs(learn_dir)
                 agent_manager.set_save_dir(learn_dir)
+                agent_manager.set_debug_mode(True)
 
                 ns3_settings['resultDir'] = episode_dir
                 ns3_settings['stats'] = True
                 with open(os.path.join(episode_dir, 'ns3_settings.json'), 'w') as f:
                     json.dump(ns3_settings, f, indent=4)
             else:
-                agent_manager.set_save_dir(None)
+                agent_manager.set_debug_mode(False)
                 ns3_settings['stats'] = False
         
         # run ns-3 simulation

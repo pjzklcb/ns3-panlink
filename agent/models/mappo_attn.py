@@ -212,7 +212,7 @@ class MAPPO:
             self.actor = self.actor.cpu()
             self.critic = self.critic.cpu()
             td_target = rewards + self.gamma * self.critic(next_agent_features, next_neighbor_features, 
-                                                           next_agent_mask, next_neighbor_mask).detach()
+                                                           next_agent_mask, next_neighbor_mask)
             td_delta = td_target - self.critic(agent_features, neighbor_features, agent_mask, neighbor_mask)
             advantage = self.compute_advantage(td_delta.detach())
             advantage = (advantage - advantage.mean()) / (advantage.std() + 1e-8)
@@ -245,7 +245,7 @@ class MAPPO:
                 batch_u_mask = agent_mask[batch_idx].to(self.device)
                 batch_vu_mask = agent_neighbor_mask[batch_idx].to(self.device)
                 batch_v_mask = neighbor_mask[batch_idx].to(self.device)
-                batch_td_target = td_target[batch_idx].to(self.device)
+                batch_td_target = td_target[batch_idx].detach().to(self.device)
                 batch_advantage = advantage[batch_idx].to(self.device)
                 batch_old_log_probs = old_log_probs[batch_idx].to(self.device)
 
@@ -285,6 +285,25 @@ class MAPPO:
                 self.loss_log.append((actor_loss.item(), critic_loss.item()))
                 self.entropy_log.append((entropy.item(), kl.item()))
         
+        self.transition_dict = []   # on policy
+        # adjust hyperparameters
+        ave_entropy, ave_kl = np.mean(self.entropy_log, axis=0)
+        actor_lr = self.actor_optimizer.param_groups[0]['lr']
+        if ave_kl > 0.1:
+            actor_lr *= 0.9
+        elif ave_kl < 0.01:
+            actor_lr *= 1.1
+        self.actor_optimizer.param_groups[0]['lr'] = np.clip(actor_lr, 1e-5, 3e-4)
+        if ave_kl > 0.1: # revert back to latest model
+            return False
+
+        # adjust entropy coefficient
+        if ave_entropy < 0.5:
+            self.entropy_coef *= 1.1
+        elif ave_entropy > 1.5:
+            self.entropy_coef *= 0.9
+        self.entropy_coef = np.clip(self.entropy_coef, 0.01, 0.1)
+        
         # update lagrangian multiplier
         lambda_loss = -self.lambda_ * lambda_constraint 
         self.lambda_optimizer.zero_grad()
@@ -293,15 +312,7 @@ class MAPPO:
         with torch.no_grad():
             self.lambda_.data.clamp_(0, 1)
 
-        # adjust entropy coefficient
-        ave_entropy = np.mean(self.entropy_log, axis=0)[0]
-        if ave_entropy < 0.5:
-            self.entropy_coef *= 1.1
-        elif ave_entropy > 1.5:
-            self.entropy_coef *= 0.9
-        self.entropy_coef = np.clip(self.entropy_coef, 0.01, 0.1)
-
-        self.transition_dict = []   # on policy
+        return True
     
     def reset(self):
         self.loss_log = []

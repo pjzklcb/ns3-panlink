@@ -19,12 +19,12 @@ from models.mappo_attn import MAPPO
 
 # hyperparameters
 HIDDEN_DIM = 64
-ACTOR_LR = 1e-4
+ACTOR_LR = 3e-4
 CRITIC_LR = 1e-3
 GAMMA = 0.98
 LMBDA = 0.95
 LAMBDA_ = 0.01
-LAMBDA_LR = 3e-4
+LAMBDA_LR = 3e-3
 CONSTRAINT_VIOLATION_TH = 0
         
 
@@ -148,14 +148,19 @@ class ChannelAccessMarlCentralAgent(RlAgent):
             c = np.mean(c_log)
             lambda_constraint += c#+CONSTRAINT_VIOLATION_TH if c < -CONSTRAINT_VIOLATION_TH or c > 0 else 0
 
-        self.model.learn(lambda_constraint)
+        # revert to latest model if high volatility
+        tmp_dir = os.path.join(self.save_dir, "../../")
+        self.save_model(tmp_dir)
+        if not self.model.learn(lambda_constraint):
+            self.model.load_model(os.path.join(tmp_dir, f'mappo_{self.agent_type.name}_actor.pt'),
+                                  os.path.join(tmp_dir, f'mappo_{self.agent_type.name}_critic.pt'))
 
         # update local models
         for _, agent in self.local_agents.items():
             agent.model.actor.load_state_dict(self.model.actor.state_dict())
 
         # update lambda
-        if len(self.episode_log) < 50:
+        if self.episode < 50:
             self.model.update_lambda(0)
         self.lambda_log.append(self.model.lambda_.item())
 
@@ -164,7 +169,8 @@ class ChannelAccessMarlCentralAgent(RlAgent):
         self.loss_log.append((actor_loss, critic_loss))
         ave_entropy, ave_kl = np.mean(self.model.entropy_log, axis=0)
         self.entropy_log.append((ave_entropy, ave_kl))
-        # self.plot_loss()
+        # if self.debug_mode:
+        #     self.plot_loss()
         self.model.reset()
 
     def reset(self):

@@ -12,23 +12,29 @@ from agent_utils import AgentType
 
 class RlAgent():
     def __init__(self, node_id, memory_id, enable_learning=True):
+        # interaction mechanism
         self.node_id = node_id
         self.memory_id = memory_id
         self.agent_type = AgentType.NO_RL
         self.counter = 0
         self.more_data = False
+
+        # learning logs
         self.sim_time = 0
         self.delta_time = 0
         self.state = None
         self.action = None
         self.action_log = []
         self.reward_log = []
+
+        # log for plot
         self.step_time = []     # (sim_time, counter)
         self.episode = 0
         self.episode_log = []
 
         self.enable_learning = enable_learning
         self.show_log = False
+        self.debug_mode = False
         self.save_dir = '.'
 
     def is_active(self, msg_interface):

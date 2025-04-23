@@ -112,6 +112,12 @@ class AgentManager:
     def set_action(self, msg_interface):
         self.active_agent.set_action(msg_interface)
     
+    # enable debug log recording
+    def set_debug_mode(self, debug_mode):
+        for node, agents in self.agent_dict.items():
+            for agent in agents:
+                agent.debug_mode = debug_mode
+
     def set_save_dir(self, save_dir):
         for node, agents in self.agent_dict.items():
             for agent in agents:
