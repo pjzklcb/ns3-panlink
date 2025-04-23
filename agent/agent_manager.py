@@ -45,6 +45,8 @@ class AgentManager:
                 
                 local_agent.central_agent = central_agent
                 central_agent.local_agents[node_id] = local_agent
+                # set to identical initial actor model
+                local_agent.model.actor.load_state_dict(central_agent.model.actor.state_dict())
             
             return local_agent
         

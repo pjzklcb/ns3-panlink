@@ -137,23 +137,22 @@ class ChannelAccessMarlCentralAgent(RlAgent):
             u_, v_ = self.trajectory[i+1][0], self.trajectory[i+1][2]
             self.model.store_transition(u, vu, v, a, r, c, u_, v_)
 
-    def learn(self):
+    def learn(self, rollback=False):
         if not self.enable_learning:
             return
         
-        # organize trajectory
-        self.store_trajectory()
         lambda_constraint = 0
         for _, c_log in self.constraint_log.items():
             c = np.mean(c_log)
             lambda_constraint += c#+CONSTRAINT_VIOLATION_TH if c < -CONSTRAINT_VIOLATION_TH or c > 0 else 0
 
-        # revert to latest model if high volatility
-        tmp_dir = os.path.join(self.save_dir, "../../")
-        self.save_model(tmp_dir)
-        if not self.model.learn(lambda_constraint):
-            self.model.load_model(os.path.join(tmp_dir, f'mappo_{self.agent_type.name}_actor.pt'),
-                                  os.path.join(tmp_dir, f'mappo_{self.agent_type.name}_critic.pt'))
+        # rollback to latest model if high volatility
+        if rollback:
+            self.model.load_model(actor_dir=tmp_actor_dir, noise=0.01)
+        else:
+            tmp_actor_dir = os.path.join(self.save_dir, f'../../mappo_{self.agent_type.name}_actor.pt')
+            self.model.save_model(actor_dir=tmp_actor_dir)
+            self.model.learn(lambda_constraint)
 
         # update local models
         for _, agent in self.local_agents.items():
@@ -165,20 +164,20 @@ class ChannelAccessMarlCentralAgent(RlAgent):
         self.lambda_log.append(self.model.lambda_.item())
 
         # handle learning results
-        actor_loss, critic_loss = np.mean(self.model.loss_log, axis=0)
+        actor_loss, critic_loss = np.mean(self.model.loss_log, axis=0) if len(self.model.loss_log) > 0 else (0, 0)
         self.loss_log.append((actor_loss, critic_loss))
-        ave_entropy, ave_kl = np.mean(self.model.entropy_log, axis=0)
+        ave_entropy, ave_kl = np.mean(self.model.entropy_log, axis=0) if len(self.model.entropy_log) > 0 else (0, 0)
         self.entropy_log.append((ave_entropy, ave_kl))
-        # if self.debug_mode:
-        #     self.plot_loss()
+        if self.debug_mode:
+            self.plot_loss()
         self.model.reset()
 
     def reset(self):
         self.sim_time = 0
         self.step_time = []
 
-        # train model
-        self.learn()
+        # organize trajectory
+        self.store_trajectory()
 
         # record log for plot
         self.plot_results()
@@ -193,6 +192,9 @@ class ChannelAccessMarlCentralAgent(RlAgent):
                 ave_backoff_ratio.append(np.mean(agent.backoff_ratio_log))
         self.ave_backoff_ratio_log.append(np.mean(ave_backoff_ratio))
         self.n_agents_log.append(len(ave_backoff_ratio))
+
+        # train model
+        self.learn(rollback=len(ave_backoff_ratio)==0)
 
         # reset trajectory log
         self.reward_log = []

@@ -225,7 +225,7 @@ class MAPPO:
             self.actor = self.actor.to(self.device)
             self.critic = self.critic.to(self.device)
         
-        # create dataloader
+        # reshape and padding to (n_steps, ...)
         n_agents_per_sample = n_agents_per_sample.cpu().tolist()
         agent_neighbor_features = restore_cat(agent_neighbor_features_cat, n_agents_per_sample)
         agent_neighbor_mask = restore_cat(agent_neighbor_cat_mask, n_agents_per_sample)
@@ -285,7 +285,6 @@ class MAPPO:
                 self.loss_log.append((actor_loss.item(), critic_loss.item()))
                 self.entropy_log.append((entropy.item(), kl.item()))
         
-        self.transition_dict = []   # on policy
         # adjust hyperparameters
         ave_entropy, ave_kl = np.mean(self.entropy_log, axis=0)
         actor_lr = self.actor_optimizer.param_groups[0]['lr']
@@ -294,8 +293,6 @@ class MAPPO:
         elif ave_kl < 0.01:
             actor_lr *= 1.1
         self.actor_optimizer.param_groups[0]['lr'] = np.clip(actor_lr, 1e-5, 3e-4)
-        if ave_kl > 0.1: # revert back to latest model
-            return False
 
         # adjust entropy coefficient
         if ave_entropy < 0.5:
@@ -312,7 +309,7 @@ class MAPPO:
         with torch.no_grad():
             self.lambda_.data.clamp_(0, 1)
 
-        return True
+        self.transition_dict = []   # on policy
     
     def reset(self):
         self.loss_log = []
@@ -327,12 +324,19 @@ class MAPPO:
         with torch.no_grad():
             self.lambda_.data = torch.tensor(new_lambda, dtype=torch.float)
  
-    def save_model(self, actor_dir, critic_dir):
-        torch.save(self.actor.state_dict(), actor_dir)
-        torch.save(self.critic.state_dict(), critic_dir)
+    def save_model(self, actor_dir=None, critic_dir=None):
+        if actor_dir is not None:
+            torch.save(self.actor.state_dict(), actor_dir)
+        if critic_dir is not None:
+            torch.save(self.critic.state_dict(), critic_dir)
     
-    def load_model(self, actor_dir, critic_dir):
-        self.actor.load_state_dict(torch.load(actor_dir, map_location=self.device))
-        self.critic.load_state_dict(torch.load(critic_dir, map_location=self.device))
-        self.actor.to(self.device)
-        self.critic.to(self.device)
+    def load_model(self, actor_dir=None, critic_dir=None, noise=None):
+        if actor_dir is not None:
+            self.actor.load_state_dict(torch.load(actor_dir, map_location=self.device))
+            self.actor.to(self.device)
+            if noise is not None: # add noise
+                for param in self.actor.parameters():
+                    param.data += torch.randn(param.data.size()) * noise
+        if critic_dir is not None:
+            self.critic.load_state_dict(torch.load(critic_dir, map_location=self.device))
+            self.critic.to(self.device)
