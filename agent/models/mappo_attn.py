@@ -33,9 +33,42 @@ def restore_cat(feature_cat, n_agents_per_sample):
     return feature_pad
 
 
+class PopArt(nn.Module):
+    def __init__(self, output_dim, beta=0.99, epsilon=1e-5):
+        super().__init__()
+        self.beta = beta
+        self.epsilon = epsilon
+
+        self.weight = nn.Parameter(torch.ones(1, output_dim))
+        self.bias = nn.Parameter(torch.zeros(1, output_dim))
+
+        self.register_buffer("running_mean", torch.zeros(1, output_dim))
+        self.register_buffer("running_std", torch.ones(1, output_dim))
+    
+    def forward(self, x):
+        normalized = (x - self.running_mean) / (self.running_std + self.epsilon)
+        return self.weight * normalized + self.bias
+    
+    def normalize(self, targets):
+        return (targets - self.running_mean) / (self.running_std + self.epsilon)
+    
+    def denormalize(self, normalized_values):
+        return normalized_values * (self.running_std + self.epsilon) + self.running_mean
+    
+    def update_stats(self, targets):
+        with torch.no_grad():
+            batch_mean = torch.mean(targets, dim=0, keepdim=True)
+            batch_var = torch.var(targets, dim=0, keepdim=True, unbiased=False)
+            batch_std = torch.sqrt(batch_var + self.epsilon)
+            self.running_mean = self.beta * self.running_mean + (1 - self.beta) * batch_mean
+            self.running_std = self.beta * self.running_std + (1 - self.beta) * batch_std
+        
+        self.running_std = torch.clamp(self.running_std, min=self.epsilon)
+
+
 class PolicyNet(nn.Module):
     def __init__(self, agent_feature_dim, neighbor_feature_dim, action_dim, hidden_dim, n_head=1):
-        super(PolicyNet, self).__init__()
+        super().__init__()
         self.query = nn.Linear(agent_feature_dim, hidden_dim)
         self.key = nn.Linear(agent_feature_dim, hidden_dim)
         self.value = nn.Linear(agent_feature_dim, hidden_dim)
@@ -75,7 +108,7 @@ class PolicyNet(nn.Module):
 
 class ValueNet(nn.Module):
     def __init__(self, agent_feature_dim, neighbor_feature_dim, hidden_dim, n_head=1, pooling="mean"):
-        super(ValueNet, self).__init__()
+        super().__init__()
         self.query = nn.Linear(agent_feature_dim, hidden_dim)
         self.key = nn.Linear(agent_feature_dim, hidden_dim)
         self.value = nn.Linear(agent_feature_dim, hidden_dim)
@@ -127,14 +160,24 @@ class ValueNet(nn.Module):
             pooled_attn_output = attn_output.masked_fill(agent_key_padding_mask.unsqueeze(-1), float("-inf")).max(dim=1)[0]
 
         return self.decoder(pooled_attn_output)
-    
+
+
+class ValueNetWithPopArt(ValueNet):
+    def __init__(self, agent_feature_dim, neighbor_feature_dim, hidden_dim, n_head=1, pooling="mean"):
+        super().__init__(agent_feature_dim, neighbor_feature_dim, hidden_dim, n_head, pooling)
+        self.popart = PopArt(output_dim=1)
+
+    def forward(self, agent_features, neighbor_features, agent_key_padding_mask=None, neighbor_key_padding_mask=None):
+        raw = super().forward(agent_features, neighbor_features, agent_key_padding_mask, neighbor_key_padding_mask)
+        return self.popart(raw)
+
 
 class MAPPO:
     def __init__(self, agent_feature_dim, neighbor_feature_dim, action_dim, hidden_dim, 
                  actor_lr, critic_lr, lmbda, gamma, lambda_, lambda_lr):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.actor = PolicyNet(agent_feature_dim, neighbor_feature_dim, action_dim, hidden_dim).to(self.device)
-        self.critic = ValueNet(agent_feature_dim, neighbor_feature_dim, hidden_dim).to(self.device)
+        self.critic = ValueNetWithPopArt(agent_feature_dim, neighbor_feature_dim, hidden_dim).to(self.device)
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=actor_lr, eps=1e-5)
         self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=critic_lr, eps=1e-5)
 
@@ -212,15 +255,21 @@ class MAPPO:
         try:
             self.actor = self.actor.cpu()
             self.critic = self.critic.cpu()
-            td_target = rewards + self.gamma * self.critic(next_agent_features, next_neighbor_features, 
-                                                           next_agent_mask, next_neighbor_mask)
-            td_delta = td_target - self.critic(agent_features, neighbor_features, agent_mask, neighbor_mask)
-            advantage = self.compute_advantage(td_delta.detach())
+            with torch.no_grad():
+                next_value_norm = self.critic(next_agent_features, next_neighbor_features, 
+                                              next_agent_mask, next_neighbor_mask)
+                value_norm = self.critic(agent_features, neighbor_features, agent_mask, neighbor_mask)
+                old_probs_cat = self.actor(agent_features_cat, agent_neighbor_features_cat, 
+                                           agent_neighbor_cat_mask)
+                td_target = rewards + self.gamma * self.critic.popart.denormalize(next_value_norm)
+                self.critic.popart.update_stats(td_target)
+                td_delta = td_target - self.critic.popart.denormalize(value_norm)
+
+            td_target_norm = self.critic.popart.normalize(td_target)
+            advantage = self.compute_advantage(td_delta)
             advantage = (advantage - advantage.mean()) / (advantage.std() + 1e-8)
             advantage_cat = torch.repeat_interleave(advantage, n_agents_per_sample, dim=0) # (n_steps*n_agents,)
-            old_log_probs_cat = torch.log(self.actor(agent_features_cat, 
-                                                     agent_neighbor_features_cat, 
-                                                     agent_neighbor_cat_mask)).detach()
+            old_log_probs_cat = torch.log(old_probs_cat)
             
         finally:
             self.actor = self.actor.to(self.device)
@@ -246,7 +295,7 @@ class MAPPO:
                 batch_u_mask = agent_mask[batch_idx].to(self.device)
                 batch_vu_mask = agent_neighbor_mask[batch_idx].to(self.device)
                 batch_v_mask = neighbor_mask[batch_idx].to(self.device)
-                batch_td_target = td_target[batch_idx].detach().to(self.device)
+                batch_td_target_norm = td_target_norm[batch_idx].detach().to(self.device)
                 batch_advantage = advantage[batch_idx].to(self.device)
                 batch_old_log_probs = old_log_probs[batch_idx].to(self.device)
 
@@ -258,22 +307,25 @@ class MAPPO:
                 batch_vu_mask_cat = batch_vu_mask[valid_batch_idx, valid_gent_idx]
                 batch_advantage_cat = batch_advantage[valid_batch_idx, valid_gent_idx]
                 batch_old_log_probs_cat = batch_old_log_probs[valid_batch_idx, valid_gent_idx]
+                
 
                 # update critic
                 iter_critic = []
                 for _ in range(CRITIC_ITER):
-                    critic_loss = torch.mean(F.mse_loss(self.critic(batch_u, batch_v, batch_u_mask, batch_v_mask), 
-                                                        batch_td_target))
+                    value_norm = self.critic(batch_u, batch_v, batch_u_mask, batch_v_mask)
+                    critic_loss = torch.mean(F.mse_loss(value_norm, batch_td_target_norm))
                     self.critic_optimizer.zero_grad()
                     critic_loss.backward()
                     self.critic_optimizer.step()
                     nn.utils.clip_grad_norm_(self.critic.parameters(), 2.0)
                     iter_critic.append(critic_loss.item())
+                
+                # calculate entropy and kl divergence
+                batch_log_probs_cat = torch.log(self.actor(batch_u_cat, batch_vu_cat, batch_vu_mask_cat))
+                entropy = -torch.sum(batch_log_probs_cat * torch.exp(batch_log_probs_cat), dim=1).mean()
+                kl = torch.sum(torch.exp(batch_old_log_probs_cat) * (batch_old_log_probs_cat - batch_log_probs_cat), dim=1).mean()
 
                 # update actor
-                batch_log_probs_cat = torch.log(self.actor(batch_u_cat, 
-                                                           batch_vu_cat, 
-                                                           batch_vu_mask_cat))
                 batch_old_log_probs_cat_select = batch_old_log_probs_cat.gather(1, batch_a_cat)
                 batch_log_probs_cat_select = batch_log_probs_cat.gather(1, batch_a_cat)
                 ratio = torch.exp(batch_log_probs_cat_select - batch_old_log_probs_cat_select)
@@ -284,10 +336,6 @@ class MAPPO:
                 actor_loss.backward()
                 self.actor_optimizer.step()
                 nn.utils.clip_grad_norm_(self.actor.parameters(), 0.5)
-                
-                # calculate entropy and kl divergence
-                entropy = -torch.sum(batch_log_probs_cat * torch.exp(batch_log_probs_cat), dim=1).mean()
-                kl = torch.sum(torch.exp(batch_old_log_probs_cat) * (batch_old_log_probs_cat - batch_log_probs_cat), dim=1).mean()
 
                 self.loss_log.append((actor_loss.item(), np.mean(iter_critic)))
                 self.entropy_log.append((entropy.item(), kl.item()))
@@ -302,11 +350,11 @@ class MAPPO:
         self.actor_optimizer.param_groups[0]['lr'] = np.clip(actor_lr, 1e-4, 3e-4)
 
         # adjust entropy coefficient
-        if ave_entropy < 0.5:
-            self.entropy_coef *= 1.1
-        elif ave_entropy > 1.5:
-            self.entropy_coef *= 0.9
-        self.entropy_coef = np.clip(self.entropy_coef, 0.01, 0.1)
+        # if ave_entropy < 0.5:
+        #     self.entropy_coef *= 1.1
+        # elif ave_entropy > 1.5:
+        #     self.entropy_coef *= 0.9
+        # self.entropy_coef = np.clip(self.entropy_coef, 1e-5, 0.1)
         
         # update lagrangian multiplier
         lambda_loss = -self.lambda_ * lambda_constraint 

@@ -20,7 +20,7 @@ from models.mappo_attn import MAPPO
 # hyperparameters
 HIDDEN_DIM = 64
 ACTOR_LR = 3e-4
-CRITIC_LR = 1e-3
+CRITIC_LR = 3e-4
 GAMMA = 0.98
 LMBDA = 0.95
 LAMBDA_ = 0.01
@@ -117,8 +117,8 @@ class ChannelAccessMarlCentralAgent(RlAgent):
         for trans in self.transition_log:
             timestamp = trans["sim_time"]
             if timestamp - current_time < 2e-6:
-                # assert trans["node_id"] not in self.step_transition, "Duplicate node id."
-                print('TODO: Duplicate node id.')
+                if trans["node_id"] in self.step_transition:
+                    print('TODO: Duplicate node id.')
             elif timestamp - current_time > 7e-6:
                 self.archive_step_transition()
                 self.step_time.append(current_time)
@@ -147,10 +147,10 @@ class ChannelAccessMarlCentralAgent(RlAgent):
             lambda_constraint += c#+CONSTRAINT_VIOLATION_TH if c < -CONSTRAINT_VIOLATION_TH or c > 0 else 0
 
         # rollback to latest model if high volatility
+        tmp_actor_dir = os.path.join(self.save_dir, f'../../mappo_{self.agent_type.name}_actor.pt')
         if rollback:
             self.model.load_model(actor_dir=tmp_actor_dir, noise=0.01)
         else:
-            tmp_actor_dir = os.path.join(self.save_dir, f'../../mappo_{self.agent_type.name}_actor.pt')
             self.model.save_model(actor_dir=tmp_actor_dir)
             self.model.learn(lambda_constraint)
 
