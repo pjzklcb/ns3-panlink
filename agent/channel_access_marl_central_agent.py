@@ -106,7 +106,7 @@ class ChannelAccessMarlCentralAgent(RlAgent):
             list(neighbor_features.values()),
             actions, reward, c
         ])
-        self.reward_log.append(reward - self.model.lambda_.item() * c)
+        self.reward_log.append(reward - self.model.lambda_ * c)
 
         self.step_transition = {}
 
@@ -161,7 +161,7 @@ class ChannelAccessMarlCentralAgent(RlAgent):
         # update lambda
         if self.episode < 50:
             self.model.update_lambda(0)
-        self.lambda_log.append(self.model.lambda_.item())
+        self.lambda_log.append(self.model.lambda_)
 
         # handle learning results
         actor_loss, critic_loss = np.mean(self.model.loss_log, axis=0) if len(self.model.loss_log) > 0 else (0, 0)

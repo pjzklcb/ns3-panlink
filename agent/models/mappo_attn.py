@@ -183,13 +183,14 @@ class MAPPO:
 
         self.gamma = gamma
         self.lmbda = lmbda
-        self.lambda_ = nn.Parameter(torch.tensor(lambda_), requires_grad=True)
-        self.lambda_optimizer = optim.Adam([self.lambda_], lr=lambda_lr, eps=1e-5)
+        self.lambda_ = lambda_
+        self.lambda_lr = lambda_lr
         self.entropy_coef = ENTROPY_COEF
 
         self.transition_dict = []
         self.loss_log = []
         self.entropy_log = []
+        self.episode = 0
     
     def choose_action(self, agent_features, neighbor_features):
         agent_features = torch.tensor([agent_features], dtype=torch.float).to(self.device)
@@ -340,6 +341,13 @@ class MAPPO:
                 self.loss_log.append((actor_loss.item(), np.mean(iter_critic)))
                 self.entropy_log.append((entropy.item(), kl.item()))
         
+        # update lagrangian multiplier
+        self.lambda_ += self.lambda_lr * lambda_constraint
+        self.lambda_ = np.clip(self.lambda_, 0.0, 1.0)
+
+        self.episode += 1
+        self.transition_dict = []   # on policy
+
         # adjust hyperparameters
         ave_entropy, ave_kl = np.mean(self.entropy_log, axis=0)
         actor_lr = self.actor_optimizer.param_groups[0]['lr']
