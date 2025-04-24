@@ -11,8 +11,9 @@ import torch.nn.functional as F
 import torch.nn.utils.rnn as rnn_utils
 import numpy as np
 
-N_EPOCHS = 10
-BATCH_SIZE = 4096
+N_EPOCHS = 6
+CRITIC_ITER = 3
+BATCH_SIZE = 8192
 ENTROPY_COEF = 0.01
 EPS = 0.2
 DROPOUT = 0.2
@@ -256,33 +257,39 @@ class MAPPO:
                 batch_a_cat = batch_a[valid_batch_idx, valid_gent_idx].unsqueeze(1)
                 batch_vu_mask_cat = batch_vu_mask[valid_batch_idx, valid_gent_idx]
                 batch_advantage_cat = batch_advantage[valid_batch_idx, valid_gent_idx]
-
                 batch_old_log_probs_cat = batch_old_log_probs[valid_batch_idx, valid_gent_idx]
+
+                # update critic
+                iter_critic = []
+                for _ in range(CRITIC_ITER):
+                    critic_loss = torch.mean(F.mse_loss(self.critic(batch_u, batch_v, batch_u_mask, batch_v_mask), 
+                                                        batch_td_target))
+                    self.critic_optimizer.zero_grad()
+                    critic_loss.backward()
+                    self.critic_optimizer.step()
+                    nn.utils.clip_grad_norm_(self.critic.parameters(), 2.0)
+                    iter_critic.append(critic_loss.item())
+
+                # update actor
                 batch_log_probs_cat = torch.log(self.actor(batch_u_cat, 
                                                            batch_vu_cat, 
                                                            batch_vu_mask_cat))
-                # calculate entropy and kl divergence
-                entropy = -torch.sum(batch_log_probs_cat * torch.exp(batch_log_probs_cat), dim=1).mean()
-                kl = torch.sum(torch.exp(batch_old_log_probs_cat) * (batch_old_log_probs_cat - batch_log_probs_cat), dim=1).mean()
-
                 batch_old_log_probs_cat_select = batch_old_log_probs_cat.gather(1, batch_a_cat)
                 batch_log_probs_cat_select = batch_log_probs_cat.gather(1, batch_a_cat)
                 ratio = torch.exp(batch_log_probs_cat_select - batch_old_log_probs_cat_select)
                 surr1 = ratio * batch_advantage_cat
                 surr2 = torch.clamp(ratio, 1 - EPS, 1 + EPS) * batch_advantage_cat
                 actor_loss = -torch.mean(torch.min(surr1, surr2)) - self.entropy_coef * entropy
-                critic_loss = torch.mean(F.mse_loss(self.critic(batch_u, batch_v, batch_u_mask, batch_v_mask), 
-                                                    batch_td_target))
-            
                 self.actor_optimizer.zero_grad()
                 actor_loss.backward()
                 self.actor_optimizer.step()
+                nn.utils.clip_grad_norm_(self.actor.parameters(), 0.5)
                 
-                self.critic_optimizer.zero_grad()
-                critic_loss.backward()
-                self.critic_optimizer.step()
+                # calculate entropy and kl divergence
+                entropy = -torch.sum(batch_log_probs_cat * torch.exp(batch_log_probs_cat), dim=1).mean()
+                kl = torch.sum(torch.exp(batch_old_log_probs_cat) * (batch_old_log_probs_cat - batch_log_probs_cat), dim=1).mean()
 
-                self.loss_log.append((actor_loss.item(), critic_loss.item()))
+                self.loss_log.append((actor_loss.item(), np.mean(iter_critic)))
                 self.entropy_log.append((entropy.item(), kl.item()))
         
         # adjust hyperparameters
@@ -292,7 +299,7 @@ class MAPPO:
             actor_lr *= 0.9
         elif ave_kl < 0.01:
             actor_lr *= 1.1
-        self.actor_optimizer.param_groups[0]['lr'] = np.clip(actor_lr, 1e-5, 3e-4)
+        self.actor_optimizer.param_groups[0]['lr'] = np.clip(actor_lr, 1e-4, 3e-4)
 
         # adjust entropy coefficient
         if ave_entropy < 0.5:
