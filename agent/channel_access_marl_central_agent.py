@@ -23,8 +23,8 @@ ACTOR_LR = 3e-4
 CRITIC_LR = 3e-4
 GAMMA = 0.98
 LMBDA = 0.95
-LAMBDA_ = 0.01
-LAMBDA_LR = 3e-3
+LAMBDA_ = 0.1
+LAMBDA_LR = 1e-3
 CONSTRAINT_VIOLATION_TH = 0
         
 
@@ -159,8 +159,8 @@ class ChannelAccessMarlCentralAgent(RlAgent):
             agent.model.actor.load_state_dict(self.model.actor.state_dict())
 
         # update lambda
-        if self.episode < 50:
-            self.model.update_lambda(0)
+        # if self.episode < 50:
+        #     self.model.update_lambda(0)
         self.lambda_log.append(self.model.lambda_)
 
         # handle learning results

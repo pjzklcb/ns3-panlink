@@ -17,6 +17,7 @@ BATCH_SIZE = 8192
 ENTROPY_COEF = 0.01
 EPS = 0.2
 DROPOUT = 0.2
+NOISE = 0.05
 
 
 # reshape concatenated features and padding
@@ -309,7 +310,6 @@ class MAPPO:
                 batch_advantage_cat = batch_advantage[valid_batch_idx, valid_gent_idx]
                 batch_old_log_probs_cat = batch_old_log_probs[valid_batch_idx, valid_gent_idx]
                 
-
                 # update critic
                 iter_critic = []
                 for _ in range(CRITIC_ITER):
@@ -349,6 +349,16 @@ class MAPPO:
         self.transition_dict = []   # on policy
 
         # adjust hyperparameters
+        if self.episode > 120:
+            self.actor_optimizer.param_groups[0]['lr'] = 1e-4
+            self.entropy_coef = 1e-5
+            return 
+        
+        # add noise
+        if self.episode % 10 == 0:
+            self.add_noise(self.actor, (1 - self.episode / 120) * NOISE)
+
+        # adjust actor learning rate
         ave_entropy, ave_kl = np.mean(self.entropy_log, axis=0)
         actor_lr = self.actor_optimizer.param_groups[0]['lr']
         if ave_kl > 0.1:
@@ -358,30 +368,26 @@ class MAPPO:
         self.actor_optimizer.param_groups[0]['lr'] = np.clip(actor_lr, 1e-4, 3e-4)
 
         # adjust entropy coefficient
-        # if ave_entropy < 0.5:
-        #     self.entropy_coef *= 1.1
-        # elif ave_entropy > 1.5:
-        #     self.entropy_coef *= 0.9
-        # self.entropy_coef = np.clip(self.entropy_coef, 1e-5, 0.1)
-        
-        # update lagrangian multiplier
-        lambda_loss = -self.lambda_ * lambda_constraint 
-        self.lambda_optimizer.zero_grad()
-        lambda_loss.backward()
-        self.lambda_optimizer.step()
-        with torch.no_grad():
-            self.lambda_.data.clamp_(0, 1)
-
-        self.transition_dict = []   # on policy
+        if ave_entropy < 0.5:
+            self.entropy_coef *= 1.1
+        elif ave_entropy > 1.5:
+            self.entropy_coef *= 0.9
+        self.entropy_coef = np.clip(self.entropy_coef, 1e-5, 0.1)
     
     def reset(self):
         self.loss_log = []
         self.entropy_log = []
     
+    def add_noise(self, model, noise):
+        for name, param in model.named_parameters():
+            if 'weight' not in name or 'layer_norm' in name or 'decoder' in name:
+                continue
+            param.data += torch.randn(param.data.size(), device=param.device) * noise
+
     def update_learning_rate(self, actor_lr, critic_lr, lambda_lr):
         self.actor_optimizer.param_groups[0]['lr'] = actor_lr
         self.critic_optimizer.param_groups[0]['lr'] = critic_lr
-        self.lambda_optimizer.param_groups[0]['lr'] = lambda_lr
+        self.lambda_lr = lambda_lr
     
     def update_lambda(self, new_lambda):
         with torch.no_grad():
@@ -398,8 +404,7 @@ class MAPPO:
             self.actor.load_state_dict(torch.load(actor_dir, map_location=self.device))
             self.actor.to(self.device)
             if noise is not None: # add noise
-                for param in self.actor.parameters():
-                    param.data += torch.randn(param.data.size()) * noise
+                self.add_noise(self.actor, noise)
         if critic_dir is not None:
             self.critic.load_state_dict(torch.load(critic_dir, map_location=self.device))
             self.critic.to(self.device)
